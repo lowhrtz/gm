@@ -1,0 +1,243 @@
+#include "WizardPage.h"
+#include "Dice.h"
+#include <QDrag>
+#include <QDragMoveEvent>
+#include <QGridLayout>
+#include <QLineEdit>
+#include <QMimeData>
+#include <QToolButton>
+
+WizardPage::WizardPage(QWidget *parent) :
+    QWizardPage(parent) {
+
+}
+
+void WizardPage::publicRegisterField(const QString &name, QWidget *widget, const char *property, const char *changedSignal) {
+    this->registerField(name, widget, property, changedSignal);
+}
+
+void WizardPage::cleanupPage() {
+}
+
+void WizardPage::initializePage() {
+}
+
+RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent) :
+    WizardPage(parent) {
+
+    QPixmap dicePix(":/images/dice.png"), rollBanner(":/images/rollBanner.jpg");
+    QLabel *diceLabel;
+    PyObject *pyContent, *pyAttributeList, *pyAttribute,
+            *pyContentItem, *firstTupleItem, *secondTupleItem;
+    Py_ssize_t pyAttributeListSize, pyContentSize, tupleSize;
+    int nextRow = 0;
+    QGridLayout *layout;
+    QString pageTitle, pageSubtitle, rollMethod, diceString;
+
+    setStyleSheet("QLineEdit { background: #ffffff; color: #000000; }");
+
+    pyAttributeList = PyObject_GetAttrString(pyWizardPageInstance, (char *) "attribute_list");
+    if(!pyAttributeList ||
+            !PyList_Check(pyAttributeList)) {
+        printf("Error retrieving attribute_list from rollMethodsPage template. Make sure the variable has been added and that it contains a list of strings.\n");
+        PyErr_Print();
+        PyErr_Clear();
+        return;
+    }
+    pyAttributeListSize = PyList_Size(pyAttributeList);
+    for(int i = 0;i < pyAttributeListSize;i++) {
+        pyAttribute = PyList_GetItem(pyAttributeList, i);
+        if(!pyAttribute ||
+                !PyString_Check(pyAttribute)) {
+            printf("attribute_list item is not a Python string.\n");
+            PyErr_Print();
+            PyErr_Clear();
+            continue;
+        }
+        attributeList.append(PyString_AsString(pyAttribute));
+    }
+
+//    rollBanner
+    setPixmap(QWizard::WatermarkPixmap, rollBanner);
+    setPixmap(QWizard::BackgroundPixmap, rollBanner);
+//    wizardPage->setStyleSheet("QPixmap { padding: 5px; background: yellow }");
+
+    pyContent = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_content", NULL);
+    if(!PyList_Check(pyContent)) {
+        printf("Content not a Python list!\n");
+        return;
+    }
+
+    pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
+    pageSubtitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_subtitle", NULL));
+    setTitle(pageTitle);
+    setSubTitle(pageSubtitle);
+
+    layout = new QGridLayout;
+
+    rollMethodSelector = new QComboBox(this);
+    pyContentSize = PyList_Size(pyContent);
+    for(int i = 0;i < pyContentSize;i++) {
+        pyContentItem = PyList_GetItem(pyContent, i);
+        if(!pyContentItem ||
+                !PyTuple_Check(pyContentItem)) {
+            printf("content item is not a tuple.\n");
+            PyErr_Print();
+            PyErr_Clear();
+            continue;
+        }
+        firstTupleItem = PyTuple_GetItem(pyContentItem, 0);
+        if(!firstTupleItem ||
+                !PyString_Check(firstTupleItem)) {
+            printf("Error getting roll method from content item.\n");
+            PyErr_Print();
+            PyErr_Clear();
+            continue;
+        }
+        rollMethod = PyString_AsString(firstTupleItem);
+        diceString = "3d6";
+        tupleSize = PyTuple_Size(pyContentItem);
+        if(tupleSize > 1) {
+            secondTupleItem = PyTuple_GetItem(pyContentItem, 1);
+            if(!secondTupleItem ||
+                    !PyString_Check(secondTupleItem)) {
+                PyErr_Clear();
+            } else {
+                diceString = PyString_AsString(secondTupleItem);
+            }
+        }
+
+        rollMethodSelector->addItem(rollMethod, diceString);
+    }
+
+    diceLabel = new QLabel();
+    diceLabel->setPixmap(dicePix);
+    layout->addWidget(rollMethodSelector, 0, 0, 1, 3);
+
+    for(int i = 0;i < attributeList.size();i++) {
+        QString attrName = attributeList.at(i);
+        QLineEdit *attrEdit = new QLineEdit(this);
+        DragLabel *diceDragLabel = new DragLabel(this);
+        diceDragLabel->setEnabled(false);
+        diceDragLabel->setPixmap(QPixmap(":/images/diceSmall.png"));
+        diceDragLabel->setAttrFieldName(attrName);
+        attrEdit->setFixedWidth(35);
+        attrEdit->setEnabled(false);
+        layout->addWidget(new QLabel(attrName), i + 1, 0);
+        layout->addWidget(attrEdit, i + 1, 1);
+        layout->addWidget(diceDragLabel, i + 1, 2);
+        publicRegisterField(attrName + "*", attrEdit);
+        diceLabelList.append(diceDragLabel);
+        nextRow = i + 2;
+    }
+
+    connect(rollMethodSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(rollMethodChanged(QString)));
+
+    QToolButton *rollButton = new QToolButton(this);
+    connect(rollButton, SIGNAL(clicked()), this, SLOT(buttonClicked()));
+    rollButton->setText("Roll");
+    layout->addWidget(rollButton, nextRow, 1);
+
+    this->setLayout(layout);
+
+    return;
+
+}
+
+void RollMethodsPage::initializePage() {
+    rollMethodChanged(rollMethodSelector->currentText());
+}
+
+void RollMethodsPage::fillAttributeFields() {
+    Dice dice;
+    QString diceString = rollMethodSelector->itemData(rollMethodSelector->currentIndex()).toString();
+    QString rollMethodString = rollMethodSelector->currentText();
+    for(int i = 0;i < attributeList.size();i++) {
+        QString attrName = attributeList.at(i);
+        int rollResult;
+        if(rollMethodString.toLower().startsWith("droplow")) {
+            rollResult = dice.rollDiceDropLowest(diceString);
+        } else {
+            rollResult = dice.rollDice(diceString);
+        }
+//        printf("diceString: %s | rollResult: %d\n", diceString.toStdString().data(), rollResult);
+        setField(attrName, QVariant(rollResult));
+    }
+}
+
+void RollMethodsPage::publicSetField(const QString &fieldName, const QVariant &fieldValue) {
+    setField(fieldName, fieldValue);
+}
+
+QVariant RollMethodsPage::getField(QString fieldName) {
+    return field(fieldName);
+}
+
+void RollMethodsPage::rollMethodChanged(QString rollMethodString) {
+    bool enabled = true;
+    if(rollMethodString == "classic" ||
+            rollMethodString == "droplow") {
+        enabled = false;
+    }
+    for(int i = 0;i < diceLabelList.size();i++) {
+        DragLabel *diceLabel = diceLabelList.at(i);
+        diceLabel->setAcceptDrops(enabled);
+        diceLabel->setEnabled(enabled);
+    }
+}
+
+void RollMethodsPage::buttonClicked() {
+    fillAttributeFields();
+}
+
+DragLabel::DragLabel(QWidget *parent) :
+    QLabel(parent) {
+
+}
+
+void DragLabel::setAttrFieldName(QString attrFieldName) {
+    this->attrFieldName = attrFieldName;
+}
+
+QString DragLabel::getAttrFieldName() {
+    return attrFieldName;
+}
+
+void DragLabel::dropEvent(QDropEvent *dropEvent) {
+    RollMethodsPage *rollMethodsPage = (RollMethodsPage *) this->parent();
+    QString sourceFieldName = dropEvent->mimeData()->text();
+    QString sourceFieldValue = dropEvent->mimeData()->property("field value").toString();
+//    printf("Source Field Name: %s\n", sourceFieldName.toLatin1().data());
+//    printf("Source Field Value: %s\n", sourceFieldValue.toStdString().data());
+    QString destFieldName = this->getAttrFieldName();
+    QString destFieldValue = rollMethodsPage->getField(destFieldName).toString();
+//    printf("Destination Field Name: %s\n", destFieldName.toLatin1().data());
+//    printf("Destination Field Value: %s\n", destFieldValue.toStdString().data());
+    rollMethodsPage->publicSetField(destFieldName, QVariant(sourceFieldValue));
+    rollMethodsPage->publicSetField(sourceFieldName, QVariant(destFieldValue));
+}
+
+void DragLabel::dragMoveEvent(QDragMoveEvent *dragEvent) {
+    dragEvent->accept();
+}
+
+void DragLabel::dragEnterEvent(QDragEnterEvent *dragEvent) {
+    dragEvent->acceptProposedAction();
+}
+
+void DragLabel::mousePressEvent(QMouseEvent *ev) {
+    if(ev->button() != Qt::LeftButton) qDebug("You didn't click the left button!");
+    QDrag *drag = new QDrag(this);
+    QMimeData *mimeData = new QMimeData;
+    RollMethodsPage *rollMethodsPage = (RollMethodsPage *) this->parent();
+    QString fieldName = getAttrFieldName();
+    QString fieldValue = rollMethodsPage->getField(fieldName).toString();
+    if(fieldValue.isNull() || fieldValue.isEmpty()) return;
+//    printf("attrfieldName: %s\n", fieldName.toStdString().data());
+//    printf("Field Value: %s\n", fieldValue.toStdString().data());
+    mimeData->setText(fieldName);
+    mimeData->setProperty("field value", QVariant(fieldValue));
+    drag->setMimeData(mimeData);
+    drag->setPixmap(*this->pixmap());
+    drag->start();
+}

@@ -1,0 +1,5 @@
+'Items',
+'unique_id','Name'
+'VARCHAR(20) UNIQUE','VARCHAR(50)'
+,'display_col'
+'sword','Sword'

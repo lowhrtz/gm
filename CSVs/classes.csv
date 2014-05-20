@@ -1,0 +1,7 @@
+'Classes',,,,,,,,,,,,
+'unique_id','Name','Minimum_Scores','Hit_Die_Type','Hit_Die_Max','Alignment','Experience_Bonus','Armour_Permitted','Shield_Permitted','Weapons_Permitted','Initial_Weapon_Proficiencies','Weapon_Proficiency_Advancement','Non-Proficiency_Penalty'
+'VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(50)','INTEGER','INTEGER','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','VARCHAR(20)','INTEGER'
+,'display_col',,,,,,,,,,,
+'assassin','Assassin','Str 12, Dex 12, Con 6, Int 11, Wis 6','6','15','Any Evil','None','Leather, Studded Leather','Leather, Studded Leather','Any','3','1 / 4','-3'
+'cleric','Cleric','Str 6, Dex 3, Con 6, Int 6, Wis 9, Cha 6','8','9','Any','Wis 16+','Any','Any','Blunt','2','1 / 3','-3'
+'druid','Druid','Str 6, Dex 6, Con 6, Int 6, Wis 12, Cha 15','8','14','Neutral Only','Wis and Cha 16+','Leather','Wooden','Club, dagger, dart, hammer, oil, scimitar, sling, spear, staff','2','1 / 3','-4'
