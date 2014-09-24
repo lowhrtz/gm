@@ -137,11 +137,11 @@ void MainWindow::resetDB()
 void MainWindow::openDBWindow(QString tableName)
 {
     DBWindow *dbWindow = new DBWindow(this, db, interpreter, tableName);
-    dbWindow->show();
     QSize size;
     size.setHeight(dbWindow->height());
     size.setWidth(850);
     dbWindow->resize(size);
+    dbWindow->show();
 }
 
 void MainWindow::openCharacterCreationWizard() {
