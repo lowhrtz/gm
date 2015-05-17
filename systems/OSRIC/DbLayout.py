@@ -5,4 +5,5 @@ dbOrder = [
          "Classes",
          "Items",
          "Monsters",
+         "Spells",
          ]
