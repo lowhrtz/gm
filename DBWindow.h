@@ -25,7 +25,8 @@ public:
     DBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *interpreter, QString tableName);
 
 public:
-    QList<QLineEdit *> entryList;
+    //QList<QLineEdit *> entryList;
+    QList<QWidget *> entryList;
 
 private:
     QPixmap getPortrait(QString name);

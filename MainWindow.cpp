@@ -138,9 +138,15 @@ void MainWindow::openDBWindow(QString tableName)
 {
     DBWindow *dbWindow = new DBWindow(this, db, interpreter, tableName);
     QSize size;
-    size.setHeight(dbWindow->height());
-    size.setWidth(850);
+    QRect screenRec = QApplication::desktop()->screenGeometry();
+    int height = screenRec.height() / 2;
+    int width = height * 1.75;
+    size.setHeight(height);
+    size.setWidth(width);
+    //size.setHeight(dbWindow->height());
+    //size.setWidth(850);
     dbWindow->resize(size);
+    dbWindow->move((screenRec.width() - width) / 2, (screenRec.height() - height) / 2);
     dbWindow->show();
 }
 

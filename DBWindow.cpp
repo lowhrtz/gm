@@ -6,6 +6,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalMapper>
+#include <QTextEdit>
 #include <QScrollArea>
 
 #include <iostream>
@@ -56,12 +57,19 @@ DBWindow::DBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *inte
         QLabel *colLabel = new QLabel(colList.at(i).toStdString().data(), fieldWidget);
         QString colDefString = colDefsList.at(i);
         fieldLayout->addWidget(colLabel, i, 0);
-        QLineEdit *fieldEntry = new QLineEdit(fieldWidget);
-        if(colDefString.contains("UNIQUE", Qt::CaseInsensitive)) fieldEntry->setEnabled(false);
-        fieldLayout->addWidget(fieldEntry, i, 1);
+        if(colDefString.compare("TEXT") == 0) {
+            colLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+            QTextEdit *fieldEntry = new QTextEdit(fieldWidget);
+            fieldLayout->addWidget(fieldEntry, i, 1);
+            entryList.append(fieldEntry);
+        } else {
+            QLineEdit *fieldEntry = new QLineEdit(fieldWidget);
+            if(colDefString.contains("UNIQUE", Qt::CaseInsensitive)) fieldEntry->setEnabled(false);
+            fieldLayout->addWidget(fieldEntry, i, 1);
+            fieldEntry->setFixedWidth(250);
+            entryList.append(fieldEntry);
+        }
 //        fieldEntry->setMaximumWidth(500);
-        fieldEntry->setFixedWidth(250);
-        entryList.append(fieldEntry);
 //        cout << "Column Def: " << colDefsList.at(i).toStdString() << endl;
     }
     fieldWidget->setLayout(fieldLayout);
@@ -140,10 +148,15 @@ void DBWindow::selectRecord(QListWidgetItem *recordWidgetItem, QListWidgetItem *
     for(int i = 0 ; i < row->size() ; i++)
     {
         if(colDefsList.at(i).contains("UNIQUE", Qt::CaseInsensitive)) uniqueCol = i;
-
-        QLineEdit *entryBox = entryList.at(i);
-        entryBox->setText(row->at(i).toString());
-        entryBox->setCursorPosition(0);
+        if(colDefsList.at(i).compare("TEXT") == 0) {
+            QTextEdit *entryBox = (QTextEdit *) entryList.at(i);
+            entryBox->setText(row->at(i).toString());
+            //entryBox->setCursorPosition(0);
+        } else {
+            QLineEdit *entryBox = (QLineEdit *) entryList.at(i);
+            entryBox->setText(row->at(i).toString());
+            entryBox->setCursorPosition(0);
+        }
     }
 //    cout << row->at(0).toString().toStdString() << endl;
     iconLabel->setPixmap(getPortrait(row->at(uniqueCol).toString()));

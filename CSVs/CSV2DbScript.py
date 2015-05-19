@@ -8,7 +8,11 @@ row 3: a column definition for each cell
 row 4: column metadata - primarily used to denote which column holds the display string
 row 5 and up: actual table data
 
-Also, the class names are derived from the csv filenames so don't name the files with a python reserved word.
+Note about line breaks:
+Normal line breaks will cause the Db.py file to have corrupt data. Use \n for line breaks within a data cell instead of pressing enter/return.
+Example: This is the first paragraph.\nThis is the second paragraph.
+
+Also, the class names are derived from the csv filenames so don't name the files with a python reserved word. https://docs.python.org/release/2.5.4/ref/keywords.html
 """
 import sys
 
@@ -59,6 +63,9 @@ class DbScript:
             datum = datum.replace(",,",",'',")
         if(datum.endswith(",")):
             datum = datum + "''"
+
+        while(datum.__contains__("'''")):
+            datum = datum.replace("'''","\\''")
 
         return datum
 
