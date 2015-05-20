@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
-dbOrder = [
+db_order = [
          "Races",
          "Classes",
          "Items",
          "Monsters",
          "Spells",
+         ]
+
+db_meta_map = [
+         ("Races", "Races_meta"),
+         ("Classes", "Classes_meta"),
          ]

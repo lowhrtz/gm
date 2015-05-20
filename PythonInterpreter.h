@@ -23,6 +23,7 @@ public:
     QList<PyObject *> getWizardPages();
     QList<QString> settingAsStringList(QString settingName);
     QList<QString> getMenuOrderedTableNames();
+    QString getMetaTableName(QString tableName);
 
 private:
     QList<QString> getStringList(PyObject *pyListObject);

@@ -19,9 +19,12 @@ public:
     bool createPersistentTable(const char *tableName, QList<QString> colDefList);
     int fillPersistentTable(const char *tableName, QList<QList<QVariant> *> dataList);
     int insertRow(const char *tableName, QList<QVariant> *row);
+    QList<QList<QVariant> *> getRows(const char *tableName, const char *column, const char *value);
+    QList<QList<QVariant> *> getRows(QString tableName, QString column, QString value);
     QList<QList<QVariant> *> getRows(const char *tableName);
     QList<QList<QVariant> *> getRows(QString tableName);
     QList<QString> getDisplayColList(QString tableName, QString displayCol);
+    QString getColName(QString tableName, int columnIndex);
     void activateForeignKeys(bool enabled = true);
 
 private:

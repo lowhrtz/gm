@@ -220,6 +220,36 @@ int DatabaseHandler::insertRow(const char *tableName, QList<QVariant> *row)
     return lastInsertID;
 }
 
+QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName, const char *column, const char *value)
+{
+    QList<QList<QVariant> *> rowList;
+    QString tableQueryString("SELECT * FROM ");
+    tableQueryString.append(tableName);
+    tableQueryString.append(" WHERE ").append(column).append("=");
+    tableQueryString.append("'").append(value).append("'");
+    //cout << tableQueryString.toStdString().data() << endl;
+    QSqlQuery tableQuery = db.exec(tableQueryString);
+    db.record(QString(tableName));
+    while(tableQuery.next())
+    {
+        QList<QVariant> *row = new QList<QVariant>;
+        QSqlRecord record = tableQuery.record();
+        for(int i = 0 ; i < record.count() ; i++)
+        {
+            QVariant item = record.value(i);
+            row->append(item);
+        }
+        rowList.append(row);
+    }
+
+    return rowList;
+}
+
+QList<QList<QVariant> *> DatabaseHandler::getRows(QString tableName, QString column, QString value)
+{
+    return getRows(tableName.toStdString().data(), column.toStdString().data(), value.toStdString().data());
+}
+
 QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName)
 {
     QList<QList<QVariant> *> rowList;
@@ -257,6 +287,12 @@ QList<QString> DatabaseHandler::getDisplayColList(QString tableName, QString dis
 
 
     return displayColList;
+}
+
+QString DatabaseHandler::getColName(QString tableName, int columnIndex)
+{
+    QSqlRecord record = db.record(tableName);
+    return record.fieldName(columnIndex);
 }
 
 void DatabaseHandler::activateForeignKeys(bool enabled) {

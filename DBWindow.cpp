@@ -4,7 +4,7 @@
 #include <QDir>
 #include <QMainWindow>
 #include <QLineEdit>
-#include <QPushButton>
+//#include <QObjectList>
 #include <QSignalMapper>
 #include <QTextEdit>
 #include <QScrollArea>
@@ -16,7 +16,9 @@ DBWindow::DBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *inte
     : QMainWindow(parent)
 {
     this->interpreter = interpreter;
+    this->db = db;
     this->tableName = tableName;
+    this->uniqueCol = 0;
 //    setWindowFlags(Qt::SubWindow);
 
     QGroupBox *gridGroupBox = new QGroupBox(/*tr(tableName.toAscii()).append(" Database")*/);
@@ -54,7 +56,9 @@ DBWindow::DBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *inte
 //    cout << "colDefsList size: " << colDefsList.size() << endl;
     for(int i = 0 ; i < colDefsList.size() ; i++)
     {
-        QLabel *colLabel = new QLabel(colList.at(i).toStdString().data(), fieldWidget);
+        QString labelString = QString(colList.at(i));
+        labelString.replace("_", " ");
+        QLabel *colLabel = new QLabel(labelString, fieldWidget);
         QString colDefString = colDefsList.at(i);
         fieldLayout->addWidget(colLabel, i, 0);
         if(colDefString.compare("TEXT") == 0) {
@@ -71,6 +75,12 @@ DBWindow::DBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *inte
         }
 //        fieldEntry->setMaximumWidth(500);
 //        cout << "Column Def: " << colDefsList.at(i).toStdString() << endl;
+    }
+    QString metaTableName = interpreter->getMetaTableName(tableName);
+    if(!metaTableName.isEmpty()) {
+        MetaDBButton *metaTableButton = new MetaDBButton(metaTableName, fieldWidget);
+        fieldLayout->addWidget(metaTableButton);
+        connect(metaTableButton, SIGNAL(clicked(QString, QString)), this, SLOT(openMetaDBWindow(QString, QString)));
     }
     fieldWidget->setLayout(fieldLayout);
     fieldScroll->setWidget(fieldWidget);
@@ -143,7 +153,7 @@ void DBWindow::selectRecord(QListWidgetItem *recordWidgetItem, QListWidgetItem *
     QList<QVariant> *row = ((DBListWidgetItem*)recordWidgetItem)->getRow();
 //    cout << "Item: " << row->at(0).toString().toStdString() << endl;
 //    cout << "Len Item: " << row->size() << " Len entryList: " << entryList.size() << endl;
-    int uniqueCol = 0;
+    //int uniqueCol = 0;
     QList<QString> colDefsList = interpreter->getColDefsList(tableName);
     for(int i = 0 ; i < row->size() ; i++)
     {
@@ -162,6 +172,12 @@ void DBWindow::selectRecord(QListWidgetItem *recordWidgetItem, QListWidgetItem *
     iconLabel->setPixmap(getPortrait(row->at(uniqueCol).toString()));
 }
 
+void DBWindow::openMetaDBWindow(QString metaTableName, QString record_id) {
+    /*cout << "Table: " << metaTableName.toStdString().data() << endl;
+    cout << "Record ID: " << record_id.toStdString().data() << endl;*/
+    MetaDBWindow *metaDBWindow = new MetaDBWindow(this, this->db, this->interpreter, metaTableName, record_id);
+}
+
 DBListWidgetItem::DBListWidgetItem(QListWidget *parent, QList<QVariant> *row)
     : QListWidgetItem(parent, QListWidgetItem::UserType)
 {
@@ -171,4 +187,62 @@ DBListWidgetItem::DBListWidgetItem(QListWidget *parent, QList<QVariant> *row)
 QList<QVariant> *DBListWidgetItem::getRow()
 {
     return this->row;
+}
+
+
+MetaDBButton::MetaDBButton(QString metaTableName, QWidget *parent)
+ : QPushButton("More", parent) {
+    this->metaTableName = metaTableName;
+    //this->parent = parent;
+    connect(this, SIGNAL(clicked()), this, SLOT(reemitClicked()));
+}
+
+void MetaDBButton::reemitClicked()
+{
+    //QLineEdit *unique_id = (QLineEdit *) this->parent()->children().at(1);
+    QLineEdit *uniqueID;
+    //QString unique_text;
+
+    DBWindow *dbWin = (DBWindow *) this->parent()->parent()->parent()->parent()->parent();
+    int uniqueChildIndex = (dbWin->uniqueCol * 2) + 1;
+    //cout << dbWin->uniqueCol << " : " << uniqueChildIndex << endl;
+    uniqueID = (QLineEdit *) this->parent()->children().at(uniqueChildIndex);
+    /*QObjectList oList = this->parent()->children();
+    for(int i = 0;i < this->parent()->children().size();i++) {
+        QLineEdit *obj = (QLineEdit *) oList.at(i);
+        if(!obj->isEnabled()) {
+            unique_id = obj;
+            unique_text = unique_id->text();
+            break;
+        }
+    }*/
+    emit clicked(metaTableName, uniqueID->text());
+}
+
+
+MetaDBWindow::MetaDBWindow(QWidget *parent, DatabaseHandler *db, PythonInterpreter *interpreter, QString tableName, QString recordID)
+ : QMainWindow(parent){
+    this->db = db;
+    this->interpreter = interpreter;
+    this->tableName = tableName;
+    this->recordID = recordID;
+
+    QList<QString> colDefsList = interpreter->getColDefsList(tableName);
+    for(int i = 0;i < colDefsList.size();i++) {
+        QString colDef = colDefsList.at(i);
+        if(colDef.contains("REFERENCES", Qt::CaseInsensitive)) {
+            this->referenceCol = i;
+            break;
+        }
+    }
+    QString referenceColName = interpreter->getColList(tableName).at(referenceCol);
+    //cout << "Reference Column Name: " << referenceColName.toStdString().data() << endl;
+    QList<QList<QVariant> *> metaRows = db->getRows(tableName, referenceColName, recordID);
+    for(int i = 0;i < metaRows.size();i++) {
+        QList<QVariant> *metaRow = metaRows.at(i);
+        for(int j = 0;j < metaRow->size();j++) {
+            cout << metaRow->at(j).toString().toStdString().data() << ", ";
+        }
+        cout << endl;
+    }
 }

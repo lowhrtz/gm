@@ -732,7 +732,7 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
         return getTableNames();
     }
 
-    dbOrder = PyObject_GetAttrString(dbLayoutModule, (char *) "dbOrder");
+    dbOrder = PyObject_GetAttrString(dbLayoutModule, (char *) "db_order");
     if(!dbOrder || !PyList_Check(dbOrder)) {
         Py_Finalize();
         return getTableNames();
@@ -748,6 +748,40 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
 
     Py_Finalize();
     return tableNameList;
+}
+
+QString PythonInterpreter::getMetaTableName(QString tableName) {
+    QString metaTableName;
+    PyObject *dbLayoutModule, *dbMetaMap, *mapTuple;
+    Py_ssize_t metaMapSize;
+
+    initPython();
+    PyErr_Clear();
+    dbLayoutModule = PyImport_ImportModule("DbLayout");
+    if(!dbLayoutModule) {
+        Py_Finalize();
+        return metaTableName;
+    }
+
+    dbMetaMap = PyObject_GetAttrString(dbLayoutModule, (char *) "db_meta_map");
+    if(!dbMetaMap || !PyList_Check(dbMetaMap)) {
+        Py_Finalize();
+        return metaTableName;
+    }
+
+    metaMapSize = PyList_Size(dbMetaMap);
+    for(int i = 0;i < metaMapSize;i++) {
+        mapTuple = PyList_GetItem(dbMetaMap, i);
+        if(!mapTuple || !PyTuple_Check(mapTuple)) continue;
+        if(PyString_AsString(PyTuple_GetItem(mapTuple, 0)) == tableName) {
+            metaTableName = PyString_AsString(PyTuple_GetItem(mapTuple, 1));
+            Py_Finalize();
+            return metaTableName;
+        }
+    }
+
+    Py_Finalize();
+    return metaTableName;
 }
 
 QList<QString> PythonInterpreter::getStringList(PyObject *pyListObject) {
