@@ -9,6 +9,7 @@ class PythonInterpreter
 {
 public:
     PythonInterpreter(QString systemPath);
+    ~PythonInterpreter();
     void initPython();
 //    PyObject * getTableClass();
 //    void runModule(QString *module);

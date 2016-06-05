@@ -25,6 +25,11 @@ PythonInterpreter::PythonInterpreter(QString systemPath) {
     initPython();
 }
 
+PythonInterpreter::~PythonInterpreter()
+{
+    finalizePython();
+}
+
 void PythonInterpreter::initPython() {
     Py_Initialize();
 
