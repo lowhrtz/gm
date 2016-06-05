@@ -483,7 +483,9 @@ void ComboRow::fillComboRow(QString tableName) {
     }
 
     QList<QList<QVariant> *> rows = db->getRows(tableName);
-    int displayCol = interpreter->getDisplayColWithoutInit(tableName);
+//    int displayCol = interpreter->getDisplayColWithoutInit(tableName);
+    printf("fillComboRow\n");
+    int displayCol = interpreter->getDisplayCol(tableName);
 
     for(int i = 0;i < rows.size();i++) {
         QList<QVariant> *row = rows.at(i);

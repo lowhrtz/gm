@@ -393,50 +393,50 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
     return 0;
 }
 
-int PythonInterpreter::getDisplayColWithoutInit(QString tableName) {
-    PyObject *dbModule, *dbDict, *tableType, *key, *value,
-            *tableInstance, *displayCol;
-    Py_ssize_t pos;
+//int PythonInterpreter::getDisplayColWithoutInit(QString tableName) {
+//    PyObject *dbModule, *dbDict, *tableType, *key, *value,
+//            *tableInstance, *displayCol;
+//    Py_ssize_t pos;
 
-    PyErr_Clear();
-    dbModule = PyImport_ImportModule("Db");
-    if(!dbModule) {
-        printf("Module import failed!\n");
-        PyErr_Print();
-        return 0;
-    }
-    dbDict = PyModule_GetDict(dbModule);
-    if(!dbDict) {
-        printf("Error getting module dict.\n");
-        PyErr_Print();
-        return 0;
-    }
-    tableType = PyObject_GetAttrString(dbModule, "Table");
-    if(!tableType) {
-        printf("Table class is missing!");
-        PyErr_Print();
-        return 0;
-    }
+//    PyErr_Clear();
+//    dbModule = PyImport_ImportModule("Db");
+//    if(!dbModule) {
+//        printf("Module import failed!\n");
+//        PyErr_Print();
+//        return 0;
+//    }
+//    dbDict = PyModule_GetDict(dbModule);
+//    if(!dbDict) {
+//        printf("Error getting module dict.\n");
+//        PyErr_Print();
+//        return 0;
+//    }
+//    tableType = PyObject_GetAttrString(dbModule, "Table");
+//    if(!tableType) {
+//        printf("Table class is missing!");
+//        PyErr_Print();
+//        return 0;
+//    }
 
-    pos = 0;
-    while(PyDict_Next(dbDict, &pos, &key, &value)) {
-        if(PyType_Check(value) &&
-                PyType_IsSubtype((PyTypeObject*) value, (PyTypeObject*) tableType) &&
-                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(tableType, "__name__") &&
-                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
-            tableInstance = PyObject_CallObject(value, NULL);
-            displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
-            if(!PyInt_Check(displayCol)) {
-                printf("The method get_display_col does not return an integer.\n");
-                PyErr_Print();
-                return 0;
-            }
-            return PyInt_AsSsize_t(displayCol);
-        }
-    }
+//    pos = 0;
+//    while(PyDict_Next(dbDict, &pos, &key, &value)) {
+//        if(PyType_Check(value) &&
+//                PyType_IsSubtype((PyTypeObject*) value, (PyTypeObject*) tableType) &&
+//                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(tableType, "__name__") &&
+//                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
+//            tableInstance = PyObject_CallObject(value, NULL);
+//            displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
+//            if(!PyInt_Check(displayCol)) {
+//                printf("The method get_display_col does not return an integer.\n");
+//                PyErr_Print();
+//                return 0;
+//            }
+//            return PyInt_AsSsize_t(displayCol);
+//        }
+//    }
 
-    return 0;
-}
+//    return 0;
+//}
 
 QString PythonInterpreter::getSystemPath() {
     return systemPath;

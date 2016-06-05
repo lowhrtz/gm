@@ -18,7 +18,7 @@ public:
     QList<QString> getColList(QString tableName);
     QList<QString> getColDefsList(QString tableName);
     int getDisplayCol(QString tableName);
-    int getDisplayColWithoutInit(QString tableName);
+//    int getDisplayColWithoutInit(QString tableName);
     QString getSystemPath();
     QList<PyObject *> getWizardPages();
     QList<QString> settingAsStringList(QString settingName);
