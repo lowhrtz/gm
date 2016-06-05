@@ -29,6 +29,7 @@ private:
     QList<QString> getStringList(PyObject *pyListObject);
     QList<QString> getColDefString(PyObject *cols, PyObject *colDefs);
     QList<QList<QVariant> *> getDataList(PyObject *data);
+    void finalizePython();
 
 private:
     QString systemPath;
