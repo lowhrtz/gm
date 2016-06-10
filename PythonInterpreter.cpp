@@ -25,8 +25,7 @@ PythonInterpreter::PythonInterpreter(QString systemPath) {
     initPython();
 }
 
-PythonInterpreter::~PythonInterpreter()
-{
+PythonInterpreter::~PythonInterpreter() {
     finalizePython();
 }
 
@@ -78,7 +77,7 @@ void PythonInterpreter::loadSettings(DatabaseHandler *db) {
         }
     }
 
-//    Py_DecRef(settingsModule);
+    Py_DecRef(settingsModule);
 //    Py_DecRef(moduleDict);
 //    Py_DecRef(key);
 //    Py_DecRef(value);
@@ -229,23 +228,23 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Db module import failed!\n");
         return colList;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Error getting Db module dict.\n");
         return colList;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
-        printf("Table class is missing!");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Table class is missing!");
         return colList;
     }
 
@@ -259,9 +258,9 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             cols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
             if(!PyList_Check(cols)) {
-                printf("get_cols method did not return a list");
 //                Py_Finalize();
                 PyErr_Print();
+                printf("get_cols method did not return a list");
                 return colList;
             }
             colsSize = PyList_Size(cols);
@@ -291,23 +290,23 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Db module import failed!\n");
         return colDefsList;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
 //        Py_Finalize();
+        printf("Error getting Db module dict.\n");
         PyErr_Print();
         return colDefsList;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
-        printf("Table class is missing!");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Table class is missing!");
         return colDefsList;
     }
 
@@ -321,9 +320,9 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             colDefs = PyObject_CallMethod(tableInstance, (char *) "get_colDefs", NULL);
             if(!PyList_Check(colDefs)) {
-                printf("get_colDefs method did not return a list");
 //                Py_Finalize();
                 PyErr_Print();
+                printf("get_colDefs method did not return a list");
                 return colDefsList;
             }
             colDefsSize = PyList_Size(colDefs);
@@ -353,23 +352,23 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Db module import failed!\n");
         return 0;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Error getting Db module dict.\n");
         return 0;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
-        printf("Table class is missing!");
 //        Py_Finalize();
         PyErr_Print();
+        printf("Table class is missing!");
         return 0;
     }
 
@@ -382,9 +381,9 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
             if(!PyInt_Check(displayCol)) {
-                printf("The method get_display_col does not return an integer.\n");
 //                Py_Finalize();
                 PyErr_Print();
+                printf("The method get_display_col does not return an integer.\n");
                 return 0;
             }
 //            Py_Finalize();
@@ -455,16 +454,16 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
 
     wizModule = PyImport_ImportModule("Wizard");
     if(!wizModule) {
-        printf("Error importing module!\n");
         PyErr_Print();
+        printf("Error importing Wizard module!\n");
 //        PyErr_Clear();
         return pageList;
     }
 
     wizardPageType = PyObject_GetAttrString(wizModule, "WizardPage");
     if(!wizardPageType) {
-        printf("WizardPage class is missing!");
         PyErr_Print();
+        printf("WizardPage class is missing!");
 //        PyErr_Clear();
         return pageList;
     }
@@ -472,8 +471,8 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
     wizardPageList = PyObject_GetAttrString(wizModule, "page_order");
     if(!wizardPageList ||
             !PyList_Check(wizardPageList)) {
-        printf("Error getting page_order.\n");
         PyErr_Print();
+        printf("Error getting page_order.\n");
 //        PyErr_Clear();
         return pageList;
     }
@@ -497,16 +496,16 @@ QList<QString> PythonInterpreter::settingAsStringList(QString settingName) {
     PyErr_Clear();
     settingsModule = PyImport_ImportModule("SystemSettings");
     if(!settingsModule) {
-        printf("Error importing SystemSettings module!\n");
         PyErr_Print();
+        printf("Error importing SystemSettings module!\n");
         return settingList;
     }
 
     setting = PyObject_GetAttrString(settingsModule, settingName.toStdString().data());
     if(!setting ||
             !PyList_Check(setting)) {
-        printf("Setting, %s, not a Python list!\n", settingName.toStdString().data());
         PyErr_Print();
+        printf("Setting, %s, not a Python list!\n", settingName.toStdString().data());
         return settingList;
     }
 
@@ -514,8 +513,8 @@ QList<QString> PythonInterpreter::settingAsStringList(QString settingName) {
     for(int i = 0;i < settingSize;i++) {
         settingItem = PyList_GetItem(setting, i);
         if(!settingItem || !PyString_Check(settingItem)) {
-            printf("Setting, %s, contains objects other than strings!\n", settingName.toStdString().data());
             PyErr_Print();
+            printf("Setting, %s, contains objects other than strings!\n", settingName.toStdString().data());
             return settingList;
         }
         settingList.append(PyString_AsString(settingItem));
@@ -537,6 +536,7 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
     if(!dbLayoutModule) {
 //        Py_Finalize();
         PyErr_Print();
+        printf("Error importing DbLayout module!\n");
         return getTableNames();
     }
 
@@ -544,6 +544,7 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
     if(!dbOrder || !PyList_Check(dbOrder)) {
 //        Py_Finalize();
         PyErr_Print();
+        printf("Method db_order doesn't exist or doesn't return a list!\n");
         return getTableNames();
     }
 
@@ -571,6 +572,7 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
     if(!dbLayoutModule) {
 //        Py_Finalize();
         PyErr_Print();
+        printf("Error importing DbLayout module!\n");
         return metaTableName;
     }
 
@@ -578,6 +580,7 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
     if(!dbMetaMap || !PyList_Check(dbMetaMap)) {
 //        Py_Finalize();
         PyErr_Print();
+        printf("Method db_meta_map missing or doesn't return a list!\n");
         return metaTableName;
     }
 
@@ -662,7 +665,6 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
     return dataList;
 }
 
-void PythonInterpreter::finalizePython()
-{
+void PythonInterpreter::finalizePython() {
     if (Py_IsInitialized()) Py_Finalize();
 }

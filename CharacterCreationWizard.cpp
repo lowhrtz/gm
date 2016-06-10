@@ -36,7 +36,7 @@ QList<QWizardPage *> CharacterCreationWizard::getWizardPages() {
     QList<QWizardPage *> pageList;
     QList<PyObject *> pyWizPageList;
 
-    interpreter->initPython();
+//    interpreter->initPython();
 
     pyWizPageList = interpreter->getWizardPages();
 
@@ -44,7 +44,7 @@ QList<QWizardPage *> CharacterCreationWizard::getWizardPages() {
         pageList.append(getWizardPage(pyWizPageList.at(i)));
     }
 
-    Py_Finalize();
+//    Py_Finalize();
     return pageList;
 }
 
@@ -484,7 +484,7 @@ void ComboRow::fillComboRow(QString tableName) {
 
     QList<QList<QVariant> *> rows = db->getRows(tableName);
 //    int displayCol = interpreter->getDisplayColWithoutInit(tableName);
-    printf("fillComboRow\n");
+//    printf("fillComboRow\n");
     int displayCol = interpreter->getDisplayCol(tableName);
 
     for(int i = 0;i < rows.size();i++) {
