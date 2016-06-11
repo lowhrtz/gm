@@ -644,6 +644,10 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
     QList<QList<QVariant> *> dataList = QList<QList<QVariant> *>();
     for(int i = 0 ; i < PyList_Size(data) ; i++) {
         PyObject *recordPy = PyList_GetItem(data, i);
+        if(!PyList_Check(recordPy)) {
+            printf("The data attibute contains items other than lists!\n");
+            return dataList;
+        }
         QList<QVariant> *record = new QList<QVariant>();
         for(int j = 0 ; j < PyList_Size(recordPy) ; j++) {
             PyObject *datumPy = PyList_GetItem(recordPy, j);
