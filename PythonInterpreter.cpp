@@ -22,7 +22,11 @@ PythonInterpreter::PythonInterpreter(QString systemPath) {
     setenv("PYTHONDONTWRITEBYTECODE", "True", 1);
     setenv("PYTHONIOENCODING", "UTF-8", 1);
 #endif
+    initPython();
+}
 
+PythonInterpreter::~PythonInterpreter() {
+    finalizePython();
 }
 
 void PythonInterpreter::initPython() {
@@ -41,19 +45,21 @@ void PythonInterpreter::loadSettings(DatabaseHandler *db) {
     Py_ssize_t pos = 0;
     QString keyString, reprString;
 
-    initPython();
+//    initPython();
 
     settingsModule = PyImport_ImportModule("SystemSettings");
     if(!settingsModule) {
         printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return;
     }
 
     moduleDict = PyModule_GetDict(settingsModule);
     if(!moduleDict) {
         printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return;
     }
 
@@ -71,51 +77,12 @@ void PythonInterpreter::loadSettings(DatabaseHandler *db) {
         }
     }
 
-//    PyRun_SimpleString("import SystemSettings\n");
-//    PyObject *systemName = PyRun_String("SystemSettings.systemName", Py_eval_input, pyDict, pyDict);
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(keys && PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-//            cout << "Key: " << PyString_AsString(key);
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(PyModule_Check(dictItem) && strcmp("SystemSettings", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *systemSettingsDict = PyModule_GetDict(dictItem);
-//                if(PyDict_Check(systemSettingsDict))
-//                {
-//                    PyObject *sysSetDictKeys = PyDict_Keys(systemSettingsDict);
-//                    for(int j = 0 ; j < PyList_Size(sysSetDictKeys) ; j++)
-//                    {
-//                       PyObject *sysSetKey = PyList_GetItem(sysSetDictKeys, j);
-//                       if(PyString_Check(sysSetKey))
-//                       {
-//                           QString itemQString = PyString_AsString(sysSetKey);
-//                           if(!itemQString.startsWith("_"))
-//                           {
-//                               cout << "Key: " << itemQString.toStdString() << endl;
-//                               PyObject *sysSetItem = PyDict_GetItem(systemSettingsDict, sysSetKey);
-//                               PyObject *sysSetItemRepr = PyObject_Repr(sysSetItem);
-//                               cout << itemQString.toStdString() << ": " << PyString_AsString(sysSetItemRepr) << endl;
-//                               QString reprString(PyString_AsString(sysSetItemRepr));
-//                               bool set = db->setInMemoryValue("Settings", itemQString, reprString);
-//                               cout << "Set " << itemQString.toStdString() << " successful? " << QString(set?"True":"False").toStdString() << endl;
-//                               if(!set)
-//                               {
-//                                   cout << "Error writing to in-memory database!" << endl;
-//                               }
-//                           }
-//                       }
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     Py_DecRef(settingsModule);
-    Py_Finalize();
+//    Py_DecRef(moduleDict);
+//    Py_DecRef(key);
+//    Py_DecRef(value);
+//    Py_DecRef(valueRepr);
+//    Py_Finalize();
 }
 
 void PythonInterpreter::importTables(DatabaseHandler *db) {
@@ -127,25 +94,28 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
     QList<QString> colDefsList;
     QList<QList<QVariant>*> dataList;
 
-    initPython();
+//    initPython();
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
         printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
         printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return;
     }
 
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
         printf("Table class is missing!");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return;
     }
 
@@ -160,26 +130,30 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
             getCols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
             if(!PyList_Check(getCols)) {
                 printf("get_cols does not return a list in the %s class.\n", PyString_AsString(PyObject_GetAttrString(value, "__name__")));
-                Py_Finalize();
+//                Py_Finalize();
+                PyErr_Print();
                 return;
             }
             getColDefs = PyObject_CallMethod(tableInstance, (char *) "get_colDefs", NULL);
             if(!PyList_Check(getColDefs)) {
                 printf("get_colDefs does not return a list in the %s class.\n", PyString_AsString(PyObject_GetAttrString(value, "__name__")));
-                Py_Finalize();
+//                Py_Finalize();
+                PyErr_Print();
                 return;
             }
             getData = PyObject_CallMethod(tableInstance, (char *) "get_data", NULL);
             if(!PyList_Check(getData)) {
                 printf("get_data does not return a list in the %s class.\n", PyString_AsString(PyObject_GetAttrString(value, "__name__")));
-                Py_Finalize();
+//                Py_Finalize();
+                PyErr_Print();
                 return;
             }
             tableName = PyObject_CallMethod(tableInstance, (char *) "__str__", NULL);
             cout << "Table Name: " << PyString_AsString(tableName) << endl;
             if(PyList_Size(getCols) != PyList_Size(getColDefs)) {
                 printf("Wrong cols or colDefs list length for %s!\n", PyString_AsString(key));
-                Py_Finalize();
+//                Py_Finalize();
+                PyErr_Print();
                 return;
             }
             colDefsList = getColDefString(getCols, getColDefs);
@@ -192,55 +166,7 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
         }
     }
 
-//    PyRun_SimpleString("import Db\n");
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(keys && PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-////            cout << "Key :" << PyString_AsString(key) << endl;
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(strcmp("Db", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *DbDict = PyModule_GetDict(dictItem);
-//                PyObject *DbKeys = PyDict_Keys(DbDict);
-//                for(int j = 0 ; j < PyList_Size(DbKeys) ; j++) {
-//                    PyObject *DbKey = PyList_GetItem(DbKeys, j);
-//                    PyObject *DbTable = PyDict_GetItem(DbDict, DbKey);
-//                    if(PyType_Check(DbTable) &&
-//                            strcmp("Table", PyString_AsString(DbKey)) != 0)
-//                    {
-////                        cout << "Table: " << PyString_AsString(DbKey) << endl;
-////                        cout << PyString_AsString(PyObject_Repr(DbTable)) << endl;
-////                        PyObject *args = Py_BuildValue("z", "");
-////                        PyObject *keywords = PyDict_New();
-//                        PyObject *tableInstance = PyObject_CallObject(DbTable, NULL);
-////                        cout << PyString_AsString(PyObject_Repr(tableInstance)) << endl;
-//                        PyObject *getCols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
-////                        cout << "Cols: " << PyString_AsString(PyObject_Repr(getCols)) << endl;
-//                        PyObject *getColDefs = PyObject_CallMethod(tableInstance, (char *) "get_colDefs", NULL);
-////                        cout << "ColDefs: " << PyString_AsString(PyObject_Repr(getColDefs)) << endl;
-//                        PyObject *getData = PyObject_CallMethod(tableInstance, (char *) "get_data", NULL);
-////                        cout << "Data: " << PyString_AsString(PyObject_Repr(getData)) << endl;
-//                        PyObject *tableName = PyObject_CallMethod(tableInstance, (char *) "__str__", NULL);
-////                        cout << "Table Name: " << PyString_AsString(tableName) << endl;
-////                        cout << PyList_Size(getCols) << PyList_Size(getColDefs) << PyList_Size(getData) << endl;
-//                        if(PyList_Size(getCols) != PyList_Size(getColDefs))
-//                        {
-//                            cout << "Wrong cols or colDefs list length for " << PyString_AsString(DbKey) << "!" << endl;
-//                            return;
-//                        }
-//                        QList<QString> colDefsList = getColDefString(getCols, getColDefs);
-//                        db->createPersistentTable(PyString_AsString(tableName), colDefsList);
-//                        QList<QList<QVariant>*> dataList = getDataList(getData);
-//                        db->fillPersistentTable(PyString_AsString(tableName), dataList);
-//                    }
-//                }
-//            }
-//        }
-//    }
-    Py_Finalize();
+//    Py_Finalize();
 }
 
 QList<QString> PythonInterpreter::getTableNames()
@@ -251,24 +177,27 @@ QList<QString> PythonInterpreter::getTableNames()
     QString keyString, tableNameString;
     QList<QString> tableList;
 
-    initPython();
+//    initPython();
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
         printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return tableList;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
         printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return tableList;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
         printf("Table class is missing!");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
         return tableList;
     }
 
@@ -285,35 +214,7 @@ QList<QString> PythonInterpreter::getTableNames()
         }
     }
 
-//    PyRun_SimpleString("import Db\n");
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(strcmp("Db", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *DbDict = PyModule_GetDict(dictItem);
-//                PyObject *DbKeys = PyDict_Keys(DbDict);
-//                for(int j = 0 ; j < PyList_Size(DbKeys) ; j++) {
-//                    PyObject *DbKey = PyList_GetItem(DbKeys, j);
-//                    PyObject *DbTable = PyDict_GetItem(DbDict, DbKey);
-//                    if(PyType_Check(DbTable) &&
-//                            strcmp("Table", PyString_AsString(DbKey)) != 0)
-//                    {
-//                        PyObject *tableInstance = PyObject_CallObject(DbTable, NULL);
-//                        PyObject *tableName = PyObject_CallMethod(tableInstance, (char *) "__str__", NULL);
-//                        char *tableNameString = PyString_AsString(tableName);
-////                        cout << "Table Name: " << tableNameString << endl;
-//                        tableList.append(QString(tableNameString));
-//                    }
-//                }
-//            }
-//        }
-//    }
-    Py_Finalize();
+//    Py_Finalize();
     return tableList;
 }
 
@@ -327,20 +228,23 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Db module import failed!\n");
         return colList;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Error getting Db module dict.\n");
         return colList;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
+//        Py_Finalize();
+        PyErr_Print();
         printf("Table class is missing!");
-        Py_Finalize();
         return colList;
     }
 
@@ -354,8 +258,9 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             cols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
             if(!PyList_Check(cols)) {
+//                Py_Finalize();
+                PyErr_Print();
                 printf("get_cols method did not return a list");
-                Py_Finalize();
                 return colList;
             }
             colsSize = PyList_Size(cols);
@@ -364,54 +269,14 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
                 QString colString(PyString_AsString(item));
                 colList.append(colString);
             }
-            Py_Finalize();
+//            Py_Finalize();
+            PyErr_Clear();
             return colList;
         }
     }
 
-//    PyRun_SimpleString("import Db\n");
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(strcmp("Db", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *DbDict = PyModule_GetDict(dictItem);
-//                PyObject *DbKeys = PyDict_Keys(DbDict);
-//                for(int j = 0 ; j < PyList_Size(DbKeys) ; j++) {
-//                    PyObject *DbKey = PyList_GetItem(DbKeys, j);
-//                    PyObject *DbTable = PyDict_GetItem(DbDict, DbKey);
-////                    cout << "Table Name: " << tableName.toStdString() << endl;
-//                    if(PyType_Check(DbTable) /*&&
-//                            strcmp(tableName.toAscii(), PyString_AsString(DbKey)) == 0*/)
-//                    {
-//                        PyObject *tableInstance = PyObject_CallObject(DbTable, NULL);
-//                        PyObject *pyDbTableName = PyObject_CallMethod(tableInstance, (char *)"__str__", NULL);
-//                        char *strTableName = PyString_AsString(pyDbTableName);
-////                        cout << "Table Name: " << strTableName << endl;
-//                        if(strcmp(strTableName, tableName.toAscii()) != 0) continue;
-//                        PyObject *cols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
-//                        if(PyList_Check(cols))
-//                        {
-//                            for(int k = 0 ; k < PyList_Size(cols) ; k++)
-//                            {
-//                                PyObject *item = PyList_GetItem(cols, k);
-//                                QString colString(PyString_AsString(item));
-////                                cout << "Col: " << colString.toStdString() << endl;
-//                                colList.append(colString);
-//                            }
-//                            Py_Finalize();
-//                            return colList;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-    Py_Finalize();
+//    Py_Finalize();
+    PyErr_Clear();
     return colList;
 }
 
@@ -425,20 +290,23 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Db module import failed!\n");
         return colDefsList;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        printf("Error getting Db module dict.\n");
+        PyErr_Print();
         return colDefsList;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
+//        Py_Finalize();
+        PyErr_Print();
         printf("Table class is missing!");
-        Py_Finalize();
         return colDefsList;
     }
 
@@ -452,8 +320,9 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             colDefs = PyObject_CallMethod(tableInstance, (char *) "get_colDefs", NULL);
             if(!PyList_Check(colDefs)) {
+//                Py_Finalize();
+                PyErr_Print();
                 printf("get_colDefs method did not return a list");
-                Py_Finalize();
                 return colDefsList;
             }
             colDefsSize = PyList_Size(colDefs);
@@ -462,54 +331,14 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
                 QString colDefsString(PyString_AsString(item));
                 colDefsList.append(colDefsString);
             }
-            Py_Finalize();
+//            Py_Finalize();
+            PyErr_Clear();
             return colDefsList;
         }
     }
 
-//    PyRun_SimpleString("import Db\n");
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(strcmp("Db", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *DbDict = PyModule_GetDict(dictItem);
-//                PyObject *DbKeys = PyDict_Keys(DbDict);
-//                for(int j = 0 ; j < PyList_Size(DbKeys) ; j++) {
-//                    PyObject *DbKey = PyList_GetItem(DbKeys, j);
-//                    PyObject *DbTable = PyDict_GetItem(DbDict, DbKey);
-////                    cout << "Table Name: " << tableName.toStdString() << endl;
-//                    if(PyType_Check(DbTable) /*&&
-//                            strcmp(tableName.toAscii(), PyString_AsString(DbKey)) == 0*/)
-//                    {
-//                        PyObject *tableInstance = PyObject_CallObject(DbTable, NULL);
-//                        PyObject *pyDbTableName = PyObject_CallMethod(tableInstance, (char *)"__str__", NULL);
-//                        char *strTableName = PyString_AsString(pyDbTableName);
-////                        cout << "Table Name: " << strTableName << endl;
-//                        if(strcmp(strTableName, tableName.toAscii()) != 0) continue;
-//                        PyObject *colDefs = PyObject_CallMethod(tableInstance, (char *) "get_colDefs", NULL);
-//                        if(PyList_Check(colDefs))
-//                        {
-//                            for(int k = 0 ; k < PyList_Size(colDefs) ; k++)
-//                            {
-//                                PyObject *item = PyList_GetItem(colDefs, k);
-//                                QString colDefString(PyString_AsString(item));
-////                                cout << "ColDef: " << colDefString.toStdString() << endl;
-//                                colDefsList.append(colDefString);
-//                            }
-//                            Py_Finalize();
-//                            return colDefsList;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-    Py_Finalize();
+//    Py_Finalize();
+    PyErr_Clear();
     return colDefsList;
 }
 
@@ -519,24 +348,27 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
     Py_ssize_t pos;
 
 //    PyObject *pyDict = initPython();
-    initPython();
+//    initPython();
 
     dbModule = PyImport_ImportModule("Db");
     if(!dbModule) {
-        printf("Module import failed!\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Db module import failed!\n");
         return 0;
     }
     dbDict = PyModule_GetDict(dbModule);
     if(!dbDict) {
-        printf("Error getting module dict.\n");
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Error getting Db module dict.\n");
         return 0;
     }
     tableType = PyObject_GetAttrString(dbModule, "Table");
     if(!tableType) {
+//        Py_Finalize();
+        PyErr_Print();
         printf("Table class is missing!");
-        Py_Finalize();
         return 0;
     }
 
@@ -549,94 +381,66 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
             tableInstance = PyObject_CallObject(value, NULL);
             displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
             if(!PyInt_Check(displayCol)) {
+//                Py_Finalize();
+                PyErr_Print();
                 printf("The method get_display_col does not return an integer.\n");
-                Py_Finalize();
                 return 0;
             }
-            Py_Finalize();
+//            Py_Finalize();
+            PyErr_Clear();
             return PyInt_AsSsize_t(displayCol);
         }
     }
 
-//    PyRun_SimpleString("import Db\n");
-//    PyObject *keys = PyDict_Keys(pyDict);
-//    if(PyList_Check(keys))
-//    {
-//        for(int i = 0 ; i < PyList_Size(keys) ; i++)
-//        {
-//            PyObject *key = PyList_GetItem(keys, i);
-//            PyObject *dictItem = PyDict_GetItem(pyDict, key);
-//            if(strcmp("Db", PyString_AsString(key)) == 0)
-//            {
-//                PyObject *DbDict = PyModule_GetDict(dictItem);
-//                PyObject *DbKeys = PyDict_Keys(DbDict);
-//                for(int j = 0 ; j < PyList_Size(DbKeys) ; j++) {
-//                    PyObject *DbKey = PyList_GetItem(DbKeys, j);
-//                    PyObject *DbTable = PyDict_GetItem(DbDict, DbKey);
-//                    if(PyType_Check(DbTable))
-//                    {
-//                        PyObject *tableInstance = PyObject_CallObject(DbTable, NULL);
-//                        PyObject *pyObTableName = PyObject_CallMethod(tableInstance, (char *)"__str__", NULL);
-//                        char *strTableName = PyString_AsString(pyObTableName);
-//                        if(strcmp(strTableName, tableName.toAscii()) != 0) continue;
-//                        PyObject *displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
-//                        if(PyInt_Check(displayCol))
-//                        {
-//                            return PyInt_AsSsize_t(displayCol);
-//                        }
-//                    }
-//                }
+//    Py_Finalize();
+    PyErr_Clear();
+    return 0;
+}
+
+//int PythonInterpreter::getDisplayColWithoutInit(QString tableName) {
+//    PyObject *dbModule, *dbDict, *tableType, *key, *value,
+//            *tableInstance, *displayCol;
+//    Py_ssize_t pos;
+
+//    PyErr_Clear();
+//    dbModule = PyImport_ImportModule("Db");
+//    if(!dbModule) {
+//        printf("Module import failed!\n");
+//        PyErr_Print();
+//        return 0;
+//    }
+//    dbDict = PyModule_GetDict(dbModule);
+//    if(!dbDict) {
+//        printf("Error getting module dict.\n");
+//        PyErr_Print();
+//        return 0;
+//    }
+//    tableType = PyObject_GetAttrString(dbModule, "Table");
+//    if(!tableType) {
+//        printf("Table class is missing!");
+//        PyErr_Print();
+//        return 0;
+//    }
+
+//    pos = 0;
+//    while(PyDict_Next(dbDict, &pos, &key, &value)) {
+//        if(PyType_Check(value) &&
+//                PyType_IsSubtype((PyTypeObject*) value, (PyTypeObject*) tableType) &&
+//                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(tableType, "__name__") &&
+//                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
+//            tableInstance = PyObject_CallObject(value, NULL);
+//            displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
+//            if(!PyInt_Check(displayCol)) {
+//                printf("The method get_display_col does not return an integer.\n");
+//                PyErr_Print();
+//                return 0;
 //            }
+//            return PyInt_AsSsize_t(displayCol);
 //        }
 //    }
-    Py_Finalize();
-    return 0;
-}
 
-int PythonInterpreter::getDisplayColWithoutInit(QString tableName) {
-    PyObject *dbModule, *dbDict, *tableType, *key, *value,
-            *tableInstance, *displayCol;
-    Py_ssize_t pos;
-
-    PyErr_Clear();
-    dbModule = PyImport_ImportModule("Db");
-    if(!dbModule) {
-        printf("Module import failed!\n");
-        PyErr_Print();
-        return 0;
-    }
-    dbDict = PyModule_GetDict(dbModule);
-    if(!dbDict) {
-        printf("Error getting module dict.\n");
-        PyErr_Print();
-        return 0;
-    }
-    tableType = PyObject_GetAttrString(dbModule, "Table");
-    if(!tableType) {
-        printf("Table class is missing!");
-        PyErr_Print();
-        return 0;
-    }
-
-    pos = 0;
-    while(PyDict_Next(dbDict, &pos, &key, &value)) {
-        if(PyType_Check(value) &&
-                PyType_IsSubtype((PyTypeObject*) value, (PyTypeObject*) tableType) &&
-                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(tableType, "__name__") &&
-                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
-            tableInstance = PyObject_CallObject(value, NULL);
-            displayCol = PyObject_CallMethod(tableInstance, (char *)"get_display_col", NULL);
-            if(!PyInt_Check(displayCol)) {
-                printf("The method get_display_col does not return an integer.\n");
-                PyErr_Print();
-                return 0;
-            }
-            return PyInt_AsSsize_t(displayCol);
-        }
-    }
-
-    return 0;
-}
+//    return 0;
+//}
 
 QString PythonInterpreter::getSystemPath() {
     return systemPath;
@@ -650,26 +454,26 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
 
     wizModule = PyImport_ImportModule("Wizard");
     if(!wizModule) {
-        printf("Error importing module!\n");
         PyErr_Print();
-        PyErr_Clear();
+        printf("Error importing Wizard module!\n");
+//        PyErr_Clear();
         return pageList;
     }
 
     wizardPageType = PyObject_GetAttrString(wizModule, "WizardPage");
     if(!wizardPageType) {
-        printf("WizardPage class is missing!");
         PyErr_Print();
-        PyErr_Clear();
+        printf("WizardPage class is missing!");
+//        PyErr_Clear();
         return pageList;
     }
 
     wizardPageList = PyObject_GetAttrString(wizModule, "page_order");
     if(!wizardPageList ||
             !PyList_Check(wizardPageList)) {
-        printf("Error getting page_order.\n");
         PyErr_Print();
-        PyErr_Clear();
+        printf("Error getting page_order.\n");
+//        PyErr_Clear();
         return pageList;
     }
     wizPageListSize = PyList_Size(wizardPageList);
@@ -692,14 +496,15 @@ QList<QString> PythonInterpreter::settingAsStringList(QString settingName) {
     PyErr_Clear();
     settingsModule = PyImport_ImportModule("SystemSettings");
     if(!settingsModule) {
-        printf("Error importing SystemSettings module!\n");
         PyErr_Print();
+        printf("Error importing SystemSettings module!\n");
         return settingList;
     }
 
     setting = PyObject_GetAttrString(settingsModule, settingName.toStdString().data());
     if(!setting ||
             !PyList_Check(setting)) {
+        PyErr_Print();
         printf("Setting, %s, not a Python list!\n", settingName.toStdString().data());
         return settingList;
     }
@@ -708,6 +513,7 @@ QList<QString> PythonInterpreter::settingAsStringList(QString settingName) {
     for(int i = 0;i < settingSize;i++) {
         settingItem = PyList_GetItem(setting, i);
         if(!settingItem || !PyString_Check(settingItem)) {
+            PyErr_Print();
             printf("Setting, %s, contains objects other than strings!\n", settingName.toStdString().data());
             return settingList;
         }
@@ -723,18 +529,22 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
     PyObject *dbLayoutModule, *dbOrder, *pyTableName;
     Py_ssize_t nameListSize;
 
-    initPython();
+//    initPython();
 //    printf("Before PyErr_Clear()\n");
     PyErr_Clear();
     dbLayoutModule = PyImport_ImportModule("DbLayout");
     if(!dbLayoutModule) {
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Error importing DbLayout module!\n");
         return getTableNames();
     }
 
     dbOrder = PyObject_GetAttrString(dbLayoutModule, (char *) "db_order");
     if(!dbOrder || !PyList_Check(dbOrder)) {
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Method db_order doesn't exist or doesn't return a list!\n");
         return getTableNames();
     }
 
@@ -746,7 +556,8 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
         tableNameList.append(tableName);
     }
 
-    Py_Finalize();
+//    Py_Finalize();
+    PyErr_Clear();
     return tableNameList;
 }
 
@@ -755,17 +566,21 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
     PyObject *dbLayoutModule, *dbMetaMap, *mapTuple;
     Py_ssize_t metaMapSize;
 
-    initPython();
+//    initPython();
     PyErr_Clear();
     dbLayoutModule = PyImport_ImportModule("DbLayout");
     if(!dbLayoutModule) {
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Error importing DbLayout module!\n");
         return metaTableName;
     }
 
     dbMetaMap = PyObject_GetAttrString(dbLayoutModule, (char *) "db_meta_map");
     if(!dbMetaMap || !PyList_Check(dbMetaMap)) {
-        Py_Finalize();
+//        Py_Finalize();
+        PyErr_Print();
+        printf("Method db_meta_map missing or doesn't return a list!\n");
         return metaTableName;
     }
 
@@ -775,12 +590,14 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
         if(!mapTuple || !PyTuple_Check(mapTuple)) continue;
         if(PyString_AsString(PyTuple_GetItem(mapTuple, 0)) == tableName) {
             metaTableName = PyString_AsString(PyTuple_GetItem(mapTuple, 1));
-            Py_Finalize();
+//            Py_Finalize();
+            PyErr_Clear();
             return metaTableName;
         }
     }
 
-    Py_Finalize();
+//    Py_Finalize();
+    PyErr_Clear();
     return metaTableName;
 }
 
@@ -827,6 +644,10 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
     QList<QList<QVariant> *> dataList = QList<QList<QVariant> *>();
     for(int i = 0 ; i < PyList_Size(data) ; i++) {
         PyObject *recordPy = PyList_GetItem(data, i);
+        if(!PyList_Check(recordPy)) {
+            printf("The data attibute contains items other than lists!\n");
+            return dataList;
+        }
         QList<QVariant> *record = new QList<QVariant>();
         for(int j = 0 ; j < PyList_Size(recordPy) ; j++) {
             PyObject *datumPy = PyList_GetItem(recordPy, j);
@@ -846,4 +667,8 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
         dataList.append(record);
     }
     return dataList;
+}
+
+void PythonInterpreter::finalizePython() {
+    if (Py_IsInitialized()) Py_Finalize();
 }

@@ -9,6 +9,7 @@ class PythonInterpreter
 {
 public:
     PythonInterpreter(QString systemPath);
+    ~PythonInterpreter();
     void initPython();
 //    PyObject * getTableClass();
 //    void runModule(QString *module);
@@ -18,7 +19,7 @@ public:
     QList<QString> getColList(QString tableName);
     QList<QString> getColDefsList(QString tableName);
     int getDisplayCol(QString tableName);
-    int getDisplayColWithoutInit(QString tableName);
+//    int getDisplayColWithoutInit(QString tableName);
     QString getSystemPath();
     QList<PyObject *> getWizardPages();
     QList<QString> settingAsStringList(QString settingName);
@@ -29,6 +30,7 @@ private:
     QList<QString> getStringList(PyObject *pyListObject);
     QList<QString> getColDefString(PyObject *cols, PyObject *colDefs);
     QList<QList<QVariant> *> getDataList(PyObject *data);
+    void finalizePython();
 
 private:
     QString systemPath;
