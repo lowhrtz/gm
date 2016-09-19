@@ -38,3 +38,6 @@ CMakeLists.txt.user
 
 # Executable
 GM
+
+# LibreOffice CSV Lockfile
+.~lock.*.csv#
