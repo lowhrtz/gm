@@ -11,6 +11,7 @@ INCLUDEPATH += /usr/include/python2.7
 LIBS += -lpython2.7
 QT += sql
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
 
 # Input
 HEADERS += MainWindow.h \

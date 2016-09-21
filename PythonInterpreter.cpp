@@ -448,9 +448,10 @@ QString PythonInterpreter::getSystemPath() {
 
 QList<PyObject *> PythonInterpreter::getWizardPages() {
     QList<PyObject *> pageList;
-    PyObject *wizModule, *wizardPageType, *wizardPageList,
+    PyObject *wizModule, *wizardPageType, *wizModuleDict, *key, *value, *wizardPageList,
             *wizPageListItem;
-    Py_ssize_t wizPageListSize;
+    Py_ssize_t pos = 0, wizPageListSize;
+    QString keyString;
 
     wizModule = PyImport_ImportModule("Wizard");
     if(!wizModule) {
@@ -468,22 +469,37 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
         return pageList;
     }
 
-    wizardPageList = PyObject_GetAttrString(wizModule, "page_order");
-    if(!wizardPageList ||
-            !PyList_Check(wizardPageList)) {
+    wizModuleDict = PyModule_GetDict(wizModule);
+    if(!wizModuleDict) {
         PyErr_Print();
-        printf("Error getting page_order.\n");
-//        PyErr_Clear();
+        printf("Error getting Wizard module dict.\n");
         return pageList;
     }
-    wizPageListSize = PyList_Size(wizardPageList);
-    for(int i = 0;i < wizPageListSize ; i++) {
-        wizPageListItem = PyList_GetItem(wizardPageList, i);
-        if(PyType_Check(wizPageListItem) &&
-                PyType_IsSubtype((PyTypeObject*) wizPageListItem, (PyTypeObject*) wizardPageType)) {
-            pageList.append(wizPageListItem);
+
+    while(PyDict_Next(wizModuleDict, &pos, &key, &value)) {
+        keyString = PyString_AsString(key);
+        if(PyType_Check(value) &&
+                PyType_IsSubtype((PyTypeObject*)value, (PyTypeObject*)wizardPageType) &&
+                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(wizardPageType, "__name__")) {
+            pageList.append(value);
         }
     }
+
+//    wizardPageList = PyObject_GetAttrString(wizModule, "page_order");
+//    if(!wizardPageList ||
+//            !PyList_Check(wizardPageList)) {
+//        PyErr_Print();
+//        printf("Error getting page_order.\n");
+//        return pageList;
+//    }
+//    wizPageListSize = PyList_Size(wizardPageList);
+//    for(int i = 0;i < wizPageListSize ; i++) {
+//        wizPageListItem = PyList_GetItem(wizardPageList, i);
+//        if(PyType_Check(wizPageListItem) &&
+//                PyType_IsSubtype((PyTypeObject*) wizPageListItem, (PyTypeObject*) wizardPageType)) {
+//            pageList.append(wizPageListItem);
+//        }
+//    }
 
     return pageList;
 }

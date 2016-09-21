@@ -12,15 +12,24 @@ class WizardPage : public QWizardPage {
     Q_OBJECT
 
 public:
-    WizardPage(QWidget *parent = 0);
+    WizardPage(PyObject *pyWizardPageInstance = Py_None, QWidget *parent = 0);
     void publicRegisterField(const QString & name, QWidget * widget, const char * property = 0, const char * changedSignal = 0 );
     void cleanupPage();
     void initializePage();
-    
+    int nextId() const;
+
+public:
+   int pageId;
+   PyObject *pyWizardPageInstance;
+   QVariant nextIdArgs;
+
 signals:
     
 public slots:
-    
+//    void setNextIdArgs(int int_param) {
+//        qInfo("int_param: %d", int_param);
+//        nextIdArgs = QString::number(int_param);
+//    }
 };
 
 class DragLabel : public QLabel {

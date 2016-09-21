@@ -7,9 +7,9 @@
 #include <QMimeData>
 #include <QToolButton>
 
-WizardPage::WizardPage(QWidget *parent) :
+WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     QWizardPage(parent) {
-
+    this->pyWizardPageInstance = pyWizardPageInstance;
 }
 
 void WizardPage::publicRegisterField(const QString &name, QWidget *widget, const char *property, const char *changedSignal) {
@@ -22,8 +22,33 @@ void WizardPage::cleanupPage() {
 void WizardPage::initializePage() {
 }
 
+int WizardPage::nextId() const {
+//    char *format;
+//    char *args;
+    int return_value;
+//    qInfo("Type: %s", nextIdArgs.typeName());
+    if (nextIdArgs.isNull()) {
+        return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", NULL));
+    }
+    else if (strcmp(nextIdArgs.typeName(), "int") == 0) {
+        return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", (char *) "i", nextIdArgs.toInt()));
+    }
+    else if (strcmp(nextIdArgs.typeName(), "bool") == 0) {
+        int argInt = 0;
+        if (nextIdArgs.toBool()) {
+            argInt = 1;
+        }
+        return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", (char *) "i", argInt));
+    }
+    else {
+        return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", NULL));
+
+    }
+    return return_value;
+}
+
 RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent) :
-    WizardPage(parent) {
+    WizardPage(pyWizardPageInstance, parent) {
 
     QPixmap dicePix(":/images/dice.png"), rollBanner(":/images/rollBanner.jpg");
     QLabel *diceLabel;
@@ -70,6 +95,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 
     pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
     pageSubtitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_subtitle", NULL));
+    pageId = PyInt_AsSsize_t(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_id", NULL));
     setTitle(pageTitle);
     setSubTitle(pageSubtitle);
 

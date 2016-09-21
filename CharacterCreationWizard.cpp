@@ -13,7 +13,8 @@
 
 CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandler *db, PythonInterpreter *interpreter)
     : QWizard(parent) {
-    QList<QWizardPage *> wizardPages;
+    QList<WizardPage *> wizardPages;
+    WizardPage *page;
 
     this->db = db;
     this->interpreter = interpreter;
@@ -21,7 +22,10 @@ CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandle
     wizardPages = getWizardPages();
     for(int i = 0;i < wizardPages.size();i++) {
 //        printf("Page Title: %s\n", wizardPages.at(i)->title().toAscii().data());
-        this->addPage(wizardPages.at(i));
+//        this->addPage(wizardPages.at(i));
+        page = wizardPages.at(i);
+//        printf("pageId: %d\n", page->nextId());
+        this->setPage(page->pageId, page);
     }
     this->setWindowTitle("Character Creation Wizard");
 //    printf("ccWizard instantiated.\n");
@@ -32,8 +36,8 @@ void CharacterCreationWizard::accept() {
     QDialog::accept();
 }
 
-QList<QWizardPage *> CharacterCreationWizard::getWizardPages() {
-    QList<QWizardPage *> pageList;
+QList<WizardPage *> CharacterCreationWizard::getWizardPages() {
+    QList<WizardPage *> pageList;
     QList<PyObject *> pyWizPageList;
 
 //    interpreter->initPython();
@@ -48,15 +52,15 @@ QList<QWizardPage *> CharacterCreationWizard::getWizardPages() {
     return pageList;
 }
 
-QWizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
-    QWizardPage *wizardPage;
+WizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
+    WizardPage *wizardPage;
     PyObject *pyWizardPageInstance;
     QString pageTemplate, pageTitle, pageSubtitle, layoutString, content;
     QLabel *contentLabel;
 
     if(!PyType_Check(pyWizardPage)) {
         printf("Error: Not a Type Object!\n");
-        wizardPage = new QWizardPage;
+        wizardPage = new WizardPage;
         return wizardPage;
     }
 
@@ -77,9 +81,10 @@ QWizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
 //    PyErr_Print();
 //    PyErr_Clear();
 
-    wizardPage = new QWizardPage;
+    wizardPage = new WizardPage(pyWizardPageInstance);
     wizardPage->setTitle(pageTitle);
     wizardPage->setSubTitle(pageSubtitle);
+    wizardPage->pageId = PyInt_AsSsize_t(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_id", NULL));
 
     contentLabel = new QLabel(content);
     if(layoutString.toLower() == "vertical") {
@@ -100,7 +105,7 @@ QWizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
 
 WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance) {
 //    QWizardPage *wizardPage = new QWizardPage;
-    WizardPage *wizardPage = new WizardPage(this);
+    WizardPage *wizardPage = new WizardPage(pyWizardPageInstance, this);
     PyObject *pyContent, *pyContentItem,
             *firstTupleItem, *secondTupleItem;
     Py_ssize_t pyContentSize, tupleSize;
@@ -115,6 +120,7 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
 
     pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
     pageSubtitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_subtitle", NULL));
+    wizardPage->pageId = PyInt_AsSsize_t(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_id", NULL));
     wizardPage->setTitle(pageTitle);
     wizardPage->setSubTitle(pageSubtitle);
 
@@ -190,8 +196,17 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
             wizardPage->publicRegisterField(getMandatoryString(itemName, pyContentItem), choose);
             layout->addWidget(chooseLabel, i, 0, Qt::AlignLeft);
             layout->addWidget(choose, i, 1);
-        } else if(itemType.toLower() == "checkbox") {
+        } else if(itemType.toLower().startsWith("checkbox")) {
             QCheckBox *checkbox = new QCheckBox(itemName, wizardPage);
+            if (itemType.toLower().endsWith("-checked")) {
+                checkbox->setChecked(true);
+            }
+            if(tupleSize > 2) {
+                wizardPage->nextIdArgs = checkbox->isChecked();
+                connect(checkbox, &QCheckBox::toggled, [=](bool checked) {
+                    wizardPage->nextIdArgs = checked;
+                });
+            }
             wizardPage->publicRegisterField(getMandatoryString(itemName, pyContentItem), checkbox);
             layout->addWidget(checkbox, i, 0);
 
@@ -205,9 +220,9 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
                 PyObject *pyAction = PyObject_CallMethodObjArgs(pyWizardPageInstance, actionName, NULL);
                 if(!pyAction ||
                         !PyTuple_Check(pyAction)) {
-                    printf("Error getting action tuple!\n");
                     PyErr_Print();
                     PyErr_Clear();
+                    printf("Error getting action tuple!\n");
                     continue;
                 }
 //                currentActionTuple = pyAction;
@@ -224,7 +239,7 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
             button->setText(itemName);
             button->setToolButtonStyle(Qt::ToolButtonTextOnly);
             layout->addWidget(button, i, 1, Qt::AlignCenter);
-        }  else if(itemType.toLower() == "fillhook") {
+        } else if(itemType.toLower() == "fillhook") {
             if(tupleSize < 3) {
                 printf("fillHook tuple has a size of less than 3!\n");
                 continue;
@@ -271,6 +286,16 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
                         QRadioButton *radioButton = new QRadioButton(fillString, wizardPage);
                         radioButtonGroup->addButton(radioButton);
                         if(j == 0) radioButton->setChecked(true);
+                        if (tupleSize > 4) {
+                            PyObject *branch_identifier = PyTuple_GetItem(pyContentItem, 4);
+                            QString branch_identifier_string = PyString_AsString(branch_identifier);
+                            if (branch_identifier_string.compare("index") == 0) {
+                                wizardPage->nextIdArgs = QString::number(0);
+                                connect(radioButton, &QRadioButton::pressed, [=]() {
+                                    wizardPage->nextIdArgs = j;
+                                });
+                            }
+                        }
                         wizardPage->publicRegisterField(fillString, radioButton);
                         fillAreaLayout->addWidget(radioButton, j, 1);
                         continue;
@@ -305,7 +330,7 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
 }
 
 WizardPage *CharacterCreationWizard::getRollMethodsPage(PyObject *pyWizardPageInstance) {
-    WizardPage *wizardPage = new WizardPage(this);
+    WizardPage *wizardPage = new WizardPage(pyWizardPageInstance, this);
     QPixmap dicePix(":/images/dice.png"), rollBanner(":/images/rollBanner.jpg");
     QLabel *diceLabel;
     PyObject *pyContent, *pyAttributeList, *pyAttribute,
@@ -352,6 +377,7 @@ WizardPage *CharacterCreationWizard::getRollMethodsPage(PyObject *pyWizardPageIn
 
     pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
     pageSubtitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_subtitle", NULL));
+    wizardPage->pageId = PyInt_AsSsize_t(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_id", NULL));
     wizardPage->setTitle(pageTitle);
     wizardPage->setSubTitle(pageSubtitle);
 
