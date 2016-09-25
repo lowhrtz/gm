@@ -26,7 +26,7 @@ class IntroPage(WizardPage):
 class CharacterCreationChoicePage(WizardPage):
     page_title = "You Must Choose!"
     page_subtitle = "But choose wisely..."
-    page_id = 1
+    page_id = 10
     template = "infoPage"
     content = [
         ('text', 'How do you want to create your character?'),
@@ -42,14 +42,14 @@ class CharacterCreationChoicePage(WizardPage):
 
     def get_next_page_id(self, selected_radio=0):
         if selected_radio == 0:
-            return 2
+            return RollMethodsPage.page_id
         else:
-            return 4
+            return InfoPage.page_id
 
 class RollMethodsPage(WizardPage):
     page_title = "Roll Methods"
     page_subtitle = "Choose your roll method"
-    page_id = 2
+    page_id = 20
     template = "rollMethodsPage"
     attribute_list = get_attribute_names()
     content = [
@@ -59,8 +59,8 @@ class RollMethodsPage(WizardPage):
         ('droplow+arrange','4d6'),
     ]
 
-    def get_next_page_id(self):
-        return 4
+#    def get_next_page_id(self):
+#        return InfoPage.page_id
 
 #class RollAttributesPage(WizardPage):
 #    page_title = "Roll"
@@ -88,7 +88,7 @@ class RollMethodsPage(WizardPage):
 class InfoPage(WizardPage):
     page_title = "Information"
     page_subtitle = "Please enter personal information for your character."
-    page_id = 4
+    page_id = 40
     template = "InfoPage"
     content = [
         ('text','This is the basic information that you will build your character on.'),
@@ -109,18 +109,18 @@ class InfoPage(WizardPage):
 class ChooseClassPage(WizardPage):
     page_title = "Choose Class"
     page_subtitle = "Choose Class Subtitle"
-    page_id = 5
+    page_id = 50
     layout = "Horizontal"
     content = "This is where you'd choose a class."
 
 class ReviewPage(WizardPage):
     page_title = "Review"
     page_subtitle = "Review Subtitle"
-    page_id = 6
+    page_id = 60
     content = "This is the review content."
 
-    def get_next_page_id(self):
-        return -1
+#    def get_next_page_id(self):
+#        return -1
 
 #page_order = [
 #    IntroPage,

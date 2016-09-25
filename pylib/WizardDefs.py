@@ -22,7 +22,9 @@ class WizardPage(object):
         return self.page_id
 
     def get_next_page_id(self):
-        return self.page_id + 1
+#        return self.page_id +1
+        return -2
+
 
     def get_layout(self):
         return self.layout

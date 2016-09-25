@@ -33,7 +33,7 @@ private:
     QList<WizardPage *> getWizardPages();
     WizardPage *getWizardPage(PyObject *pyWizardPage);
     WizardPage *getInfoPage(PyObject *pyWizardPageInstance);
-    WizardPage *getRollMethodsPage(PyObject *pyWizardPageInstance);
+//    WizardPage *getRollMethodsPage(PyObject *pyWizardPageInstance);
     QString getMandatoryString(QString fillString, PyObject *pyContentItem);
 
 private:

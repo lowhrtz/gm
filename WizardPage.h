@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QLabel>
 //#include <QVariant>
+#include <QWizard>
 #include <QWizardPage>
 
 class WizardPage : public QWizardPage {
@@ -20,6 +21,7 @@ public:
 
 public:
    int pageId;
+   QWizard *wizard;
    PyObject *pyWizardPageInstance;
    QVariant nextIdArgs;
 

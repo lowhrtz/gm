@@ -10,6 +10,7 @@
 WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     QWizardPage(parent) {
     this->pyWizardPageInstance = pyWizardPageInstance;
+    this->wizard = (QWizard *) parent;
 }
 
 void WizardPage::publicRegisterField(const QString &name, QWidget *widget, const char *property, const char *changedSignal) {
@@ -44,6 +45,19 @@ int WizardPage::nextId() const {
         return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", NULL));
 
     }
+
+    if (return_value == -2) {
+        bool foundCurrentPage = false;
+        foreach (int id, wizard->pageIds()) {
+            if (id == this->pageId) {
+                foundCurrentPage = true;
+            } else if (foundCurrentPage) {
+                return id;
+            }
+        }
+        return -1;
+    }
+
     return return_value;
 }
 
