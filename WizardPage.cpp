@@ -78,7 +78,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
     pyAttributeList = PyObject_GetAttrString(pyWizardPageInstance, (char *) "attribute_list");
     if(!pyAttributeList ||
             !PyList_Check(pyAttributeList)) {
-        printf("Error retrieving attribute_list from rollMethodsPage template. Make sure the variable has been added and that it contains a list of strings.\n");
+        qInfo("Error retrieving attribute_list from rollMethodsPage template. Make sure the variable has been added and that it contains a list of strings.\n");
         PyErr_Print();
         PyErr_Clear();
         return;

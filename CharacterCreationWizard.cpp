@@ -59,7 +59,7 @@ WizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
     QLabel *contentLabel;
 
     if(!PyType_Check(pyWizardPage)) {
-        printf("Error: Not a Type Object!\n");
+        qInfo("Error: Not a Type Object!\n");
         wizardPage = new WizardPage;
         return wizardPage;
     }
