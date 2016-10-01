@@ -4,7 +4,6 @@
 #include "PythonInterpreter.h"
 #include <QComboBox>
 #include <QLabel>
-//#include <QVariant>
 #include <QWizard>
 #include <QWizardPage>
 
@@ -25,13 +24,12 @@ public:
    PyObject *pyWizardPageInstance;
    QVariant nextIdArgs;
 
+private:
+
 signals:
     
 public slots:
-//    void setNextIdArgs(int int_param) {
-//        qInfo("int_param: %d", int_param);
-//        nextIdArgs = QString::number(int_param);
-//    }
+
 };
 
 class DragLabel : public QLabel {
@@ -62,6 +60,7 @@ class RollMethodsPage : public WizardPage {
 public:
     RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent = 0);
     void initializePage();
+    bool validatePage();
     void fillAttributeFields();
     void publicSetField(const QString &fieldName, const QVariant &fieldValue);
     QVariant getField(QString fieldName);
@@ -70,9 +69,9 @@ private:
     QComboBox *rollMethodSelector;
     QList<QString> attributeList;
     QList<DragLabel *> diceLabelList;
+    QLineEdit *pool;
 
 public slots:
-//    void rollMethodChanged(QString rollMethodString);
     void buttonClicked();
 };
 

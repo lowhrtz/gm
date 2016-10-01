@@ -58,7 +58,7 @@ class RollMethodsPage(WizardPage):
         ('droplow', 'Drop Lowest', '4d6'),
         ('droplow+arrange', 'Drop Lowest with Arrange', '4d6'),
         ('pool', 'Distribute from a Pool of Points', '70'),
-#        ('pool', 'Distribute from a Pool of Points', '80'),
+        ('pool-forceuse', 'Distribute from a Pool of Points', '80'),
     ]
 
 #    def get_next_page_id(self):

@@ -23,7 +23,8 @@ HEADERS += MainWindow.h \
     Dice.h \
     CharacterCreationWizard.h \
     PyToolButton.h \
-    WizardPage.h
+    WizardPage.h \
+    Dialogs.h
 SOURCES += main.cpp MainWindow.cpp \
     PythonInterpreter.cpp \
     ListObject.cpp \
@@ -33,7 +34,8 @@ SOURCES += main.cpp MainWindow.cpp \
     Dice.cpp \
     CharacterCreationWizard.cpp \
     PyToolButton.cpp \
-    WizardPage.cpp
+    WizardPage.cpp \
+    Dialogs.cpp
 
 RESOURCES += \
     resources.qrc

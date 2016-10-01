@@ -1,14 +1,17 @@
 #include "WizardPage.h"
 #include "Dice.h"
+#include "Dialogs.h"
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDrag>
 #include <QDragMoveEvent>
 #include <QGridLayout>
+#include <QIntValidator>
 #include <QLineEdit>
 #include <QMimeData>
+#include <QPushButton>
+#include <QTextStream>
 #include <QToolButton>
-#include <QIntValidator>
-
-#include <QList>
 
 WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     QWizardPage(parent) {
@@ -118,7 +121,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 
     layout = new QGridLayout;
 
-    QLineEdit *pool = new QLineEdit(this);
+    pool = new QLineEdit(this);
     pool->setFixedWidth(35);
     pool->setEnabled(false);
 
@@ -128,7 +131,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
         pyContentItem = PyList_GetItem(pyContent, i);
         if(!pyContentItem ||
                 !PyTuple_Check(pyContentItem)) {
-            printf("content item is not a tuple.\n");
+            qInfo("content item is not a tuple.\n");
             PyErr_Print();
             PyErr_Clear();
             continue;
@@ -161,12 +164,6 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
             } else {
                 diceString = PyString_AsString(thirdTupleItem);
             }
-
-//            if(rollMethod.startsWith("pool")) {
-//                QString pool_total_string = PyString_AsString(thirdTupleItem);
-//                pool->setText(pool_total_string);
-//                pool_total = pool_total_string.toInt();
-//            }
         }
 
         rollMethodSelector->addItem(rollMethodDisplayString, diceString);
@@ -200,14 +197,6 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
         nextRow = i + 2;
         attrEditList->append(attrEdit);
 
-//        connect(attrEdit, &QLineEdit::cursorPositionChanged, [=](int old_pos, int new_pos) {
-//            old_pos += 1;
-//            int place = attrEdit->text().length();
-//            if(new_pos != place) {
-//                attrEdit->setCursorPosition(place);
-//            }
-//        });
-
         connect(attrEdit, &QLineEdit::textEdited, [=](QString newText) {
             newText.toInt();
             int pool_int = pool->text().toInt();
@@ -237,13 +226,12 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 
     QToolButton *rollButton = new QToolButton(this);
     QLabel *poolLabel = new QLabel("Points Left");
-    connect(rollButton, SIGNAL(clicked()), this, SLOT(buttonClicked()));
+    connect(rollButton, &QToolButton::clicked, this, &RollMethodsPage::buttonClicked);
     rollButton->setText("Roll");
     layout->addWidget(rollButton, nextRow, 2);
     layout->addWidget(pool, nextRow, 2);
     layout->addWidget(poolLabel, nextRow, 3);
 
-//    connect(rollMethodSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(rollMethodChanged(QString)));
     // http://stackoverflow.com/questions/31164574/qt5-signal-slot-syntax-w-overloaded-signal-lambda
     connect(rollMethodSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int newIndex) {
         rollMethodSelector->itemText(newIndex);
@@ -287,9 +275,32 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 
 void RollMethodsPage::initializePage() {
     emit rollMethodSelector->currentIndexChanged(0);
-//    rollMethodSelector->setCurrentIndex(-1);
-//    rollMethodSelector->setCurrentIndex(0);
-//    rollMethodChanged(rollMethodSelector->currentText());
+}
+
+bool RollMethodsPage::validatePage(){
+    QString rollMethod = rollMethodSelector->currentData(RollMethodRole).toString().toLower();
+    if(rollMethod.startsWith("pool")) {
+        int pool_int = pool->text().toInt();
+        if(pool_int > 0) {
+            QString points = "points";
+            if(pool_int == 1) points = "point";
+            QString messageString;
+            QTextStream(&messageString) << "You still have " << pool_int << " " << points << " left";
+
+            if(rollMethod.endsWith("forceuse")) {
+                QTextStream(&messageString) << " to distribute.";
+                PopupDialog *popup = new PopupDialog("Points Remaining", messageString, this);
+                popup->exec();
+                return false;
+            }
+
+            QTextStream(&messageString) << ". Continue?";
+            YesNoDialog *dialog = new YesNoDialog("Points Remaining", messageString, this);
+            return dialog->exec();
+        }
+    }
+
+    return true;
 }
 
 void RollMethodsPage::fillAttributeFields() {
@@ -318,19 +329,6 @@ void RollMethodsPage::publicSetField(const QString &fieldName, const QVariant &f
 QVariant RollMethodsPage::getField(QString fieldName) {
     return field(fieldName);
 }
-
-//void RollMethodsPage::rollMethodChanged(QString rollMethodDisplayString) {
-//    QString rollMethodString = rollMethodSelector->currentData(RollMethodRole).toString();
-//    bool enabled = false;
-//    if(rollMethodString.endsWith("arrange")) {
-//        enabled = true;
-//    }
-//    for(int i = 0;i < diceLabelList.size();i++) {
-//        DragLabel *diceLabel = diceLabelList.at(i);
-//        diceLabel->setAcceptDrops(enabled);
-//        diceLabel->setEnabled(enabled);
-//    }
-//}
 
 void RollMethodsPage::buttonClicked() {
     fillAttributeFields();
