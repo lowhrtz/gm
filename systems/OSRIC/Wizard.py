@@ -53,10 +53,12 @@ class RollMethodsPage(WizardPage):
     template = "rollMethodsPage"
     attribute_list = get_attribute_names()
     content = [
-        ('classic','3d6'),
-        ('classic+arrange','3d6'),
-        ('droplow','4d6'),
-        ('droplow+arrange','4d6'),
+        ('classic', 'Classic', '3d6'),
+        ('classic+arrange', 'Classic with Arrange', '3d6'),
+        ('droplow', 'Drop Lowest', '4d6'),
+        ('droplow+arrange', 'Drop Lowest with Arrange', '4d6'),
+        ('pool', 'Distribute from a Pool of Points', '70'),
+#        ('pool', 'Distribute from a Pool of Points', '80'),
     ]
 
 #    def get_next_page_id(self):

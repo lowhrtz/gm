@@ -6,6 +6,9 @@
 #include <QLineEdit>
 #include <QMimeData>
 #include <QToolButton>
+#include <QIntValidator>
+
+#include <QList>
 
 WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     QWizardPage(parent) {
@@ -67,11 +70,11 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
     QPixmap dicePix(":/images/dice.png"), rollBanner(":/images/rollBanner.jpg");
     QLabel *diceLabel;
     PyObject *pyContent, *pyAttributeList, *pyAttribute,
-            *pyContentItem, *firstTupleItem, *secondTupleItem;
+            *pyContentItem, *firstTupleItem, *secondTupleItem, *thirdTupleItem;
     Py_ssize_t pyAttributeListSize, pyContentSize, tupleSize;
     int nextRow = 0;
     QGridLayout *layout;
-    QString pageTitle, pageSubtitle, rollMethod, diceString;
+    QString pageTitle, pageSubtitle, rollMethod, rollMethodDisplayString, diceString;
 
     setStyleSheet("QLineEdit { background: #ffffff; color: #000000; }");
 
@@ -88,7 +91,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
         pyAttribute = PyList_GetItem(pyAttributeList, i);
         if(!pyAttribute ||
                 !PyString_Check(pyAttribute)) {
-            printf("attribute_list item is not a Python string.\n");
+            qInfo("attribute_list item is not a Python string.\n");
             PyErr_Print();
             PyErr_Clear();
             continue;
@@ -103,7 +106,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 
     pyContent = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_content", NULL);
     if(!PyList_Check(pyContent)) {
-        printf("Content not a Python list!\n");
+        qInfo("get_content doesn't return a Python list!\n");
         return;
     }
 
@@ -114,6 +117,10 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
     setSubTitle(pageSubtitle);
 
     layout = new QGridLayout;
+
+    QLineEdit *pool = new QLineEdit(this);
+    pool->setFixedWidth(35);
+    pool->setEnabled(false);
 
     rollMethodSelector = new QComboBox(this);
     pyContentSize = PyList_Size(pyContent);
@@ -126,34 +133,55 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
             PyErr_Clear();
             continue;
         }
+        tupleSize = PyTuple_Size(pyContentItem);
         firstTupleItem = PyTuple_GetItem(pyContentItem, 0);
+        if(tupleSize > 1) {
+            secondTupleItem = PyTuple_GetItem(pyContentItem, 1);
+        } else {
+            secondTupleItem = firstTupleItem;
+        }
+
         if(!firstTupleItem ||
-                !PyString_Check(firstTupleItem)) {
-            printf("Error getting roll method from content item.\n");
+                !PyString_Check(firstTupleItem) ||
+                !PyString_Check(secondTupleItem)) {
+            qInfo("Error getting roll method from content item.\n");
             PyErr_Print();
             PyErr_Clear();
             continue;
         }
+
         rollMethod = PyString_AsString(firstTupleItem);
+        rollMethodDisplayString = PyString_AsString(secondTupleItem);
         diceString = "3d6";
-        tupleSize = PyTuple_Size(pyContentItem);
-        if(tupleSize > 1) {
-            secondTupleItem = PyTuple_GetItem(pyContentItem, 1);
-            if(!secondTupleItem ||
-                    !PyString_Check(secondTupleItem)) {
+        if(tupleSize > 2) {
+            thirdTupleItem = PyTuple_GetItem(pyContentItem, 2);
+            if(!thirdTupleItem ||
+                    !PyString_Check(thirdTupleItem)) {
                 PyErr_Clear();
             } else {
-                diceString = PyString_AsString(secondTupleItem);
+                diceString = PyString_AsString(thirdTupleItem);
             }
+
+//            if(rollMethod.startsWith("pool")) {
+//                QString pool_total_string = PyString_AsString(thirdTupleItem);
+//                pool->setText(pool_total_string);
+//                pool_total = pool_total_string.toInt();
+//            }
         }
 
-        rollMethodSelector->addItem(rollMethod, diceString);
+        rollMethodSelector->addItem(rollMethodDisplayString, diceString);
+        rollMethodSelector->setItemData(i, rollMethod, RollMethodRole);
     }
 
     diceLabel = new QLabel();
     diceLabel->setPixmap(dicePix);
-    layout->addWidget(rollMethodSelector, 0, 0, 1, 3);
+    if (pyContentSize > 1) {
+        layout->addWidget(rollMethodSelector, 0, 0, 1, 5);
+    } else {
+        rollMethodSelector->hide();
+    }
 
+    QList<QLineEdit *> *attrEditList = new QList<QLineEdit *>;
     for(int i = 0;i < attributeList.size();i++) {
         QString attrName = attributeList.at(i);
         QLineEdit *attrEdit = new QLineEdit(this);
@@ -163,20 +191,93 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
         diceDragLabel->setAttrFieldName(attrName);
         attrEdit->setFixedWidth(35);
         attrEdit->setEnabled(false);
-        layout->addWidget(new QLabel(attrName), i + 1, 0);
-        layout->addWidget(attrEdit, i + 1, 1);
-        layout->addWidget(diceDragLabel, i + 1, 2);
+        attrEdit->setValidator(new QIntValidator(this));
+        layout->addWidget(new QLabel(attrName), i + 1, 1);
+        layout->addWidget(attrEdit, i + 1, 2);
+        layout->addWidget(diceDragLabel, i + 1, 3);
         publicRegisterField(attrName + "*", attrEdit);
         diceLabelList.append(diceDragLabel);
         nextRow = i + 2;
+        attrEditList->append(attrEdit);
+
+//        connect(attrEdit, &QLineEdit::cursorPositionChanged, [=](int old_pos, int new_pos) {
+//            old_pos += 1;
+//            int place = attrEdit->text().length();
+//            if(new_pos != place) {
+//                attrEdit->setCursorPosition(place);
+//            }
+//        });
+
+        connect(attrEdit, &QLineEdit::textEdited, [=](QString newText) {
+            newText.toInt();
+            int pool_int = pool->text().toInt();
+            int score_tally = 0;
+            foreach(QLineEdit *atrEdt, *attrEditList) {
+                int attr_score = atrEdt->text().toInt();
+                score_tally += attr_score;
+            }
+
+            int pool_total = rollMethodSelector->currentData().toInt();
+            pool_int = pool_total - score_tally;
+            if(pool_int < 0) {
+                if(attrEdit->isUndoAvailable()) {
+                    attrEdit->undo();
+                } else {
+                    attrEdit->clear();
+                }
+            } else {
+                pool->setText(QString::number(pool_int));
+            }
+
+            if(attrEdit->text().toInt() == 0) {
+                attrEdit->clear();
+            }
+        });
     }
 
-    connect(rollMethodSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(rollMethodChanged(QString)));
-
     QToolButton *rollButton = new QToolButton(this);
+    QLabel *poolLabel = new QLabel("Points Left");
     connect(rollButton, SIGNAL(clicked()), this, SLOT(buttonClicked()));
     rollButton->setText("Roll");
-    layout->addWidget(rollButton, nextRow, 1);
+    layout->addWidget(rollButton, nextRow, 2);
+    layout->addWidget(pool, nextRow, 2);
+    layout->addWidget(poolLabel, nextRow, 3);
+
+//    connect(rollMethodSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(rollMethodChanged(QString)));
+    // http://stackoverflow.com/questions/31164574/qt5-signal-slot-syntax-w-overloaded-signal-lambda
+    connect(rollMethodSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int newIndex) {
+        rollMethodSelector->itemText(newIndex);
+        QString rollMethodString = rollMethodSelector->currentData(RollMethodRole).toString();
+        bool enabled = false;
+        if(rollMethodString.toLower().endsWith("arrange")) {
+            enabled = true;
+        }
+        for(int i = 0;i < diceLabelList.size();i++) {
+            DragLabel *diceLabel = diceLabelList.at(i);
+            diceLabel->setAcceptDrops(enabled);
+            diceLabel->setEnabled(enabled);
+        }
+
+        if(rollMethodString.toLower().startsWith("pool")) {
+            rollButton->hide();
+            pool->show();
+            poolLabel->show();
+            foreach(QLineEdit *attrEdit, *attrEditList) {
+                attrEdit->setEnabled(true);
+            }
+            pool->setText(rollMethodSelector->currentData().toString());
+            QLineEdit *first_field = attrEditList->at(0);
+            emit first_field->textEdited("1");
+
+        } else {
+            pool->hide();
+            poolLabel->hide();
+            rollButton->show();
+            foreach(QLineEdit *attrEdit, *attrEditList) {
+                attrEdit->setEnabled(false);
+            }
+        }
+    });
 
     this->setLayout(layout);
 
@@ -185,13 +286,18 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
 }
 
 void RollMethodsPage::initializePage() {
-    rollMethodChanged(rollMethodSelector->currentText());
+    emit rollMethodSelector->currentIndexChanged(0);
+//    rollMethodSelector->setCurrentIndex(-1);
+//    rollMethodSelector->setCurrentIndex(0);
+//    rollMethodChanged(rollMethodSelector->currentText());
 }
 
 void RollMethodsPage::fillAttributeFields() {
     Dice dice;
-    QString diceString = rollMethodSelector->itemData(rollMethodSelector->currentIndex()).toString();
-    QString rollMethodString = rollMethodSelector->currentText();
+//    QString diceString = rollMethodSelector->itemData(rollMethodSelector->currentIndex()).toString();
+    QString diceString = rollMethodSelector->currentData().toString();
+//    QString rollMethodString = rollMethodSelector->currentText();
+    QString rollMethodString = rollMethodSelector->currentData(RollMethodRole).toString();
     for(int i = 0;i < attributeList.size();i++) {
         QString attrName = attributeList.at(i);
         int rollResult;
@@ -213,18 +319,18 @@ QVariant RollMethodsPage::getField(QString fieldName) {
     return field(fieldName);
 }
 
-void RollMethodsPage::rollMethodChanged(QString rollMethodString) {
-    bool enabled = true;
-    if(rollMethodString == "classic" ||
-            rollMethodString == "droplow") {
-        enabled = false;
-    }
-    for(int i = 0;i < diceLabelList.size();i++) {
-        DragLabel *diceLabel = diceLabelList.at(i);
-        diceLabel->setAcceptDrops(enabled);
-        diceLabel->setEnabled(enabled);
-    }
-}
+//void RollMethodsPage::rollMethodChanged(QString rollMethodDisplayString) {
+//    QString rollMethodString = rollMethodSelector->currentData(RollMethodRole).toString();
+//    bool enabled = false;
+//    if(rollMethodString.endsWith("arrange")) {
+//        enabled = true;
+//    }
+//    for(int i = 0;i < diceLabelList.size();i++) {
+//        DragLabel *diceLabel = diceLabelList.at(i);
+//        diceLabel->setAcceptDrops(enabled);
+//        diceLabel->setEnabled(enabled);
+//    }
+//}
 
 void RollMethodsPage::buttonClicked() {
     fillAttributeFields();

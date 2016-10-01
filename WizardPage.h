@@ -57,6 +57,8 @@ class RollMethodsPage : public WizardPage {
 
     Q_OBJECT
 
+    int RollMethodRole = 33;
+
 public:
     RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent = 0);
     void initializePage();
@@ -70,7 +72,7 @@ private:
     QList<DragLabel *> diceLabelList;
 
 public slots:
-    void rollMethodChanged(QString rollMethodString);
+//    void rollMethodChanged(QString rollMethodString);
     void buttonClicked();
 };
 
