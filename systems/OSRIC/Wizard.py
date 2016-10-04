@@ -178,19 +178,6 @@ class ChooseClassPage(WizardPage):
             if class_option_allowed:
                 allowed_list.append(class_option)
 
-#        for cl in class_dict_list:
-#            allowed = self.class_allowed(cl, attribute_dict)
-#            if allowed:
-#                class_name = cl['Name']
-#                for class_option in class_option_list:
-#                    class_option_sublist = [co.strip() for co in class_option.split('/')]
-#                    for class_option_sublist_item in class_option_sublist:
-#                        if class_name in class_option_sublist and class_option not in allowed_list \
-#                        and self.class_allowed(cl, attribute):
-#                            allowed_list.append(class_option)
-#                else:
-#                    allowed_list.append(cl['Name'])
-
         return allowed_list
 
     def class_allowed(self, cl, attribute_dict):

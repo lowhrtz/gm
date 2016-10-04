@@ -407,7 +407,7 @@ void RollMethodsPage::initializePage() {
 }
 
 bool RollMethodsPage::validatePage(){
-    bool return_bool;
+    bool return_bool = true;
     QString rollMethod = rollMethodSelector->currentData(RollMethodRole).toString().toLower();
     if(rollMethod.startsWith("pool")) {
         int pool_int = pool->text().toInt();
@@ -422,11 +422,11 @@ bool RollMethodsPage::validatePage(){
                 PopupDialog *popup = new PopupDialog("Points Remaining", messageString, this);
                 popup->exec();
                 return_bool = false;
+            } else {
+                QTextStream(&messageString) << ". Continue?";
+                YesNoDialog *dialog = new YesNoDialog("Points Remaining", messageString, this);
+                return_bool = dialog->exec();
             }
-
-            QTextStream(&messageString) << ". Continue?";
-            YesNoDialog *dialog = new YesNoDialog("Points Remaining", messageString, this);
-            return_bool = dialog->exec();
         }
     }
 
