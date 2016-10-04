@@ -7,6 +7,8 @@
 #include <QComboBox>
 #include <QWizard>
 
+class WizardPage;
+
 class ComboRow : public QComboBox {
 
     Q_OBJECT
@@ -28,6 +30,8 @@ class CharacterCreationWizard : public QWizard {
 public:
     CharacterCreationWizard(QWidget *parent, DatabaseHandler *db, PythonInterpreter *interpreter);
     void accept();
+    DatabaseHandler *getDb();
+    PythonInterpreter *getPythonInterpreter();
 
 private:
     QList<WizardPage *> getWizardPages();
@@ -35,6 +39,9 @@ private:
     WizardPage *getInfoPage(PyObject *pyWizardPageInstance);
 //    WizardPage *getRollMethodsPage(PyObject *pyWizardPageInstance);
     QString getMandatoryString(QString fillString, PyObject *pyContentItem);
+
+public:
+    QHash<QString, QString> attributes;
 
 private:
     PythonInterpreter *interpreter;

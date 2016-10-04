@@ -480,7 +480,8 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
         keyString = PyString_AsString(key);
         if(PyType_Check(value) &&
                 PyType_IsSubtype((PyTypeObject*)value, (PyTypeObject*)wizardPageType) &&
-                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(wizardPageType, "__name__")) {
+                PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(wizardPageType, "__name__") &&
+                PyObject_IsTrue(PyObject_GetAttrString(value, "enabled"))) {
             pageList.append(value);
         }
     }

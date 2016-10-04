@@ -45,7 +45,8 @@ QList<WizardPage *> CharacterCreationWizard::getWizardPages() {
     pyWizPageList = interpreter->getWizardPages();
 
     for (int i = 0; i < pyWizPageList.size(); i++) {
-        pageList.append(getWizardPage(pyWizPageList.at(i)));
+        WizardPage *wizPage = getWizardPage(pyWizPageList.at(i));
+        pageList.append(wizPage);
     }
 
 //    Py_Finalize();
@@ -67,7 +68,8 @@ WizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
     pyWizardPageInstance = PyObject_CallObject(pyWizardPage, NULL);
     pageTemplate = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_template", NULL));
     if(pageTemplate.toLower() == "infopage") {
-        return getInfoPage(pyWizardPageInstance);
+//        return getInfoPage(pyWizardPageInstance);
+        return new InfoPage(pyWizardPageInstance, this);
     } else if(pageTemplate.toLower() == "rollmethodspage") {
 //        return getRollMethodsPage(pyWizardPageInstance);
         return new RollMethodsPage(pyWizardPageInstance, this);
@@ -131,7 +133,7 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
         pyContentItem = PyList_GetItem(pyContent, i);
         if(!PyTuple_Check(pyContentItem) ||
                 (tupleSize = PyTuple_Size(pyContentItem)) < 2) {
-            printf("Content item not a Python tupel of at least size 2!\n");
+            qInfo("Content item not a Python tupel of at least size 2!\n");
             continue;
         }
         firstTupleItem = PyTuple_GetItem(pyContentItem, 0);
@@ -148,39 +150,58 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
             wizardPage->publicRegisterField(getMandatoryString(itemName, pyContentItem), field);
             layout->addWidget(fieldLabel, i, 0, Qt::AlignLeft);
             layout->addWidget(field, i, 1);
-        } else if(itemType.toLower() == "choose") {
+        } else if(itemType.toLower() == "choose" || itemType.toLower() == "listbox") {
             if(tupleSize < 4) {
-                printf("Choose tuple has a size of less than 4!\n");
+                qInfo("Choose tuple has a size of less than 4!\n");
                 continue;
             }
             QLabel *chooseLabel = new QLabel(itemName);
             ComboRow *choose = new ComboRow(wizardPage, db, interpreter);
             QString source(PyString_AsString(PyTuple_GetItem(pyContentItem, 2)));
             PyObject *fourthTupleItem = PyTuple_GetItem(pyContentItem, 3);
+            PyObject *fifthTupleItem;
+            if(tupleSize < 5 ||
+                    (fifthTupleItem = PyTuple_GetItem(pyContentItem, 4)) == Py_None) {
+                fifthTupleItem = NULL;
+            } else {
+                if(PyString_Check(fifthTupleItem)) {
+                    QString fifthItemString = PyString_AsString(fifthTupleItem);
+                    if(fifthItemString.startsWith("^$")) {
+                        fifthTupleItem = wizardPage->parseArgTemplateString(fifthItemString);
+                    }
+                }
+            }
             if(source.toLower() == "settings") {
                 QString propName(PyString_AsString(fourthTupleItem));
                 choose->addItems(interpreter->settingAsStringList(propName));
-            } else if(source.toLower() == "method") {
-            } else if(source.toLower() == "function") {
-                PyObject *fifthTupleItem;
-                if(tupleSize < 5 ||
-                        (fifthTupleItem = PyTuple_GetItem(pyContentItem, 4)) == Py_None) {
-                    fifthTupleItem = NULL;
-                }
-                PyObject *functionReturn = PyObject_CallObject(fourthTupleItem, fifthTupleItem);
-                if(!functionReturn ||
-                        !PyList_Check(functionReturn)) {
-                    printf("Error calling function!\n");
-                    PyErr_Print();
-                    PyErr_Clear();
-                    continue;
+            } else if( source.toLower().startsWith("method") || source.toLower().startsWith("function") ) {
+                PyObject *functionReturn;
+                if(source.toLower().startsWith("method")) {
+                    PyObject *method = PyObject_GetAttr(pyWizardPageInstance, fourthTupleItem);
+                    functionReturn = PyObject_CallObject(method, fifthTupleItem);
+                    if(!functionReturn ||
+                            !PyList_Check(functionReturn)) {
+                        qInfo("Error calling method!\n");
+                        PyErr_Print();
+                        PyErr_Clear();
+                        continue;
+                    }
+                } else if(source.toLower().startsWith("function")) {
+                    functionReturn = PyObject_CallObject(fourthTupleItem, fifthTupleItem);
+                    if(!functionReturn ||
+                            !PyList_Check(functionReturn)) {
+                        printf("Error calling function!\n");
+                        PyErr_Print();
+                        PyErr_Clear();
+                        continue;
+                    }
                 }
                 Py_ssize_t listSize = PyList_Size(functionReturn);
                 for(int j = 0;j < listSize;j++) {
                     PyObject *pyListItem = PyList_GetItem(functionReturn, j);
                     if(!pyListItem ||
                             !PyString_Check(pyListItem)) {
-                        printf("Function returned a list that contains at least 1 item that is not a string.\n");
+                        qInfo("Function returned a list that contains at least 1 item that is not a string.\n");
                         PyErr_Print();
                         PyErr_Clear();
                         continue;
@@ -329,123 +350,6 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
     return wizardPage;
 }
 
-//WizardPage *CharacterCreationWizard::getRollMethodsPage(PyObject *pyWizardPageInstance) {
-//    WizardPage *wizardPage = new WizardPage(pyWizardPageInstance, this);
-//    QPixmap dicePix(":/images/dice.png"), rollBanner(":/images/rollBanner.jpg");
-//    QLabel *diceLabel;
-//    PyObject *pyContent, *pyAttributeList, *pyAttribute,
-//            *pyContentItem, *firstTupleItem, *secondTupleItem;
-//    Py_ssize_t pyAttributeListSize, pyContentSize, tupleSize;
-//    int nextRow = 0;
-//    QGridLayout *layout;
-//    QComboBox *rollMethodSelector;
-//    QString pageTitle, pageSubtitle, rollMethod, diceString;
-//    QList<QString> attributeList;
-//    Dice dice;
-
-//    pyAttributeList = PyObject_GetAttrString(pyWizardPageInstance, (char *) "attribute_list");
-//    if(!pyAttributeList ||
-//            !PyList_Check(pyAttributeList)) {
-//        printf("Error retrieving attribute_list from rollMethodsPage template. Make sure the variable has been added and that it contains a list of strings.\n");
-//        PyErr_Print();
-//        PyErr_Clear();
-//        return wizardPage;
-//    }
-//    pyAttributeListSize = PyList_Size(pyAttributeList);
-//    for(int i = 0;i < pyAttributeListSize;i++) {
-//        pyAttribute = PyList_GetItem(pyAttributeList, i);
-//        if(!pyAttribute ||
-//                !PyString_Check(pyAttribute)) {
-//            printf("attribute_list item is not a Python string.\n");
-//            PyErr_Print();
-//            PyErr_Clear();
-//            continue;
-//        }
-//        attributeList.append(PyString_AsString(pyAttribute));
-//    }
-
-////    rollBanner
-//    wizardPage->setPixmap(QWizard::WatermarkPixmap, rollBanner);
-//    wizardPage->setPixmap(QWizard::BackgroundPixmap, rollBanner);
-////    wizardPage->setStyleSheet("QPixmap { padding: 5px; background: yellow }");
-
-//    pyContent = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_content", NULL);
-//    if(!PyList_Check(pyContent)) {
-//        printf("Content not a Python list!\n");
-//        return wizardPage;
-//    }
-
-//    pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
-//    pageSubtitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_subtitle", NULL));
-//    wizardPage->pageId = PyInt_AsSsize_t(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_id", NULL));
-//    wizardPage->setTitle(pageTitle);
-//    wizardPage->setSubTitle(pageSubtitle);
-
-//    layout = new QGridLayout;
-
-//    rollMethodSelector = new QComboBox(wizardPage);
-//    pyContentSize = PyList_Size(pyContent);
-//    for(int i = 0;i < pyContentSize;i++) {
-//        pyContentItem = PyList_GetItem(pyContent, i);
-//        if(!pyContentItem ||
-//                !PyTuple_Check(pyContentItem)) {
-//            printf("content item is not a tuple.\n");
-//            PyErr_Print();
-//            PyErr_Clear();
-//            continue;
-//        }
-//        firstTupleItem = PyTuple_GetItem(pyContentItem, 0);
-//        if(!firstTupleItem ||
-//                !PyString_Check(firstTupleItem)) {
-//            printf("Error getting roll method from content item.\n");
-//            PyErr_Print();
-//            PyErr_Clear();
-//            continue;
-//        }
-//        rollMethod = PyString_AsString(firstTupleItem);
-//        diceString = "3d6";
-//        tupleSize = PyTuple_Size(pyContentItem);
-//        if(tupleSize > 1) {
-//            secondTupleItem = PyTuple_GetItem(pyContentItem, 1);
-//            if(!secondTupleItem ||
-//                    !PyString_Check(secondTupleItem)) {
-//                PyErr_Clear();
-//            } else {
-//                diceString = PyString_AsString(secondTupleItem);
-//            }
-//        }
-
-//        rollMethodSelector->addItem(rollMethod);
-//    }
-
-//    diceLabel = new QLabel();
-//    diceLabel->setPixmap(dicePix);
-//    layout->addWidget(rollMethodSelector, 0, 0, 1, 3);
-
-//    for(int i = 0;i < attributeList.size();i++) {
-//        QString attrName = attributeList.at(i);
-//        QLineEdit *attrEdit = new QLineEdit(wizardPage);
-//        attrEdit->setFixedWidth(30);
-//        int rollResult = dice.rollDice(diceString);
-//        printf("diceString: %s | rollResult: %d\n", diceString.toStdString().data(), rollResult);
-//        attrEdit->setText((QString) rollResult);
-//        layout->addWidget(new QLabel(attrName), i + 1, 0);
-//        layout->addWidget(attrEdit, i + 1, 1);
-//        wizardPage->publicRegisterField(attrName, attrEdit);
-//        nextRow = i + 2;
-//    }
-
-//    QToolButton *rollButton = new QToolButton(wizardPage);
-//    rollButton->setText("Roll");
-//    layout->addWidget(rollButton, nextRow, 1);
-
-//    wizardPage->setLayout(layout);
-
-////    wizardPage->initializePage();
-
-//    return wizardPage;
-//}
-
 QString CharacterCreationWizard::getMandatoryString(QString fillString, PyObject *pyContentItem) {
     PyObject *mandatory;
     Py_ssize_t itemSize = PyTuple_Size(pyContentItem);
@@ -463,6 +367,14 @@ QString CharacterCreationWizard::getMandatoryString(QString fillString, PyObject
     }
 
     return fillString.append("*");
+}
+
+DatabaseHandler *CharacterCreationWizard::getDb() {
+    return db;
+}
+
+PythonInterpreter *CharacterCreationWizard::getPythonInterpreter() {
+    return interpreter;
 }
 
 void CharacterCreationWizard::buttonPushed(PyObject *currentActionTuple) {
@@ -504,7 +416,7 @@ void ComboRow::addRowItem(QList<QVariant> *row, int displayColumn) {
 
 void ComboRow::fillComboRow(QString tableName) {
     if(!db->checkPersistentTable(tableName)) {
-        printf("Table, %s, missing!\n", tableName.toStdString().data());
+        qInfo("Table, %s, missing!\n", tableName.toStdString().data());
         return;
     }
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 class WizardPage(object):
+    enabled = True
     page_title = None
     page_subtitle = None
     page_id = None
