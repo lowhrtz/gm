@@ -911,10 +911,10 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
             connect(list_widget, &QListWidget::currentRowChanged, [=](int row_index) {
 //                StackedWidget *stacked = (StackedWidget *) list_widget->parent();
 //                PyObject *data = stacked->getData(row_index);
-                qInfo("bind_widget_string: %s", bind_widget_string.toStdString().data());
+//                qInfo("bind_widget_string: %s", bind_widget_string.toStdString().data());
                 QString template_string;
                 QTextStream(&template_string) << "^$ F{" << bind_widget_string << "}";
-                qInfo("template_string: %s", template_string.toStdString().data());
+//                qInfo("template_string: %s", template_string.toStdString().data());
                 PyObject *arg_tuple = parseArgTemplateString(template_string);
                 PyObject *callable_return = PyObject_CallObject(callable, arg_tuple);
                 if(context == "image" && widget_type == "QLabel") {
@@ -923,18 +923,17 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
                     if(callable_return == NULL) {
                         PyErr_Print();
                     }
-                    qInfo("is string? %d", PyString_Check(callable_return));
-                    qInfo("callable return string: %s", PyString_AsString(callable_return));
+//                    qInfo("is string? %d", PyString_Check(callable_return));
+//                    qInfo("callable return string: %s", PyString_AsString(callable_return));
                     QString relative_path = PyString_AsString(callable_return);
                     QString image_path = QDir::cleanPath(system_path + QDir::separator() + relative_path);
                     QPixmap label_pixmap(image_path);
-                    if(!label_pixmap.isNull()) {
+                    if(!label_pixmap.isNull() && label_pixmap.height() != 200) {
                         label_pixmap = label_pixmap.scaledToHeight(200);
                     }
                     label_widget->setPixmap(label_pixmap);
                 }
                 row_index++;
-                Py_XINCREF(callable_return);
             });
         }
     }
