@@ -6,6 +6,7 @@ class WizardPage(object):
     page_subtitle = None
     page_id = None
     layout = "vertical"
+    banner = None
     template = "default"
     content = None
     
@@ -18,17 +19,17 @@ class WizardPage(object):
     def get_page_subtitle(self):
         return self.page_subtitle
 
-
     def get_page_id(self):
         return self.page_id
 
     def get_next_page_id(self):
-#        return self.page_id +1
         return -2
-
 
     def get_layout(self):
         return self.layout
+
+    def get_banner(self):
+        return self.banner
 
     def get_template(self):
         return self.template

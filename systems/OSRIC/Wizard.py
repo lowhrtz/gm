@@ -28,9 +28,11 @@ class CharacterCreationChoicePage(WizardPage):
     page_subtitle = "But choose wisely..."
     page_id = 10
     template = "infoPage"
+    banner = "choose_banner.jpg"
+#    banner_style = 'border: 3px inset #999999;'
     content = [
         ('text', 'How do you want to create your character?'),
-        ('fillHook', 'get_choices', None, 'radiobutton', 'index'),
+        ('fillHook-vertical', 'get_choices', None, 'radiobutton', 'index'),
     ]
 
     def get_choices(self):
@@ -114,9 +116,12 @@ class ChooseRacePage(WizardPage):
     page_title = "Choose Race"
     page_subtitle = "Choose from the available races"
     page_id = 45
+    layout = 'horizontal'
     template = "InfoPage"
     content = [
-        ('listbox', 'Race', 'method', 'get_available_races', '^$ WP{attributes} DB{races}'),
+        ('image-method', 'RacePortrait', 'get_portrait', 'Race', 'border: 4px inset #777777;'),
+    #    The _ tells GM to hide the field name from view; it still acessable by that name minus the _
+        ('listbox', 'Race_', 'method', 'get_available_races', '^$ WP{attributes} DB{races}'),
     ]
 
     def get_available_races(self, attribute_dict, race_dict_list):
@@ -138,6 +143,10 @@ class ChooseRacePage(WizardPage):
 
         return l
 
+    def get_portrait(self, race_dict):
+        race_id = race_dict['unique_id']
+        return 'portraits/Races/{filename}.jpg'.format(filename=race_id)
+
 class ChooseClassPage(WizardPage):
     page_title = "Choose Class"
     page_subtitle = "Choose from the available classes"
@@ -145,21 +154,40 @@ class ChooseClassPage(WizardPage):
     template = "infopage"
     layout = "Horizontal"
     content = [
-        ('text', 'Here are the available classes.'),
-        ('listbox', 'Class', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}'),
+        ('image-method', 'ClassPortrait', 'get_portrait', 'Class', 'border: 4px outset #777777;'),
+        ('listbox', 'Class_', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}'),
 #        ('choose', 'Class', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}'),
     ]
 
     def get_available_classes(self, attribute_dict, class_dict_list, race, race_meta_dict_list):
-        all_normal_classes = [cl['Name'] for cl in class_dict_list]
-        if attribute_dict is None and race == '':
+        all_normal_classes = [(cl['Name'], cl) for cl in class_dict_list]
+        if not race and attribute_dict is None:
             return all_normal_classes
 
-        class_option_list = None
+        class_option_list = []
         for race_meta_dict in race_meta_dict_list:
             if race_meta_dict['race_id'] == race['unique_id'] and race_meta_dict['Type'] == 'class' and race_meta_dict['Subtype'] == 'permitted class options':
                 class_options = race_meta_dict['Modified']
-                class_option_list = [class_option.strip() for class_option in class_options.split(',')]
+                for class_option in class_options.split(','):
+                    class_option = class_option.strip()
+                    if '/' in class_option:
+                        multiclass_dict = {
+                            'unique_id':class_option.replace('/', '_'),
+                            'Name':'',
+                            'classes':[],
+                        }
+                        name_list = []
+                        for cl in class_option.split('/'):
+                            class_record = self.find_class_record(cl, class_dict_list)
+                            name_list.append(class_record['Name'])
+                            multiclass_dict['classes'].append(class_record)
+                        multiclass_dict['Name'] = '/'.join(name_list)
+                        option_tuple = (multiclass_dict['Name'], multiclass_dict)
+                        class_option_list.append(option_tuple)
+                    else:
+                        class_record = self.find_class_record(class_option, class_dict_list)
+                        option_tuple = (class_record['Name'], class_record)
+                        class_option_list.append(option_tuple)
 
         if not class_option_list:
             class_option_list = all_normal_classes
@@ -171,7 +199,7 @@ class ChooseClassPage(WizardPage):
         allowed_normal_classes = [normal_class['Name'] for normal_class in class_dict_list if self.class_allowed(normal_class, attribute_dict)]
         for class_option in class_option_list:
             class_option_allowed = True
-            for class_option_item in class_option.split('/'):
+            for class_option_item in class_option[0].split('/'):
                 class_option_item = class_option_item.strip()
                 if class_option_item not in allowed_normal_classes:
                     class_option_allowed = False
@@ -179,6 +207,11 @@ class ChooseClassPage(WizardPage):
                 allowed_list.append(class_option)
 
         return allowed_list
+
+    def find_class_record(self, unique_id, class_dict_list):
+        for cl in class_dict_list:
+            if cl['unique_id'] == unique_id:
+                return cl
 
     def class_allowed(self, cl, attribute_dict):
         allowed = True
@@ -189,6 +222,10 @@ class ChooseClassPage(WizardPage):
             if attribute_dict is not None and attribute_dict[score_key] < score_value:
                 allowed = False
         return allowed
+
+    def get_portrait(self, class_dict):
+        class_id = class_dict['unique_id']
+        return 'portraits/Classes/{filename}.jpg'.format(filename=class_id)
 
 class ReviewPage(WizardPage):
     page_title = "Review"

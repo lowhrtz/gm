@@ -24,11 +24,17 @@ public:
     int nextId() const;
     PyObject *parseArgTemplateString(QString templateString);
 
+protected:
+    void setBanner(QString bannerFilePath);
+
 public:
    int pageId;
    CharacterCreationWizard *wizard;
    PyObject *pyWizardPageInstance;
    QVariant nextIdArgs;
+
+protected:
+   QHash<QString, QWidget *> field_name_to_widget_hash;
 
 private:
 
@@ -101,6 +107,19 @@ private:
     QString args;
 };
 
+class BindCallable : public WidgetWithCallableAndArgs {
+
+public:
+    BindCallable(QWidget *targetWidget, PyObject *callable, QString bindWidgetName, QString context);
+    QString getContext();
+
+private:
+    void setContext(QString context);
+
+private:
+    QString context;
+};
+
 class InfoPage : public WizardPage {
 
     Q_OBJECT
@@ -112,10 +131,12 @@ public:
 
 private:
     QString getMandatoryString(QString fillString, PyObject *pyContentItem);
-    void addCallable(QWidget *widget, PyObject *callable, QString argsTemplate);
+    void addInitCallable(QWidget *widget, PyObject *callable, QString argsTemplate);
+    void addBindCallable(QWidget *widget, PyObject *callable, QString bindWidget, QString context);
 
 private:
     QList<WidgetWithCallableAndArgs> page_init_callable_list;
+    QList<BindCallable> bind_callable_list;
 
 };
 
@@ -124,7 +145,7 @@ class StackedWidget : public QStackedWidget {
     Q_OBJECT
 
 public:
-    StackedWidget(QWidget *parent, DatabaseHandler *db, PythonInterpreter *interpreter);
+    StackedWidget(QWidget *parent, QString name, DatabaseHandler *db, PythonInterpreter *interpreter);
     PyObject *getData(int index);
     void addRowItem(QList<QVariant> *row, int displayColumn);
     void fillComboRow(QString tableName);
