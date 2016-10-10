@@ -25,6 +25,10 @@ public:
     QList<QString> settingAsStringList(QString settingName);
     QList<QString> getMenuOrderedTableNames();
     QString getMetaTableName(QString tableName);
+    int getMetaReferenceCol(QString metaTableName);
+    QString getReferenceIndexName(QString metaTableName);
+    PyObject *makeDictFromRow(QList<QVariant> *row, QString tableName, DatabaseHandler *db);
+    PyObject *makeDictListFromRows(QList<QList<QVariant> *> rows, QString tableName, DatabaseHandler *db);
 
 private:
     QList<QString> getStringList(PyObject *pyListObject);

@@ -122,6 +122,10 @@ bool DatabaseHandler::openPersistentDB()
     QString dbPath(systemPath);
     dbPath.append("/db");
 //    cout << "dbPath: " << dbPath.toStdString() << endl;
+    QStringList avail_drivers = QSqlDatabase::drivers();
+//    foreach(QString driver, avail_drivers) {
+//        qInfo("driver: %s", driver.toStdString().data());
+//    }
     db = QSqlDatabase::addDatabase("QSQLITE", dbPath);
     db.setDatabaseName(dbPath);
     bool dbOpen = db.open();
@@ -228,7 +232,10 @@ QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName, const c
     tableQueryString.append(" WHERE ").append(column).append("=");
     tableQueryString.append("'").append(value).append("'");
     //cout << tableQueryString.toStdString().data() << endl;
-    QSqlQuery tableQuery = db.exec(tableQueryString);
+    QSqlQuery tableQuery(db);
+    tableQuery.prepare(tableQueryString);
+    tableQuery.setForwardOnly(true);
+    tableQuery.exec();
     db.record(QString(tableName));
     while(tableQuery.next())
     {
@@ -255,17 +262,24 @@ QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName)
     QList<QList<QVariant> *> rowList;
     QString tableQueryString("SELECT * FROM ");
     tableQueryString.append(tableName);
-    QSqlQuery tableQuery = db.exec(tableQueryString);
+    QSqlQuery tableQuery(db);
+    tableQuery.setForwardOnly(true);
+    tableQuery.prepare(tableQueryString);
+    bool query_successful = tableQuery.exec(tableQueryString);
+    if(!query_successful) {
+        qInfo("Problem with database query: %s", tableQueryString.toStdString().data());
+    }
+//    qInfo("tableQuery: %s", query_successful ? "true" : "false");
     db.record(QString(tableName));
     while(tableQuery.next())
     {
         QList<QVariant> *row = new QList<QVariant>;
         QSqlRecord record = tableQuery.record();
-//        cout << record.count() << endl;
+//        qInfo("record count: %i", record.count());
         for(int i = 0 ; i < record.count() ; i++)
         {
             QVariant item = record.value(i);
-//            cout << record.fieldName(i).toStdString() << " : " << item.toString().toStdString() << endl;
+//            qInfo("%s:%s", record.fieldName(i).toStdString().data(), item.toString().toStdString().data());
 //            cout << record.field(i).value().toString().toStdString() << endl;
             row->append(item);
         }
@@ -277,6 +291,43 @@ QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName)
 
 QList<QList<QVariant> *> DatabaseHandler::getRows(QString tableName) {
     return getRows(tableName.toStdString().data());
+}
+
+QList<QList<QVariant> *> DatabaseHandler::getColRows(const char *tableName, const char *cols, const char *whereCol, const char *value) {
+    QList<QList<QVariant> *> rowList;
+    QString tableQueryString;
+    QTextStream(&tableQueryString) << "SELECT " << cols << " FROM " << tableName;
+//    qInfo("whereCol: %s", whereCol);
+    if(whereCol != NULL) {
+        QTextStream(&tableQueryString) << " WHERE " << whereCol << "='" << value << "'";
+    }
+    QSqlQuery tableQuery(db);
+    tableQuery.setForwardOnly(true);
+    tableQuery.prepare(tableQueryString);
+    bool query_successful = tableQuery.exec(tableQueryString);
+    if(!query_successful) {
+        qInfo("Problem with database querty: %s", tableQueryString.toStdString().data());
+    }
+    db.record(QString(tableName));
+    while(tableQuery.next()) {
+        QList<QVariant> *row = new QList<QVariant>;
+        QSqlRecord record = tableQuery.record();
+        for(int i = 0 ; i < record.count() ; i++) {
+            QVariant item = record.value(i);
+            row->append(item);
+        }
+        rowList.append(row);
+    }
+    return rowList;
+}
+
+QList<QList<QVariant> *> DatabaseHandler::getColRows(QString tableName, QString cols, QString whereCol, QString value) {
+//    char *whereColChar;
+    if(whereCol == NULL) {
+       return getColRows(tableName.toStdString().data(), cols.toStdString().data());
+    }
+//    return getColRows(tableName.toStdString().data(), cols.toStdString().data(), whereColChar, value.toStdString().data());
+        return getColRows(tableName.toStdString().data(), cols.toStdString().data(), whereCol.toStdString().data(), value.toStdString().data());
 }
 
 QList<QString> DatabaseHandler::getDisplayColList(QString tableName, QString displayCol) {

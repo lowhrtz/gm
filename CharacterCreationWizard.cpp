@@ -29,6 +29,7 @@ CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandle
     }
     this->setWindowTitle("Character Creation Wizard");
 //    printf("ccWizard instantiated.\n");
+//    setDefaultProperty("StackedWidget", "currentItemIndex", "currentItemChanged()");
 }
 
 void CharacterCreationWizard::accept() {

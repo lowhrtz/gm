@@ -28,7 +28,7 @@ WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 
 void WizardPage::publicRegisterField(const QString &name, QWidget *widget, const char *property, const char *changedSignal) {
     registerField(name, widget, property, changedSignal);
-    field_name_to_widget_hash[name] = widget;
+    wizard->field_name_to_widget_hash[name] = widget;
 }
 
 void WizardPage::cleanupPage() {
@@ -43,16 +43,32 @@ int WizardPage::nextId() const {
     if (nextIdArgs.isNull()) {
         return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", NULL));
     }
+
     else if (strcmp(nextIdArgs.typeName(), "int") == 0) {
         return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", (char *) "i", nextIdArgs.toInt()));
     }
+
     else if (strcmp(nextIdArgs.typeName(), "bool") == 0) {
         int argInt = 0;
         if (nextIdArgs.toBool()) {
             argInt = 1;
         }
         return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", (char *) "i", argInt));
+
+    } else if (strcmp(nextIdArgs.typeName(), "QString") == 0) {
+        if(nextIdArgs.toString().startsWith("^$")) {
+            qInfo("nextIdArgs: %s", nextIdArgs.toString().toStdString().data());
+            PyObject *method = PyObject_GetAttrString(this->pyWizardPageInstance, "get_next_page_id");
+            PyObject *arg = this->parseArgTemplateString(nextIdArgs.toString());
+            if(arg == NULL) {
+                return_value = -1;
+            } else {
+                return_value = PyInt_AsSsize_t(PyObject_CallObject(method, arg));
+            }
+            qInfo("return_value: %i", return_value);
+        }
     }
+
     else {
         return_value = PyInt_AsSsize_t(PyObject_CallMethod(this->pyWizardPageInstance, (char *) "get_next_page_id", NULL));
     }
@@ -72,7 +88,7 @@ int WizardPage::nextId() const {
     return return_value;
 }
 
-PyObject *WizardPage::parseArgTemplateString(QString templateString) {
+PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
     PyObject *arg;
     QList<PyObject *> pyobject_list;
     QRegularExpression re("(\\w+\\{[^\\{^\\}]*\\}+)");
@@ -89,29 +105,92 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) {
         if(source_type == "DB") {
             arg = PyList_New(0);
             QString table_name = source_split[0];
+//            QString query_type;
+
 //            if(source_split.length() > 1) {
 //                QString column_name = source_split[1];
 //                qInfo("Table: %s Column: %s", table_name.toStdString().data(), column_name.toStdString().data());
 //            } else {
 //                qInfo("Table: %s", table_name.toStdString().data());
 //            }
-            QList<QList<QVariant> *> rows = wizard->getDb()->getRows(table_name);
-            for(Py_ssize_t i = 0;i < rows.length();i++) {
-                QList<QVariant> * const row = rows.at(i);
-//                PyObject *row_dict = Py_BuildValue("{}");
-                PyObject *row_dict = PyDict_New();
-                for(int j = 0;j < row->length();j++) {
-                    QString col_name = wizard->getDb()->getColName(table_name, j);
-                    QVariant value = row->at(j);
-//                    qInfo("typeName: %s", value.typeName());
-                    if(strcmp(value.typeName(), "QString") == 0) {
-                        QString value_string = value.toString();
-                        PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("s", value_string.toStdString().data()));
-                    } else if(strcmp(value.typeName(), "qlonglong") == 0) {
-                        int value_int = value.toInt();
-                        PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("i", value_int));
+            QString cols;
+            QString where;
+            QString where_value;
+            QList<QList<QVariant> *> rows;
+            if(source_split.length() > 1) {
+                for(int i = 1;i < source_split.length();i++) {
+                    QString query_type = source_split[i];
+                    if(query_type.toLower().startsWith("cols")) {
+                        cols = query_type;
+                        cols.replace("cols(", "");
+                        cols.chop(1);
+//                        cols.replace(" ", "");
+                    } else if(query_type.toLower().startsWith("where")) {
+                        QString where_string;
+                        where_string = query_type;
+                        where_string.replace("where(", "");
+                        where_string.chop(1);
+                        QList<QString> where_split = where_string.split("=");
+                        where = where_split[0].trimmed();
+                        QList<QString> where_value_split = where_split[1].trimmed().split(":");
+                        QString where_value_field = where_value_split[0];
+                        QString where_value_column = where_value_split[1];
+                        QWidget *field_widget = wizard->field_name_to_widget_hash[where_value_field];
+                        QString field_widget_type = field_widget->metaObject()->className();
+                        if(field_widget_type == "StackedWidget") {
+                            StackedWidget *stacked_widget = (StackedWidget *) field_widget;
+                            int data_index = stacked_widget->getCurrentItemIndex();
+                            PyObject *data = stacked_widget->getData(data_index);
+//                            qInfo("vf_pyobject tuple: %s", PyDict_Check(data) ? "true":"false");
+                            if(PyDict_Check(data)) {
+                                PyObject *where_value_pyobject = PyDict_GetItemString(data, where_value_column.toStdString().data());
+                                where_value = PyString_AsString(where_value_pyobject);
+                            }
+                        }
                     }
                 }
+//                rows = wizard->getDb()->getColRows(table_name, cols);
+                rows = wizard->getDb()->getColRows(table_name, cols, where, where_value);
+//                query_type = source_split[1];
+//            }
+//            if(query_type.isNull()) {
+            } else {
+                rows = wizard->getDb()->getRows(table_name);
+            }
+//            QList<QString> col_list = wizard->getPythonInterpreter()->getColList(table_name);
+//            QString meta_table_name = wizard->getPythonInterpreter()->getMetaTableName(table_name);
+            for(Py_ssize_t i = 0;i < rows.length();i++) {
+                QList<QVariant> *row = rows.at(i);
+//                PyObject *row_dict = PyDict_New();
+//                for(int j = 0;j < row->length();j++) {
+//                    QString col_name = wizard->getDb()->getColName(table_name, j);
+//                    QVariant value = row->at(j);
+////                    qInfo("typeName: %s", value.typeName());
+//                    if(strcmp(value.typeName(), "QString") == 0) {
+//                        QString value_string = value.toString();
+//                        PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("s", value_string.toStdString().data()));
+//                    } else if(strcmp(value.typeName(), "qlonglong") == 0) {
+//                        int value_int = value.toInt();
+//                        PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("i", value_int));
+//                    }
+//                }
+//                qInfo("row: %d", i);
+                PyObject *row_dict = wizard->getPythonInterpreter()->makeDictFromRow(row, table_name, wizard->getDb());
+//                if(!meta_table_name.isEmpty()) {
+//                    int reference_col = wizard->getPythonInterpreter()->getMetaReferenceCol(meta_table_name);
+//                    QString reference_col_name = wizard->getDb()->getColName(meta_table_name, reference_col);
+//                    QString index_col_name = wizard->getPythonInterpreter()->getReferenceIndexName(meta_table_name);
+//                    int index_col = col_list.indexOf(index_col_name);
+//                    QString row_index_name = row->at(index_col).toString();
+////                    qInfo("row_index_name: %s", row_index_name.toStdString().data());
+////                    QList<QList<QVariant> *> meta_rows = wizard->getDb()->getRows(meta_table_name, reference_col_name, row_index_name);
+////                    PyObject *dict_list = wizard->getPythonInterpreter()->makeDictListFromRows(meta_rows, meta_table_name, wizard->getDb());
+//                    PyObject *meta_tuple = PyTuple_New(3);
+//                    PyTuple_SetItem(meta_tuple, 0, PyString_FromString(meta_table_name.toStdString().data()));
+//                    PyTuple_SetItem(meta_tuple, 1, PyString_FromString(reference_col_name.toStdString().data()));
+//                    PyTuple_SetItem(meta_tuple, 2, PyString_FromString(row_index_name.toStdString().data()));
+//                    PyDict_SetItem(row_dict, PyString_FromString("meta_table"), meta_tuple);
+//                }
                 PyList_Append(arg, row_dict);
             }
 //            PyTuple_SetItem(return_object, match_index, db_list);
@@ -152,28 +231,43 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) {
                 arg = PyString_FromString(field_data.toString().toStdString().data());
             } else if(field_data_type == "int") {
 //                int chosen_index = field_data.toInt();
-                QWidget *field_widget = wizard->findChild<QWidget*>(field_name);
+//                QWidget *field_widget = wizard->findChild<QWidget*>(field_name);
+                QWidget *field_widget = wizard->field_name_to_widget_hash[field_name];
                 QString field_widget_type = field_widget->metaObject()->className();
-//                qInfo("Field Widget Type: %s", field_widget_type.toStdString().data());
                 if(field_widget_type == "StackedWidget") {
-                    QString chosen_item;
-                    int data_index;
+//                if(field_widget_type == "QListWidget" || field_widget_type == "QComboBox") {
                     StackedWidget *stacked_widget = (StackedWidget *) field_widget;
-                    QWidget *current_widget = stacked_widget->currentWidget();
-                    QString current_widget_type = current_widget->metaObject()->className();
+                    QString chosen_item = stacked_widget->getCurrentItemText();
+                    int data_index = stacked_widget->getCurrentItemIndex();
+//                    QWidget *current_widget = stacked_widget->currentWidget();
+//                    QString current_widget_type = current_widget->metaObject()->className();
 //                    qInfo("Current Widget Type: %s", current_widget_type.toStdString().data());
-                    if(current_widget_type == "QListWidget") {
-                        QListWidget *list_widget = (QListWidget *) current_widget;
+//                    if(field_widget_type == "QListWidget") {
+//                        QListWidget *list_widget = (QListWidget *) field_widget;
 //                        qInfo("list_widget size: %d", list_widget->count());
-                        chosen_item = list_widget->currentItem()->text();
-                        data_index = list_widget->currentRow();
+//                        chosen_item = list_widget->currentItem()->text();
+//                        data_index = list_widget->currentRow();
 //                        qInfo("Chosen Item: %s", chosen_item.toStdString().data());
-                    } else {
-                        QComboBox *combo_box = (QComboBox *) field_widget;
-                        chosen_item = combo_box->currentText();
-                        data_index = combo_box->currentIndex();
-                    }
+//                    } else {
+//                        QComboBox *combo_box = (QComboBox *) field_widget;
+//                        chosen_item = combo_box->currentText();
+//                        data_index = combo_box->currentIndex();
+//                    }
+//                    StackedWidget *stacked_widget = (StackedWidget *) field_widget->parent();
                     PyObject *data = stacked_widget->getData(data_index);
+//                    if(PyDict_Check(data)) {
+//                        if(PyDict_Contains(data, PyString_FromString("meta_table"))) {
+//                            PyObject *meta_tuple = PyDict_GetItemString(data, "meta_table");
+//                            if(PyTuple_Check(meta_tuple)) {
+//                                char *meta_table_name = PyString_AsString(PyTuple_GetItem(meta_tuple, 0));
+//                                char *reference_col_name = PyString_AsString(PyTuple_GetItem(meta_tuple, 1));
+//                                char *row_index_name = PyString_AsString(PyTuple_GetItem(meta_tuple, 2));
+//                                QList<QList<QVariant> *> meta_rows = wizard->getDb()->getRows(meta_table_name, reference_col_name, row_index_name);
+//                                PyObject *dict_list = wizard->getPythonInterpreter()->makeDictListFromRows(meta_rows, meta_table_name, wizard->getDb());
+//                                PyDict_SetItemString(data, "meta_table", dict_list);
+//                            }
+//                        }
+//                    }
                     if(data != Py_None) {
                         arg = data;
                     } else {
@@ -611,15 +705,15 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
             field_layout->addWidget(field);
             layout->addLayout(field_layout, layout_align);
 
-        } else if(itemType.toLower() == "choose" || itemType.toLower() == "listbox") {
+        } else if(itemType.toLower().startsWith("choose") || itemType.toLower().startsWith("listbox")) {
             if(tupleSize < 4) {
                 qInfo("Choose tuple has a size of less than 4!\n");
                 continue;
             }
             QLabel *chooseLabel = new QLabel(itemName);
 //            ComboRow *choose = new ComboRow(this, wizard->getDb(), wizard->getPythonInterpreter());
-            StackedWidget *choose = new StackedWidget(this, itemName, wizard->getDb(), wizard->getPythonInterpreter());
-            choose->setObjectName(itemName);
+            StackedWidget *choose = new StackedWidget(this, itemType, wizard->getDb(), wizard->getPythonInterpreter());
+//            choose->setObjectName(itemName);
             QString source(PyString_AsString(PyTuple_GetItem(pyContentItem, 2)));
             PyObject *fourthTupleItem = PyTuple_GetItem(pyContentItem, 3);
             PyObject *fifthTupleItem;
@@ -634,10 +728,12 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
             }
             if(itemType.toLower() == "listbox" || layoutString.toLower() == "horizontal") {
                 choose_layout = new QVBoxLayout;
-                choose->addWidget(new QListWidget(this));
+//                choose->addWidget(new QListWidget(this));
+//                choose->addWidget(new QListWidget(choose));
             } else {
                 choose_layout = new QHBoxLayout;
-                choose->addWidget(new QComboBox(this));
+//                choose->addWidget(new QComboBox(this));
+//                choose->addWidget(new QComboBox(choose));
             }
             if(source.toLower() == "settings") {
                 QString propName(PyString_AsString(fourthTupleItem));
@@ -654,7 +750,27 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 //                fillCombo(choose, propName);
                 choose->fillComboRow(propName);
             }
-            publicRegisterField(getMandatoryString(itemName, pyContentItem), choose->currentWidget());
+            PyObject *sixth_tuple_item;
+            QString template_string;
+            if(tupleSize > 5) {
+                sixth_tuple_item = PyTuple_GetItem(pyContentItem, 5);
+            } else {
+                sixth_tuple_item = NULL;
+            }
+            if(itemType.toLower().endsWith("determinesnext")) {
+                nextIdArgs = "dummy";
+                if(PyString_Check(sixth_tuple_item)) {
+                    template_string = PyString_AsString(sixth_tuple_item);
+                }
+                connect(choose, &StackedWidget::currentItemChanged, [=](int itemIndex) {
+                    nextIdArgs = template_string;
+                });
+//                QString templateString;
+//                QTextStream(&templateString) << "^$ F{" << itemName << "}";
+//                nextIdArgs = templateString;
+            }
+            publicRegisterField(getMandatoryString(itemName, pyContentItem), choose, "currentItemIndex", "currentItemChanged");
+//            publicRegisterField(getMandatoryString(itemName, pyContentItem), choose);
             if(!hide_field_name) {
                 choose_layout->addWidget(chooseLabel);
             }
@@ -814,7 +930,7 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
                             PyObject *branch_identifier = PyTuple_GetItem(pyContentItem, 4);
                             QString branch_identifier_string = PyString_AsString(branch_identifier);
                             if (branch_identifier_string.compare("index") == 0) {
-                                nextIdArgs = QString::number(0);
+//                                nextIdArgs = QString::number(0);
                                 connect(radioButton, &QRadioButton::pressed, [=]() {
                                     nextIdArgs = j;
                                 });
@@ -866,36 +982,36 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     layout->addStretch(12 / pyContentSize);
     setLayout(layout);
 
-    banner = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_banner", NULL);
-    if(PyString_Check(banner)) {
-        bannerString = PyString_AsString(banner);
-    } else if(PyTuple_Check(banner) && PyTuple_Size(banner) > 1) {
-        bannerString = PyString_AsString(PyTuple_GetItem(banner, 0));
-        if(bannerString.startsWith("bind")) {
-            QString banner_bind(PyString_AsString(PyTuple_GetItem(banner, 1)));
-            PyObject *method_name = PyTuple_GetItem(banner, 2);
-            PyObject *method_object = PyObject_GetAttr(pyWizardPageInstance, method_name);
-            QWidget *bind_widget = field_name_to_widget_hash.value(banner_bind);
-            QString bind_widget_type(bind_widget->metaObject()->className());
-//            qInfo("bind_widget class: %s", bind_widget_type.toStdString().data());
-            QString bind_widget_parent_type(bind_widget->parent()->metaObject()->className());
-            if(bind_widget_parent_type == "StackedWidget" && bind_widget_type == "QListWidget") {
-                QListWidget *list_widget = (QListWidget *) bind_widget;
-                connect(list_widget, &QListWidget::currentRowChanged, [=](int current_row) {
-                   StackedWidget *stacked = (StackedWidget *) list_widget->parent();
-                   PyObject *data = stacked->getData(current_row);
-                   QString filename = PyString_AsString(PyObject_CallObject(method_object, data));
-                });
-            } else if (bind_widget_parent_type == "StackedWidget" && bind_widget_type == "QComboBox") {
-                QComboBox *combo_widget = (QComboBox *) bind_widget;
-//                connect(combo_widget, &QComboBox::currentIndexChanged, [=](int current_index) {
-//                    StackedWidget *stacked = (StackedWidget *) combo_widget->parent();
-//                    PyObject *data = stacked->getData(current_index);
-//                    QString filename = PyString_AsString(PyObject_CallObject(method_object, data));
+//    banner = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_banner", NULL);
+//    if(PyString_Check(banner)) {
+//        bannerString = PyString_AsString(banner);
+//    } else if(PyTuple_Check(banner) && PyTuple_Size(banner) > 1) {
+//        bannerString = PyString_AsString(PyTuple_GetItem(banner, 0));
+//        if(bannerString.startsWith("bind")) {
+//            QString banner_bind(PyString_AsString(PyTuple_GetItem(banner, 1)));
+//            PyObject *method_name = PyTuple_GetItem(banner, 2);
+//            PyObject *method_object = PyObject_GetAttr(pyWizardPageInstance, method_name);
+//            QWidget *bind_widget = field_name_to_widget_hash.value(banner_bind);
+//            QString bind_widget_type(bind_widget->metaObject()->className());
+////            qInfo("bind_widget class: %s", bind_widget_type.toStdString().data());
+//            QString bind_widget_parent_type(bind_widget->parent()->metaObject()->className());
+//            if(bind_widget_parent_type == "StackedWidget" && bind_widget_type == "QListWidget") {
+//                QListWidget *list_widget = (QListWidget *) bind_widget;
+//                connect(list_widget, &QListWidget::currentRowChanged, [=](int current_row) {
+//                   StackedWidget *stacked = (StackedWidget *) list_widget->parent();
+//                   PyObject *data = stacked->getData(current_row);
+//                   QString filename = PyString_AsString(PyObject_CallObject(method_object, data));
 //                });
-            }
-        }
-    }
+//            } else if (bind_widget_parent_type == "StackedWidget" && bind_widget_type == "QComboBox") {
+//                QComboBox *combo_widget = (QComboBox *) bind_widget;
+////                connect(combo_widget, &QComboBox::currentIndexChanged, [=](int current_index) {
+////                    StackedWidget *stacked = (StackedWidget *) combo_widget->parent();
+////                    PyObject *data = stacked->getData(current_index);
+////                    QString filename = PyString_AsString(PyObject_CallObject(method_object, data));
+////                });
+//            }
+//        }
+//    }
 //    setPixmap(QWizard::WatermarkPixmap, rollBanner);
 //    setPixmap(QWizard::BackgroundPixmap, rollBanner);
     foreach(BindCallable bind_callable, bind_callable_list) {
@@ -904,11 +1020,12 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
         QString bind_widget_string = bind_callable.getArgs();
         QString context = bind_callable.getContext();
         QString widget_type = widget->metaObject()->className();
-        QWidget *bind_widget = field_name_to_widget_hash[bind_widget_string];
+        QWidget *bind_widget = wizard->field_name_to_widget_hash[bind_widget_string];
         QString bind_widget_type = bind_widget->metaObject()->className();
-        if(bind_widget_type == "QListWidget") {
-            QListWidget *list_widget = (QListWidget *) bind_widget;
-            connect(list_widget, &QListWidget::currentRowChanged, [=](int row_index) {
+//        if(bind_widget_type == "QListWidget") {
+        if(bind_widget_type == "StackedWidget") {
+            StackedWidget *stacked_widget = (StackedWidget *) bind_widget;
+            connect(stacked_widget, &StackedWidget::currentItemChanged, [=](int row_index) {
 //                StackedWidget *stacked = (StackedWidget *) list_widget->parent();
 //                PyObject *data = stacked->getData(row_index);
 //                qInfo("bind_widget_string: %s", bind_widget_string.toStdString().data());
@@ -916,6 +1033,9 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
                 QTextStream(&template_string) << "^$ F{" << bind_widget_string << "}";
 //                qInfo("template_string: %s", template_string.toStdString().data());
                 PyObject *arg_tuple = parseArgTemplateString(template_string);
+                if(arg_tuple == NULL) {
+                    PyErr_Print();
+                }
                 PyObject *callable_return = PyObject_CallObject(callable, arg_tuple);
                 if(context == "image" && widget_type == "QLabel") {
                     QLabel *label_widget = (QLabel *) widget;
@@ -1018,13 +1138,22 @@ void InfoPage::addBindCallable(QWidget *widget, PyObject *callable, QString bind
     bind_callable_list.append(bind_callable);
 }
 
-StackedWidget::StackedWidget(QWidget *parent, QString name, DatabaseHandler *db, PythonInterpreter *interpreter) :
+StackedWidget::StackedWidget(QWidget *parent, QString displayType, DatabaseHandler *db, PythonInterpreter *interpreter) :
     QStackedWidget(parent) {
 //    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
 //    setObjectName(name);
     this->db = db;
     this->interpreter = interpreter;
+    if(displayType.toLower().startsWith("listbox")) {
+        QListWidget *list_widget = new QListWidget(this);
+        addWidget(list_widget);
+        connect(list_widget, &QListWidget::currentRowChanged, this, &StackedWidget::currentItemChangedSlot);
+    } else {
+        QComboBox *combo_box = new QComboBox(this);
+        addWidget(combo_box);
+        connect(combo_box, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &StackedWidget::currentItemChangedSlot);
+    }
 }
 
 PyObject *StackedWidget::getData(int index) {
@@ -1076,6 +1205,30 @@ void StackedWidget::addItems(QList<QString> displayStringList) {
     }
 }
 
+int StackedWidget::getCurrentItemIndex() {
+    return m_currentItemIndex;
+}
+
+void StackedWidget::setCurrentItemIndex(int itemIndex) {
+    m_currentItemIndex = itemIndex;
+}
+
+QString StackedWidget::getCurrentItemText() {
+    QWidget *widget = currentWidget();
+    QString widget_type = widget->metaObject()->className();
+    QString current_text;
+    if(widget_type == "QListWidget") {
+        QListWidget *list_widget = (QListWidget *) widget;
+//        current_text = list_widget->currentItem()->text();
+        current_text = list_widget->item(getCurrentItemIndex())->text();
+    } else {
+        QComboBox *combo_box = (QComboBox *) widget;
+//        current_text = combo_box->currentText();
+        current_text = combo_box->itemText(getCurrentItemIndex());
+    }
+    return current_text;
+}
+
 void StackedWidget::clear() {
     currentWidget()->blockSignals(true);
     QString class_name = currentWidget()->metaObject()->className();
@@ -1089,6 +1242,12 @@ void StackedWidget::clear() {
     }
     dataList.clear();
     currentWidget()->blockSignals(false);
+}
+
+void StackedWidget::currentItemChangedSlot(int itemIndex) {
+    setCurrentItemIndex(itemIndex);
+//    m_currentItemIndex = itemIndex;
+    emit currentItemChanged(itemIndex);
 }
 
 WidgetWithCallableAndArgs::WidgetWithCallableAndArgs(QWidget *widget, PyObject *callable, QString args) {
@@ -1132,4 +1291,10 @@ QString BindCallable::getContext() {
 
 void BindCallable::setContext(QString context) {
     this->context = context;
+}
+
+DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *parent) {
+    QListWidget *firstList, *secondList;
+    QAbstractButton *addButton, *removeButton;
+    QBoxLayout *layout;
 }

@@ -1,6 +1,7 @@
 #include "PythonInterpreter.h"
 #include "ListObject.h"
 
+#include <QRegularExpression>
 #include <iostream>
 using namespace std;
 
@@ -253,7 +254,8 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
         if(PyType_Check(value) &&
                 PyType_IsSubtype((PyTypeObject*) value, (PyTypeObject*) tableType) &&
                 PyObject_GetAttrString(value, "__name__") != PyObject_GetAttrString(tableType, "__name__") &&
-                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
+//                strcmp(PyString_AsString(PyObject_GetAttrString(value, "table_name")), tableName.toStdString().data()) == 0) {
+                QString::fromLocal8Bit((const char*) PyString_AsString(PyObject_GetAttrString(value, "table_name"))).toLower() == tableName.toLower()) {
 //            printf("Key: %s, Value: %s\n", PyString_AsString(key), PyString_AsString(PyObject_Repr(value)));
             tableInstance = PyObject_CallObject(value, NULL);
             cols = PyObject_CallMethod(tableInstance, (char *) "get_cols", NULL);
@@ -605,7 +607,8 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
     for(int i = 0;i < metaMapSize;i++) {
         mapTuple = PyList_GetItem(dbMetaMap, i);
         if(!mapTuple || !PyTuple_Check(mapTuple)) continue;
-        if(PyString_AsString(PyTuple_GetItem(mapTuple, 0)) == tableName) {
+        QString mapTupleName = PyString_AsString(PyTuple_GetItem(mapTuple, 0));
+        if(mapTupleName.toLower() == tableName.toLower()) {
             metaTableName = PyString_AsString(PyTuple_GetItem(mapTuple, 1));
 //            Py_Finalize();
             PyErr_Clear();
@@ -616,6 +619,73 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
 //    Py_Finalize();
     PyErr_Clear();
     return metaTableName;
+}
+
+int PythonInterpreter::getMetaReferenceCol(QString metaTableName) {
+//    int reference_col;
+    QList<QString> colDefsList = getColDefsList(metaTableName);
+    for(int i = 0;i < colDefsList.size();i++) {
+        QString col_def = colDefsList.at(i);
+        if(col_def.contains("REFERENCES", Qt::CaseInsensitive)) {
+//            reference_col = i;
+//            break;
+            return i;
+        }
+    }
+    return -1;
+}
+
+QString PythonInterpreter::getReferenceIndexName(QString metaTableName) {
+    QString indexName;
+    QString ref = "REFERENCES";
+    QList<QString> colDefsList = getColDefsList(metaTableName);
+    for(int i = 0;i < colDefsList.size();i++) {
+            QString col_def = colDefsList.at(i);
+            if(col_def.contains(ref, Qt::CaseInsensitive)) {
+//                qInfo("col_def: %s", col_def.toStdString().data());
+                int ref_index = col_def.indexOf(ref);
+//                qInfo("ref_index: %i", ref_index);
+                int re_start_index = ref_index + ref.length();
+                QRegularExpression re("(\\(.*\\))");
+                QRegularExpressionMatch local_match = re.match(col_def, re_start_index);
+                if(!local_match.hasMatch()){
+                    qInfo("metaTable, %s, appears to be missing a reference column name", metaTableName.toStdString().data());
+                } else {
+                    QString match_string = local_match.captured(0);
+                    match_string.remove(0, 1);
+                    match_string.chop(1);
+//                    qInfo("match_string: %s", match_string.toStdString().data());
+                    indexName = match_string;
+                }
+                return indexName;
+            }
+        }
+}
+
+PyObject *PythonInterpreter::makeDictFromRow(QList<QVariant> *row, QString tableName, DatabaseHandler *db) {
+    PyObject *row_dict = PyDict_New();
+    for(int i = 0;i < row->length();i++) {
+        QString col_name = db->getColName(tableName, i);
+        QVariant value = row->at(i);
+        if(strcmp(value.typeName(), "QString") == 0) {
+            QString value_string = value.toString();
+            PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("s", value_string.toStdString().data()));
+        } else if(strcmp(value.typeName(), "qlonglong") == 0) {
+            int value_int = value.toInt();
+            PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("i", value_int));
+        }
+    }
+    return row_dict;
+}
+
+PyObject *PythonInterpreter::makeDictListFromRows(QList<QList<QVariant> *> rows, QString tableName, DatabaseHandler *db) {
+    PyObject *dictList = PyList_New(0);
+    for(int i = 0;i < rows.length();i++) {
+        qInfo("dict row: %i", i);
+        PyObject *dict = makeDictFromRow(rows.at(i), tableName, db);
+        PyList_Append(dictList, dict);
+    }
+    return dictList;
 }
 
 QList<QString> PythonInterpreter::getStringList(PyObject *pyListObject) {

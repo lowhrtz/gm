@@ -42,6 +42,7 @@ private:
 
 public:
     QHash<QString, QString> attributes;
+    QHash<QString, QWidget *> field_name_to_widget_hash;
 
 private:
     PythonInterpreter *interpreter;

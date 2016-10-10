@@ -23,6 +23,8 @@ public:
     QList<QList<QVariant> *> getRows(QString tableName, QString column, QString value);
     QList<QList<QVariant> *> getRows(const char *tableName);
     QList<QList<QVariant> *> getRows(QString tableName);
+    QList<QList<QVariant> *> getColRows(const char *tableName, const char *cols, const char *whereCol = NULL, const char *value = NULL);
+    QList<QList<QVariant> *> getColRows(QString tableName, QString cols, QString whereCol = NULL, QString value = NULL);
     QList<QString> getDisplayColList(QString tableName, QString displayCol);
     QString getColName(QString tableName, int columnIndex);
     void activateForeignKeys(bool enabled = true);

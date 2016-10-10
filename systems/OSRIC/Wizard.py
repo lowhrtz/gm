@@ -155,7 +155,7 @@ class ChooseClassPage(WizardPage):
     layout = "Horizontal"
     content = [
         ('image-method', 'ClassPortrait', 'get_portrait', 'Class', 'border: 4px outset #777777;'),
-        ('listbox', 'Class_', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}'),
+        ('listbox-determinesNext', 'Class_', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}', '^$ F{Class} DB{classes_meta.cols(class_id, Type, Level, Casting_Level).where(class_id=Class:unique_id)}'),
 #        ('choose', 'Class', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta}'),
     ]
 
@@ -226,6 +226,31 @@ class ChooseClassPage(WizardPage):
     def get_portrait(self, class_dict):
         class_id = class_dict['unique_id']
         return 'portraits/Classes/{filename}.jpg'.format(filename=class_id)
+
+    def get_next_page_id(self, class_dict={}, class_meta_dict={}):
+        print class_meta_dict
+        spellcaster = False
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+#                print len(class_dict['meta_table'])
+                if cl['Primary_Spell_List'] != 'None':
+                    spellcaster = True
+        else:
+#            print len(class_dict['meta_table'])
+            if class_dict['Primary_Spell_List'] != 'None':
+                spellcaster = True
+        if spellcaster:
+            return SpellsPage.page_id
+        return ReviewPage.page_id
+
+class SpellsPage(WizardPage):
+#    enabled = False
+    page_title = "Choose Spells"
+    page_subtitle = "Choose the spells for your character."
+    page_id = 55
+    layout = "horizontal"
+    template = "DualListPage"
+    content = ""
 
 class ReviewPage(WizardPage):
     page_title = "Review"

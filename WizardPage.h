@@ -22,7 +22,7 @@ public:
     void cleanupPage();
     void initializePage();
     int nextId() const;
-    PyObject *parseArgTemplateString(QString templateString);
+    PyObject *parseArgTemplateString(QString templateString) const;
 
 protected:
     void setBanner(QString bannerFilePath);
@@ -34,7 +34,7 @@ public:
    QVariant nextIdArgs;
 
 protected:
-   QHash<QString, QWidget *> field_name_to_widget_hash;
+//   QHash<QString, QWidget *> field_name_to_widget_hash;
 
 private:
 
@@ -140,24 +140,60 @@ private:
 
 };
 
-class StackedWidget : public QStackedWidget {
+class DualListSelection : public WizardPage {
 
     Q_OBJECT
 
 public:
-    StackedWidget(QWidget *parent, QString name, DatabaseHandler *db, PythonInterpreter *interpreter);
+    DualListSelection(PyObject *pyWizardPageInstance, QWidget *parent = 0);
+
+};
+
+class StackedWidget : public QStackedWidget {
+
+    Q_OBJECT
+    Q_PROPERTY(int currentItemIndex READ getCurrentItemIndex NOTIFY currentItemChanged)
+
+public:
+    StackedWidget(QWidget *parent, QString displayType, DatabaseHandler *db, PythonInterpreter *interpreter);
     PyObject *getData(int index);
     void addRowItem(QList<QVariant> *row, int displayColumn);
     void fillComboRow(QString tableName);
     void addItem(QString displayString, PyObject *data = Py_None);
     void addItems(QList<QString> displayStringList);
+    int getCurrentItemIndex();
+    void setCurrentItemIndex(int itemIndex);
+    QString getCurrentItemText();
     void clear();
+
+public:
 
 private:
     QList<PyObject *> dataList;
     PythonInterpreter *interpreter;
     DatabaseHandler *db;
+    int m_currentItemIndex;
+
+signals:
+    void currentItemChanged(int itemIndex);
+
+public slots:
+    void currentItemChangedSlot(int itemIndex);
 
 };
+
+//template <class T> class VPtr
+//{
+//public:
+//    static T* asPtr(QVariant v)
+//    {
+//    return  (T *) v.value<void *>();
+//    }
+
+//    static QVariant asQVariant(T* ptr)
+//    {
+//    return qVariantFromValue((void *) ptr);
+//    }
+//};
 
 #endif // WIZARDPAGE_H
