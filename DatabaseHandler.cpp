@@ -327,7 +327,51 @@ QList<QList<QVariant> *> DatabaseHandler::getColRows(QString tableName, QString 
        return getColRows(tableName.toStdString().data(), cols.toStdString().data());
     }
 //    return getColRows(tableName.toStdString().data(), cols.toStdString().data(), whereColChar, value.toStdString().data());
-        return getColRows(tableName.toStdString().data(), cols.toStdString().data(), whereCol.toStdString().data(), value.toStdString().data());
+    return getColRows(tableName.toStdString().data(), cols.toStdString().data(), whereCol.toStdString().data(), value.toStdString().data());
+}
+
+QList<QSqlRecord> DatabaseHandler::getColRowsAsSqlRecord(const char *tableName, const char *cols, const char *whereCol, const char *value, QList<char *> additionalValues) {
+    QList<QSqlRecord> recordList;
+    QString tableQueryString;
+    if(cols == NULL) {
+        cols = "*";
+    }
+    QTextStream(&tableQueryString) << "SELECT " << cols << " FROM " << tableName;
+    if(whereCol != NULL) {
+        QTextStream(&tableQueryString) << " WHERE " << whereCol << "='" << value << "'";
+        foreach(char *addValue, additionalValues) {
+            QTextStream(&tableQueryString) << " OR " << whereCol << "='" << addValue << "'";
+        }
+    }
+
+    QSqlQuery tableQuery(db);
+    tableQuery.setForwardOnly(true);
+    tableQuery.prepare(tableQueryString);
+    bool query_successful = tableQuery.exec(tableQueryString);
+    if(!query_successful) {
+        qInfo("Problem with database querty: %s", tableQueryString.toStdString().data());
+    }
+    db.record(QString(tableName));
+    while(tableQuery.next()) {
+        QSqlRecord record = tableQuery.record();
+        recordList.append(record);
+    }
+    return recordList;
+}
+
+QList<QSqlRecord> DatabaseHandler::getColRowsAsSqlRecord(QString tableName, QString cols, QString whereCol, QString value, QList<QString> additionalValues) {
+    if(cols == NULL) {
+        return getColRowsAsSqlRecord(tableName.toStdString().data());
+    }
+    if(whereCol == NULL) {
+        return getColRowsAsSqlRecord(tableName.toStdString().data(), cols.toStdString().data());
+    }
+    QList<char *> addValueCharList;
+    foreach(QString addValueQString, additionalValues) {
+        addValueCharList << (char *) addValueQString.toStdString().data();
+    }
+
+    return getColRowsAsSqlRecord(tableName.toStdString().data(), cols.toStdString().data(), whereCol.toStdString().data(), value.toStdString().data(), addValueCharList);
 }
 
 QList<QString> DatabaseHandler::getDisplayColList(QString tableName, QString displayCol) {

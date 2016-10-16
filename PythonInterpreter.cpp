@@ -2,6 +2,7 @@
 #include "ListObject.h"
 
 #include <QRegularExpression>
+#include <QSqlRecord>
 #include <iostream>
 using namespace std;
 
@@ -686,6 +687,22 @@ PyObject *PythonInterpreter::makeDictListFromRows(QList<QList<QVariant> *> rows,
         PyList_Append(dictList, dict);
     }
     return dictList;
+}
+
+PyObject *PythonInterpreter::makeDictFromSqlRecord(QSqlRecord row) {
+    PyObject *row_dict = PyDict_New();
+    for(int i = 0;i < row.count();i++) {
+        QString col_name = row.fieldName(i);
+        QVariant value = row.value(i);
+        if(strcmp(value.typeName(), "QString") == 0) {
+            QString value_string = value.toString();
+            PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("s", value_string.toStdString().data()));
+        } else if(strcmp(value.typeName(), "qlonglong") == 0) {
+            int value_int = value.toInt();
+            PyDict_SetItemString(row_dict, col_name.toStdString().data(), Py_BuildValue("i", value_int));
+        }
+    }
+    return row_dict;
 }
 
 QList<QString> PythonInterpreter::getStringList(PyObject *pyListObject) {

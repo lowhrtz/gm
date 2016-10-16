@@ -13,3 +13,10 @@ attributes = [('STR', 'Strength', '3d6'),
 life = ['HP',]
 alignment = ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil']
 gender = ['Male','Female','NA']
+economy = {
+'gp':1,
+'pp':5,
+'ep':.5,
+'sp':.1,
+'cp':.01
+}

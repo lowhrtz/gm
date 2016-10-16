@@ -29,6 +29,7 @@ public:
     QString getReferenceIndexName(QString metaTableName);
     PyObject *makeDictFromRow(QList<QVariant> *row, QString tableName, DatabaseHandler *db);
     PyObject *makeDictListFromRows(QList<QList<QVariant> *> rows, QString tableName, DatabaseHandler *db);
+    PyObject *makeDictFromSqlRecord(QSqlRecord row);
 
 private:
     QList<QString> getStringList(PyObject *pyListObject);

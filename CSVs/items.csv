@@ -95,7 +95,7 @@
 'wistle_signal','Signal whistle','-','8 sp',,,,,,
 'skillet','Skillet','5','1 gp',,,,,,
 'soap','Soap (per lb)','1','5 sp',,,,,,
-'spellbook','Spell book (blank)','5','25 gp',,,,,,
+'spellbook','Spell book','5','25 gp',,,,,,
 'tent','Tent','20','10 gp',,,,,,
 'thieves_tools','Thieves’ Tools','1','30 gp',,,,,,
 'torch','Torch','1','1 cp',,,,,,
@@ -150,7 +150,7 @@
 'sling','Sling','5','1gp','by ammo','by ammo','1','35 ft',,
 'armour_banded','Banded Armour','35 lbs','90 gp',,,,,'90 ft','-6'
 'armour_chain','Mail hauberk or byrnie (chain)','30 lbs','75 gp',,,,,'90 ft','-5'
-'armout_elfin_chain','Mail, elfin (chain)','15 lbs','Not sold',,,,,'120 ft','-5'
+'armour_elfin_chain','Mail, elfin (chain)','15 lbs','Not sold',,,,,'120 ft','-5'
 'armour_leather','Leather','15 lbs','5 gp',,,,,'120 ft','-2'
 'armour_padded','Padded gambeson','10 lbs','4 gp',,,,,'90 ft','-2'
 'armour_plate','Plate','45 lbs','400 gp',,,,,'60 ft','-7'

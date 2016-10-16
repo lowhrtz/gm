@@ -5,6 +5,7 @@
 #include "PythonInterpreter.h"
 #include <QComboBox>
 #include <QLabel>
+#include <QListWidget>
 #include <QStackedWidget>
 #include <QWizard>
 #include <QWizardPage>
@@ -32,6 +33,11 @@ public:
    CharacterCreationWizard *wizard;
    PyObject *pyWizardPageInstance;
    QVariant nextIdArgs;
+
+protected:
+   QString pageTitle;
+   QString pageSubtitle;
+   PyObject *content;
 
 protected:
 //   QHash<QString, QWidget *> field_name_to_widget_hash;
@@ -140,15 +146,6 @@ private:
 
 };
 
-class DualListSelection : public WizardPage {
-
-    Q_OBJECT
-
-public:
-    DualListSelection(PyObject *pyWizardPageInstance, QWidget *parent = 0);
-
-};
-
 class StackedWidget : public QStackedWidget {
 
     Q_OBJECT
@@ -159,12 +156,15 @@ public:
     PyObject *getData(int index);
     void addRowItem(QList<QVariant> *row, int displayColumn);
     void fillComboRow(QString tableName);
-    void addItem(QString displayString, PyObject *data = Py_None);
+    void addItem(QString displayString, PyObject *data = Py_None, QString toolTip = NULL);
     void addItems(QList<QString> displayStringList);
     int getCurrentItemIndex();
     void setCurrentItemIndex(int itemIndex);
     QString getCurrentItemText();
     void clear();
+    QString getCurrentToolTip();
+    QListWidgetItem *takeItem(int index);
+    void insertItem(int index, QString displayString, PyObject *data = Py_None, QString toolTip = NULL);
 
 public:
 
@@ -179,6 +179,49 @@ signals:
 
 public slots:
     void currentItemChangedSlot(int itemIndex);
+
+};
+
+class DualListCallableAndArgs : public WidgetWithCallableAndArgs {
+
+public:
+    DualListCallableAndArgs(QString type, PyObject *callable, QString args);
+    QString getType();
+
+private:
+    void setType(QString type);
+
+private:
+    QString type;
+};
+
+class DualListSelection : public WizardPage {
+
+    Q_OBJECT
+
+    int OriginalIndexRole = 33;
+
+public:
+    DualListSelection(PyObject *pyWizardPageInstance, QWidget *parent = 0);
+    void initializePage();
+    void cleanupPage();
+    bool isComplete() const;
+
+public:
+    Py_ssize_t slotsTotal;
+    double slotsTotalFloat;
+
+private:
+    void addInitCallable(QString type, PyObject *callable, QString argsTemplate);
+
+private:
+    StackedWidget *firstList, *secondList;
+    QPushButton *addButton, *removeButton;
+    QLabel *slotsTextLabel, *slotsTotalLabel;
+    QString slotsType, toolTipField;
+    QList<DualListCallableAndArgs> page_init_callable_list;
+    QList<int> firstListIndices;
+    QList<int> secondListIndices;
 
 };
 
