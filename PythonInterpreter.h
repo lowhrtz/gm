@@ -1,9 +1,16 @@
 #ifndef PYTHONINTERPRETER_H
 #define PYTHONINTERPRETER_H
 
-#include <Python.h>
-#include "DatabaseHandler.h"
-#include <QString>
+#ifdef _WIN32
+    #include "DatabaseHandler.h"
+    #include <Python.h>
+    #include <QString>
+#else
+    #include <Python.h>
+    #include "DatabaseHandler.h"
+    #include <QString>
+#endif
+
 
 class PythonInterpreter
 {

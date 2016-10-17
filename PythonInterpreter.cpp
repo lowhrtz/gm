@@ -21,7 +21,7 @@ PythonInterpreter::PythonInterpreter(QString systemPath) {
     putenv("PYTHONIOENCODING=UTF-8");
 #else
     setenv("PYTHONPATH", pythonPath.toStdString().data(), 0);
-    setenv("PYTHONDONTWRITEBYTECODE", "True", 1);
+//    setenv("PYTHONDONTWRITEBYTECODE", "True", 1);
     setenv("PYTHONIOENCODING", "UTF-8", 1);
 #endif
     initPython();
@@ -32,10 +32,11 @@ PythonInterpreter::~PythonInterpreter() {
 }
 
 void PythonInterpreter::initPython() {
+    Py_DontWriteBytecodeFlag = 1;
     Py_Initialize();
 
 #ifdef _WIN32
-    QString pyPath("pylib;");
+    QString pyPath("/Python27/Lib;pylib;");
     pyPath.append(systemPath);
     PySys_SetPath((char *) pyPath.toStdString().data());
 #endif

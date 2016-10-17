@@ -1,8 +1,13 @@
 #ifndef PYTOOLBUTTON_H
 #define PYTOOLBUTTON_H
 
-#include <Python.h>
-#include <QToolButton>
+#ifdef _WIN32
+    #include <QToolButton>
+    #include <Python.h>
+#else
+    #include <Python.h>
+    #include <QToolButton>
+#endif
 
 class PyToolButton : public QToolButton {
 

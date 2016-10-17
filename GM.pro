@@ -7,8 +7,13 @@ TARGET = GM
 DEPENDPATH += .
 INCLUDEPATH += .
 
-INCLUDEPATH += /usr/include/python2.7
-LIBS += -lpython2.7
+win32 {
+    INCLUDEPATH += /Python27/include
+    LIBS += -L/Python27/libs -lpython27
+} else {
+    INCLUDEPATH += /usr/include/python2.7
+    LIBS += -lpython2.7
+}
 QT += sql
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
