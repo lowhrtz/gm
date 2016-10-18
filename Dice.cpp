@@ -39,14 +39,14 @@ int Dice::rollDice(int number, int sides) {
 int Dice::rollDice(QString diceString) {
     QRegExp singleDiceFormat = QRegExp("^[d]{0,1}[0-9]+$");
     QRegExp diceFormat = QRegExp("^[0-9]+[d][0-9]+$");
+    QRegExp complexFormat = QRegExp("^\\(?[0-9]+[d][0-9]+(\\s*\\+[0-9]+\\s*)?\\)?(\\s*[x|×]\\s*[0-9]+)?$");
 
-    if(diceString.contains(singleDiceFormat))
-    {
+    if(diceString.contains(singleDiceFormat)) {
         diceString.replace("d", "");
         cout << "diceString.toInt(): " << diceString.toInt() << endl;
         return rollDice(diceString.toInt());
-    }
-    else if (diceString.contains(diceFormat)) {
+
+    } else if (diceString.contains(diceFormat)) {
         const char *dividerChar = "d";
         QChar divider(*dividerChar);
         int dividerIndex = diceString.indexOf(divider);
@@ -57,6 +57,51 @@ int Dice::rollDice(QString diceString) {
 //        cout << "number: " << numberString.toStdString() << endl;
 //        cout << "sides: " << sidesString.toStdString() << endl;
         return rollDice(number, sides);
+
+    } else if(diceString.contains(complexFormat)) {
+        QString number_string;
+        QString sides_string;
+        QString add_string;
+        QString mul_string;
+        QStringList split_on_d = diceString.split("d");
+        number_string = split_on_d[0];
+        number_string = number_string.replace("(", "");
+        QString after_d = split_on_d[1];
+        after_d = after_d.replace(")", "");
+        for(int i = 0;i < after_d.length();i++) {
+            if(after_d[i].isDigit()) {
+                sides_string.append(after_d[i]);
+            } else {
+                break;
+            }
+        }
+        if(after_d.contains("+")) {
+            QStringList split_on_plus = after_d.split("+");
+//            sides_string = split_on_plus[0];
+            QString after_plus = split_on_plus[1];
+            after_plus = after_plus.trimmed();
+            for(int i = 0;i < after_plus.length();i++) {
+                if(after_plus[i].isDigit()) {
+                    add_string.append(after_plus[i]);
+                } else {
+                    break;
+                }
+            }
+        }
+        if(after_d.contains("x") || after_d.contains("×")) {
+            QStringList split_on_x = after_d.split(QRegExp("[x|×]"));
+            QString after_x = split_on_x[1];
+            mul_string = after_x.trimmed();
+        }
+        int base_roll = rollDice(number_string.toInt(), sides_string.toInt());
+        int total = base_roll;
+        if(!add_string.isNull()) {
+            total += add_string.toInt();
+        }
+        if(!mul_string.isNull()) {
+            total *= mul_string.toInt();
+        }
+        return total;
     }
 
     return -1;

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from WizardDefs import WizardPage
 import SystemSettings
-import random
+import Dice
+#import random
 
-random.seed()
+#random.seed()
 
 def get_pc_gender_list():
     genList = []
@@ -37,17 +38,17 @@ def dice_tuple(dice_string):
     dice_value = int(base_dice_split[1])
     return (dice_number, dice_value, add, dice_multiplier)
 
-def roll_dice(dice_string):
-    dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
-    roll_total = 0
-    for i in range(dice_number):
-        roll_result = random.randint(1, dice_value)
-        roll_total += roll_result
-    if add:
-        roll_total += add
-    if dice_multiplier:
-        roll_total *= dice_multiplier
-    return roll_total
+#def roll_dice(dice_string):
+#    dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
+#    roll_total = 0
+#    for i in range(dice_number):
+#        roll_result = random.randint(1, dice_value)
+#        roll_total += roll_result
+#    if add:
+#        roll_total += add
+#    if dice_multiplier:
+#        roll_total *= dice_multiplier
+#    return roll_total
 
 def dice_rating(dice_string):
     dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
@@ -405,7 +406,8 @@ class EquipmentPage(WizardPage):
     def prefill_bought_list(self, race_dict, class_dict, items_dict_list):
         item_id_list = []
         if race_dict['unique_id'] == 'elf' and 'fighter' in class_dict['unique_id']:
-            percent = random.randint(1, 100)
+            #percent = random.randint(1, 100)
+            percent = Dice.randomInt(1, 100)
             if percent <= 5:
                 item_id_list.append('armour_elfin_chain')
         if 'magic_user' in class_dict['unique_id']:
@@ -431,7 +433,8 @@ class EquipmentPage(WizardPage):
             starting_money_string = get_best_dice(sm_list)
         else:
             starting_money_string = class_dict['Initial_Wealth_GP']
-        starting_money = roll_dice(starting_money_string)
+        #starting_money = roll_dice(starting_money_string)
+        starting_money = Dice.rollString(starting_money_string)
         return ('Gold:', starting_money)
 
     def add_remove_item(self, equipment_dict):

@@ -11,12 +11,22 @@
     #include <QString>
 #endif
 
+extern "C" PyObject *dice_rollString(PyObject *self, PyObject *args);
+extern "C" PyObject *dice_randomInt(PyObject *self, PyObject *args);
+static PyMethodDef diceMethods[] = {
+    {"rollString", dice_rollString, METH_VARARGS,
+         "Return the result of the given dice string."},
+    {"randomInt", dice_randomInt, METH_VARARGS,
+         "Return random integer from the lower to upper bounds."},
+    {NULL, NULL, 0, NULL}
+};
 
 class PythonInterpreter
 {
 public:
     PythonInterpreter(QString systemPath);
     ~PythonInterpreter();
+//    static PyObject *dice_rollString(PyObject *self, PyObject *args);
     void initPython();
 //    PyObject * getTableClass();
 //    void runModule(QString *module);

@@ -1,5 +1,6 @@
 #include "PythonInterpreter.h"
 #include "ListObject.h"
+#include "Dice.h"
 
 #include <QRegularExpression>
 #include <QSqlRecord>
@@ -31,9 +32,19 @@ PythonInterpreter::~PythonInterpreter() {
     finalizePython();
 }
 
+//PyObject *PythonInterpreter::dice_rollString(PyObject *self, PyObject *args) {
+//    QString diceString;
+//    Dice dice;
+//    if(!PyArg_ParseTuple(args, "s", diceString)) {
+//        return NULL;
+//    }
+//    return Py_BuildValue("i", dice.rollDice(diceString));
+//}
+
 void PythonInterpreter::initPython() {
     Py_DontWriteBytecodeFlag = 1;
     Py_Initialize();
+    Py_InitModule("Dice", diceMethods);
 
 #ifdef _WIN32
     QString pyPath("/Python27/Lib;pylib;");
@@ -776,4 +787,23 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
 
 void PythonInterpreter::finalizePython() {
     if (Py_IsInitialized()) Py_Finalize();
+}
+
+PyObject *dice_rollString(PyObject *self, PyObject *args) {
+    char *diceString;
+    Dice dice;
+    if(!PyArg_ParseTuple(args, "s", &diceString)) {
+        return NULL;
+    }
+    return Py_BuildValue("i", dice.rollDice(diceString));
+}
+
+PyObject *dice_randomInt(PyObject *self, PyObject *args) {
+    int lower_int;
+    int upper_int;
+    Dice dice;
+    if(!PyArg_ParseTuple(args, "ii", &lower_int, &upper_int)) {
+        return NULL;
+    }
+    return Py_BuildValue("i", dice.generateArbitraryRandomInt(lower_int, upper_int));
 }
