@@ -24,6 +24,7 @@ public:
     void initializePage();
     int nextId() const;
     PyObject *parseArgTemplateString(QString templateString) const;
+    QString parseTextTemplateString(QString templateString);
 
 protected:
     void setBanner(QString bannerFilePath);
@@ -126,6 +127,22 @@ private:
     QString context;
 };
 
+class QLabelWithTextTemplate {
+
+public:
+    QLabelWithTextTemplate(QLabel *label, QString templateString);
+    QLabel *getLabel();
+    QString getTemplateString();
+
+private:
+    void setLabel(QLabel *label);
+    void setTemplateString(QString templateString);
+
+private:
+    QLabel *label;
+    QString templateString;
+};
+
 class InfoPage : public WizardPage {
 
     Q_OBJECT
@@ -139,10 +156,12 @@ private:
     QString getMandatoryString(QString fillString, PyObject *pyContentItem);
     void addInitCallable(QWidget *widget, PyObject *callable, QString argsTemplate);
     void addBindCallable(QWidget *widget, PyObject *callable, QString bindWidget, QString context);
+    void addParsableString(QLabel *label, QString templateString);
 
 private:
     QList<WidgetWithCallableAndArgs> page_init_callable_list;
     QList<BindCallable> bind_callable_list;
+    QList<QLabelWithTextTemplate> page_init_string_parse;
 
 };
 
@@ -150,10 +169,12 @@ class StackedWidget : public QStackedWidget {
 
     Q_OBJECT
     Q_PROPERTY(int currentItemIndex READ getCurrentItemIndex NOTIFY currentItemChanged)
+    Q_PROPERTY(QList<PyObject *> dataList READ getDataList NOTIFY dataListChanged)
 
 public:
     StackedWidget(QWidget *parent, QString displayType, DatabaseHandler *db, PythonInterpreter *interpreter);
     PyObject *getData(int index);
+    QList<PyObject *> getDataList();
     void addRowItem(QList<QVariant> *row, int displayColumn);
     void fillComboRow(QString tableName);
     void addItem(QString displayString, PyObject *data = Py_None, QString toolTip = NULL);
@@ -169,13 +190,14 @@ public:
 public:
 
 private:
-    QList<PyObject *> dataList;
+    QList<PyObject *> m_dataList;
     PythonInterpreter *interpreter;
     DatabaseHandler *db;
     int m_currentItemIndex;
 
 signals:
     void currentItemChanged(int itemIndex);
+    void dataListChanged(QList<PyObject *> m_dataList);
 
 public slots:
     void currentItemChangedSlot(int itemIndex);

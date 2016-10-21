@@ -18,6 +18,7 @@ using namespace std;
 MainWindow::MainWindow(QString systemPath, QWidget *parent)
     : QMainWindow(parent)
 {
+    qRegisterMetaType< QList<PyObject *> >( "QList<PyObject *>" );
     interpreter = new PythonInterpreter(systemPath);
     //interpreter->runModule(new QString("Db"));
     db = new DatabaseHandler(systemPath);

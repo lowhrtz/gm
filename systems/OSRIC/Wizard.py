@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 from WizardDefs import WizardPage
-import SystemSettings
 import Dice
-#import random
-
-#random.seed()
+import SystemSettings
 
 def get_pc_gender_list():
     genList = []
@@ -37,18 +34,6 @@ def dice_tuple(dice_string):
     dice_number = int(base_dice_split[0])
     dice_value = int(base_dice_split[1])
     return (dice_number, dice_value, add, dice_multiplier)
-
-#def roll_dice(dice_string):
-#    dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
-#    roll_total = 0
-#    for i in range(dice_number):
-#        roll_result = random.randint(1, dice_value)
-#        roll_total += roll_result
-#    if add:
-#        roll_total += add
-#    if dice_multiplier:
-#        roll_total *= dice_multiplier
-#    return roll_total
 
 def dice_rating(dice_string):
     dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
@@ -175,7 +160,7 @@ class ChooseRacePage(WizardPage):
     template = "InfoPage"
     content = [
         ('image-method', 'RacePortrait', 'get_portrait', 'Race', 'border: 4px inset #777777;'),
-    #    The _ tells GM to hide the field name from view; it still acessable by that name minus the _
+    #    The _ tells GM to hide the field name from view; it's still acessable by that name minus the _
         ('listbox', 'Race_', 'method', 'get_available_races', '^$ WP{attributes} DB{races}'),
     ]
 
@@ -416,7 +401,7 @@ class EquipmentPage(WizardPage):
             item_id_list.append('holy_symbol_pewter')
         if 'druid' in class_dict['unique_id']:
             item_id_list.append('holy_symbol_wooden')
-        if 'thief' in class_dict['unique_id']:
+        if 'thief' in class_dict['unique_id'] or 'assassin' in class_dict['unique_id']:
             item_id_list.append('thieves_tools')
         item_list = []
         for item_dict in items_dict_list:
@@ -458,8 +443,105 @@ class EquipmentPage(WizardPage):
     def is_complete(self):
         return True
 
+class InfoPage(WizardPage):
+    page_title = "Misc Information"
+    page_subtitle = "Choose name, alignment and gender."
+    page_id = 58
+    template = "InfoPage"
+    content = [
+        ('text', 'This is the basic information that you will build your character on.'),
+        ('field', 'Name', True),
+        ('choose', 'Alignment', 'method', 'get_availale_alignments', '^$ F{Class}'),
+        ('choose', 'Gender', 'Function', get_pc_gender_list),
+    ]
+
+    def get_availale_alignments(self, class_dict):
+        alignment_options = []
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                alignment_options.append(cl['Alignment'])
+        else:
+            alignment_options.append(class_dict['Alignment'])
+
+        alignment_list = list(SystemSettings.alignment)
+        for align_option in alignment_options:
+            if align_option == 'Any Good':
+                for align in SystemSettings.alignment:
+                    if align.endswith('Neutral') or align.endswith('Evil'):
+                        alignment_list.remove(align)
+
+            elif align_option == 'Any Evil':
+                for align in SystemSettings.alignment:
+                    if align.endswith('Neutral') or align.endswith('Good'):
+                        alignment_list.remove(align)
+
+            elif align_option == 'Any Neutral or Evil':
+                for align in SystemSettings.alignment:
+                    if align.endswith('Good'):
+                        alignment_list.remove(align)
+
+            elif align_option == 'Neutral only':
+                alignment_list = ['True Neutral',]
+
+            elif align_option.lower().endswith('only'):
+                alignment_list = [align_option[:-5],]
+
+        return alignment_list
+
 class ReviewPage(WizardPage):
     page_title = "Review"
     page_subtitle = "Review Subtitle"
     page_id = 60
-    content = "This is the review content."
+    layout = 'horizontal'
+    template = 'InfoPage'
+    content = [
+        ('text', '''\
+<b>Name:</b> F{Name}<br />
+<b>Gender:</b> F{Gender}<br />
+<b>Alignment:</b> F{Alignment}<br />
+<b>Race:</b> F{Race}<br />
+<b>Class:</b> F{Class}<br />
+<b>Primary Spells:</b> F{Spells.Name}<br />
+<b>Secondary Spells:</b> F{Spells2.Name}<br />''', True),
+        ('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
+    ]
+
+    def adjust_attributes(self, race_dict):
+        pass
+
+    def roll_attributes(self, race_dict, class_dict):
+        attr_dict = {}
+        min_dict = {}
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                min_scores_string = cl['Minimum_Scores']
+                min_scores_list = [score.strip() for score in min_scores_string.split(',')]
+                for min_score in min_scores_list:
+                    min_score_split = min_score.split()
+                    attr = min_score_split[0]
+                    min_score = int(min_score_split[1])
+                    if attr not in min_dict:
+                        min_dict[attr] = min_score
+                    else:
+                        min_dict[attr] = max(min_score, min_dict[attr])
+        else:
+            min_scores_string = class_dict['Minimum_Scores']
+            min_scores_list = [score.strip() for score in min_scores_string.split(',')]
+            for min_score in min_scores_list:
+                min_score_split = min_score.split()
+                attr = min_score_split[0]
+                min_score = int(min_score_split[1])
+                min_dict[attr] = min_score
+
+        if len(min_dict) < 6:
+            for attr in get_attribute_names():
+                if attr.title() not in min_dict:
+                    min_dict[attr.title()] = 3
+
+        for attr in min_dict:
+            minimum = max(min_dict[attr], race_dict['Minimum_' + attr])
+            maximum = race_dict['Maximum_' + attr]
+            score = Dice.randomInt(minimum, maximum)
+            attr_dict[attr] = str(score)
+
+        return attr_dict
