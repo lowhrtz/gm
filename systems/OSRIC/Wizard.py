@@ -542,6 +542,6 @@ class ReviewPage(WizardPage):
             minimum = max(min_dict[attr], race_dict['Minimum_' + attr])
             maximum = race_dict['Maximum_' + attr]
             score = Dice.randomInt(minimum, maximum)
-            attr_dict[attr] = str(score)
+            attr_dict[attr.upper()] = str(score)
 
         return attr_dict

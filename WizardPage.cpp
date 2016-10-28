@@ -317,25 +317,37 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
                     PyObject *method_return = PyObject_CallObject(method_object, parseArgTemplateString(args));
                     PyErr_Print();
                     if(method_return == NULL || !PyDict_Check(method_return)) {
-                        qInfo("Problem calling method: %s", method_name.toStdString().data());
+                        qInfo("Problem calling method: %s\nMake sure the naming is correct and that it returns a dictionary", method_name.toStdString().data());
                         continue;
                     }
 
-                    PyObject *keys = PyDict_Keys(method_return);
-                    for(Py_ssize_t i = 0;i < PyList_Size(keys);i++) {
-                        PyObject *key = PyList_GetItem(keys, i);
-                        PyObject *value = PyDict_GetItem(method_return, key);
-                        QString key_string = PyString_AsString(key);
-                        QString value_string = PyString_AsString(value);
-                        attr_display_string += "<b>" + key_string + "</b>: " + value_string + "<br />";
+//                    PyObject *keys = PyDict_Keys(method_return);
+//                    for(Py_ssize_t i = 0;i < PyList_Size(keys);i++) {
+//                        PyObject *key = PyList_GetItem(keys, i);
+//                        PyObject *value = PyDict_GetItem(method_return, key);
+//                        QString key_string = PyString_AsString(key);
+//                        QString value_string = PyString_AsString(value);
+//                        attr_display_string += "<b>" + key_string + "</b>: " + value_string + "<br />";
+//                    }
+                    foreach(QString attrName, wizard->attributeList) {
+                        PyObject *score_object = PyDict_GetItemString(method_return, attrName.toStdString().data());
+                        if(!score_object) {
+                            qInfo("Attribute: %s, not a key in returned dictionary. Make sure the dictionary keys are the same as the attribute list given in the Roll Methods Page.", attrName.toStdString().data());
+                            continue;
+                        }
+                        QString score = PyString_AsString(score_object);
+                        attr_display_string += "<b>" + attrName + "</b>: " + score + "<br />";
                     }
                 } else {
-                    QHashIterator<QString, QString> attr_iter(wizard->attributes);
-                    while(attr_iter.hasNext()) {
-                        attr_iter.next();
-                        const QString attr_key = attr_iter.key();
-                        const QString attr_score_string = attr_iter.value();
-                        attr_display_string += "<b>" + attr_key + "</b>: " + attr_score_string + "<br />";
+//                    QHashIterator<QString, QString> attr_iter(wizard->attributes);
+//                    while(attr_iter.hasNext()) {
+//                        attr_iter.next();
+//                        const QString attr_key = attr_iter.key();
+//                        const QString attr_score_string = attr_iter.value();
+//                        attr_display_string += "<b>" + attr_key + "</b>: " + attr_score_string + "<br />";
+//                    }
+                    foreach(QString attrName, wizard->attributeList) {
+                        attr_display_string += "<b>" + attrName + "</b>: " + wizard->attributes[attrName] + "<br />";
                     }
                 }
 //                attr_display_string.chop(6);
@@ -388,6 +400,7 @@ RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent
         }
         attributeList.append(PyString_AsString(pyAttribute));
     }
+    wizard->attributeList = attributeList;
 
 //    rollBanner
 //    setPixmap(QWizard::WatermarkPixmap, rollBanner);
