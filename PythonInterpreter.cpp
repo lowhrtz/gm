@@ -789,9 +789,11 @@ void PythonInterpreter::finalizePython() {
     if (Py_IsInitialized()) Py_Finalize();
 }
 
+Dice dice;
+
 PyObject *dice_rollString(PyObject *self, PyObject *args) {
     char *diceString;
-    Dice dice;
+//    Dice dice;
     if(!PyArg_ParseTuple(args, "s", &diceString)) {
         return NULL;
     }
@@ -801,7 +803,7 @@ PyObject *dice_rollString(PyObject *self, PyObject *args) {
 PyObject *dice_randomInt(PyObject *self, PyObject *args) {
     int lower_int;
     int upper_int;
-    Dice dice;
+//    Dice dice;
     if(!PyArg_ParseTuple(args, "ii", &lower_int, &upper_int)) {
         return NULL;
     }
