@@ -59,13 +59,17 @@ class DbScript:
             self.outputString += "        ]\n\n"
 
     def sanitizeDatum(self, datum):
+        while(datum.__contains__("''")):
+            datum = datum.replace("''", "\\'")
+        while(datum.__contains__("\\\\',")):
+            datum = datum.replace("\\\\',", "\\'',")
         while(datum.__contains__(",,")):
             datum = datum.replace(",,",",'',")
         if(datum.endswith(",")):
             datum = datum + "''"
 
-        while(datum.__contains__("'''")):
-            datum = datum.replace("'''","\\''")
+        #while(datum.__contains__("'''")):
+        #    datum = datum.replace("'''","\\''")
 
         return datum
 

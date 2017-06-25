@@ -182,6 +182,9 @@ int DatabaseHandler::fillPersistentTable(const char *tableName, QList<QList<QVar
     for(int i = 0 ; i < dataList.size() ; i++)
     {
         QList<QVariant> *record = dataList.at(i);
+//        if (record->size() >= 7) {
+//            cout << "Data: " << record->at(7).toString().toStdString() << endl;
+//        }
         int rowID = insertRow(tableName, record);
 //        cout << "Insert ID: " << rowID << endl;
         if(rowID > 0)
