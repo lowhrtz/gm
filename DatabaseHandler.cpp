@@ -222,6 +222,7 @@ int DatabaseHandler::insertRow(const char *tableName, QList<QVariant> *row)
 //    cout << "Insert ID: " << lastInsertID << endl;
     if(lastInsertID < 1) {
         cout << "Error Inserting Row: " << insertQuery.lastError().text().toStdString() << endl;
+        cout << "First Column Data: " << row->at(0).toString().toStdString() << endl;
     }
     db.commit();
     return lastInsertID;
