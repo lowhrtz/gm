@@ -300,7 +300,9 @@ class SpellsPage(WizardPage):
     layout = 'horizontal'
     template = 'DualListPage'
     slots = ('simple','get_spell_slots','^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
-    content = ('Spells', 'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description')
+    content = ('Spells',
+               'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description',
+               'prefill_chosen_spells', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}')
 
     spell_types = []
 
@@ -321,6 +323,35 @@ class SpellsPage(WizardPage):
                 spell_tuple = (spell_dict['Name'], spell_dict)
                 spell_list.append(spell_tuple)
         return spell_list
+
+    def prefill_chosen_spells(self, class_dict, spells_dict_list):
+        prechosen_ids = []
+        prechosen_spells = []
+        if 'classes' in class_dict:
+            spell_type = class_dict['Primary_Spell_List'][0]
+        else:
+            spell_type = class_dict['Primary_Spell_List']
+        avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
+        if spell_type == 'magic_user':
+            prechosen_ids.append('read_magic')
+            for spell in avail_list:
+                if spell['spell_id'] == 'read_magic':
+                    avail_list.remove(spell)
+
+        if spell_type == 'magic_user' or spell_type == 'illusionist':
+            first_random = Dice.randomInt(0, len(avail_list) - 1)
+            first_random_spell = avail_list.pop(first_random)
+            prechosen_ids.append(first_random_spell['spell_id'])
+
+            second_random = Dice.randomInt(0, len(avail_list) - 1)
+            second_random_spell = avail_list.pop(second_random)
+            prechosen_ids.append(first_random_spell['spell_id'])
+            prechosen_ids.append(second_random_spell['spell_id'])
+
+        for spell_dict in spells_dict_list:
+            if spell_dict['spell_id'] in prechosen_ids:
+                prechosen_spells.append((spell_dict['Name'], spell_dict, True))
+        return prechosen_spells
 
     def get_spell_slots(self, class_dict, class_meta_dict_list):
         if 'classes' in class_dict:

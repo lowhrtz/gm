@@ -1486,6 +1486,8 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
     fieldName = PyString_AsString(PyTuple_GetItem(content, 0));
     methodName = PyString_AsString(PyTuple_GetItem(content, 1));
     argString = PyString_AsString(PyTuple_GetItem(content, 2));
+    methodObject = PyObject_GetAttrString(pyWizardPageInstance, methodName);
+    addInitCallable("listfill", methodObject, argString);
     if(contentSize > 3) {
         toolTipField = PyString_AsString(PyTuple_GetItem(content, 3));
     }
@@ -1495,8 +1497,7 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
         PyObject *fill_second_list_method_object = PyObject_GetAttrString(pyWizardPageInstance, fill_second_list_method.toStdString().data());
         addInitCallable("secondlistfill", fill_second_list_method_object, fill_second_list_args);
     }
-    methodObject = PyObject_GetAttrString(pyWizardPageInstance, methodName);
-    addInitCallable("listfill", methodObject, argString);
+
     publicRegisterField(fieldName + "Available", firstList, "currentItemIndex", "currentItemChanged");
     publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
     publicRegisterField(fieldName + "List", secondList, "dataList", "dataListChanged");
@@ -1554,16 +1555,24 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
         connect(removeButton, &QPushButton::clicked, [=](bool checked) {
             if(secondList->getCurrentItemIndex() != -1) {
                 int current_index = secondList->getCurrentItemIndex();
+                // If the widget is disabled then do nothing
+                if(((QListWidget *)secondList->currentWidget())->item(current_index)->flags() == Qt::NoItemFlags) {
+                    return;
+                }
                 int original_index = secondListIndices.at(current_index);
                 int new_index;
-                for(int i = 0;i < firstListIndices.length();i++) {
-                    int index_item = firstListIndices.at(i);
+                if(original_index == 0) {
+                    new_index = 0;
+                } else {
+                    for(int i = 0;i < firstListIndices.length();i++) {
+                        int index_item = firstListIndices.at(i);
 //                    qInfo("original: %d, item: %d", original_index, index_item);
-                    if(original_index > index_item) {
-                        new_index = index_item;
+                        if(original_index > index_item) {
+                            new_index = index_item;
+                        }
                     }
+                    new_index++;
                 }
-                new_index++;
                 PyObject *data = secondList->getData(current_index);
                 QListWidgetItem *current_item = secondList->takeItem(current_index);
                 QString current_text = current_item->text();
@@ -1586,6 +1595,7 @@ void DualListSelection::initializePage() {
     foreach(DualListCallableAndArgs dlcaa, page_init_callable_list) {
         QString toolTipTextWrap;
         QString type = dlcaa.getType();
+//        qInfo("type: %s", type.toStdString().data());
         PyObject *callable = dlcaa.getCallable();
         QString argString = dlcaa.getArgs();
 
@@ -1620,6 +1630,7 @@ void DualListSelection::initializePage() {
             Py_ssize_t return_size = PyList_Size(callable_return);
             for(int i=0;i < return_size;i++) {
                 PyObject *tuple = PyList_GetItem(callable_return, i);
+                Py_ssize_t tuple_size = PyTuple_Size(tuple);
                 QString item_name = PyString_AsString(PyTuple_GetItem(tuple, 0));
                 PyObject *data = PyTuple_GetItem(tuple, 1);
                 if(toolTipField != NULL) {
@@ -1633,6 +1644,28 @@ void DualListSelection::initializePage() {
                     toolTipTextWrap = "<font>" + tool_tip_text + "</font>";
                 }
                 secondList->addItem(item_name, data, toolTipTextWrap);
+                if(tuple_size > 2) {
+                    bool remove_from_first_list = PyTuple_GetItem(tuple, 2) == Py_True;
+                    bool item_removable = false;
+                    if(tuple_size > 3) {
+                        item_removable = PyTuple_GetItem(tuple, 3) == Py_True;
+                    }
+                    if(remove_from_first_list) {
+                        QListWidget *list_widget = (QListWidget *)firstList->currentWidget();
+//                        qInfo("item_name: %s", item_name.toStdString().data());
+//                        qInfo("List Widget: %i", list_widget->count());
+                        QList<QListWidgetItem *> list_items = list_widget->findItems(item_name, Qt::MatchExactly);
+//                        qInfo("list_items len: %i", list_items.size());
+                        QListWidgetItem *list_widget_item = list_items.at(0);
+                        int item_index = list_widget->row(list_widget_item);
+//                        qInfo("item_index: %i", item_index);
+                        firstList->takeItem(item_index);
+                        secondListIndices.append(firstListIndices.takeAt(item_index));
+                    }
+                    if(!item_removable) {
+                        ((QListWidget *)secondList->currentWidget())->findItems(item_name, Qt::MatchExactly).at(0)->setFlags(Qt::NoItemFlags);
+                    }
+                }
             }
 
         } else if(type == "slots") {
