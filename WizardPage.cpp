@@ -1498,7 +1498,8 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
     methodObject = PyObject_GetAttrString(pyWizardPageInstance, methodName);
     addInitCallable("listfill", methodObject, argString);
     publicRegisterField(fieldName + "Available", firstList, "currentItemIndex", "currentItemChanged");
-    publicRegisterField(fieldName, secondList, "dataList", "dataListChanged");
+    publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
+    publicRegisterField(fieldName + "List", secondList, "dataList", "dataListChanged");
 
     slotsObject = PyObject_GetAttrString(pyWizardPageInstance, "slots");
     slotsType = PyString_AsString(PyTuple_GetItem(slotsObject, 0));
@@ -1512,6 +1513,7 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
         QString add_args;
         if(add_args_object != Py_None) {
             add_args = PyString_AsString(add_args_object);
+//            qInfo("add_args: %s", add_args.toStdString().data());
         }
         PyObject *add_callback_object = PyObject_GetAttrString(pyWizardPageInstance, add_callback.toStdString().data());
         addInitCallable("addCallback", add_callback_object, add_args);
@@ -1520,6 +1522,7 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
         QString del_args;
         if(del_args_object != Py_None) {
             del_args = PyString_AsString(del_args_object);
+//            qInfo("del_args: %s", del_args.toStdString().data());
         }
         PyObject *del_callback_object = PyObject_GetAttrString(pyWizardPageInstance, del_callback.toStdString().data());
         addInitCallable("delCallback", del_callback_object, del_args);
@@ -1650,9 +1653,16 @@ void DualListSelection::initializePage() {
                int current_index = firstList->getCurrentItemIndex();
                PyObject *callable_return;
                if(!argString.isNull()) {
-               PyObject *args = parseArgTemplateString(argString);
-               callable_return = PyObject_CallObject(callable, args);
-               PyErr_Print();
+                   PyObject *args = parseArgTemplateString(argString);
+//                   QString argBool = "False";
+//                   if(PyTuple_Check(args)) {
+//                       if(PyDict_Check(PyTuple_GetItem(args, 0))) {
+//                           argBool = "True";
+//                       }
+//                   }
+//                   qInfo("Is arg dict?: %s", argBool.toStdString().data());
+                   callable_return = PyObject_CallObject(callable, args);
+                   PyErr_Print();
                } else {
                    callable_return = PyObject_CallObject(callable, NULL);
                    PyErr_Print();
@@ -1660,7 +1670,7 @@ void DualListSelection::initializePage() {
                // Expects a tuple: (amount to subtract from total, boolean on whether to remove item)
                PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
                double subtract_amount = PyFloat_AsDouble(sub_object);
-               bool remove_item = PyTuple_GetItem(callable_return, 0) == Py_True;
+               bool remove_item = PyTuple_GetItem(callable_return, 1) == Py_True;
                if((slotsTotalFloat - subtract_amount) >= 0) {
                    secondList->addItem(firstList->getCurrentItemText(), firstList->getData(current_index), firstList->getCurrentToolTip());
                    slotsTotalFloat = slotsTotalFloat - subtract_amount;
@@ -1680,35 +1690,44 @@ void DualListSelection::initializePage() {
                if(secondList->getCurrentItemIndex() != -1) {
                    PyObject *callable_return;
                    if(!argString.isNull()) {
-                   PyObject *args = parseArgTemplateString(argString);
-                   callable_return = PyObject_CallObject(callable, args);
-                   PyErr_Print();
+                       PyObject *args = parseArgTemplateString(argString);
+//                       QString argBool = "False";
+//                       if(PyTuple_Check(args)) {
+//                           if(PyDict_Check(PyTuple_GetItem(args, 0))) {
+//                               argBool = "True";
+//                           }
+//                       }
+//                       qInfo("Is arg dict?: %s", argBool.toStdString().data());
+                       callable_return = PyObject_CallObject(callable, args);
+                       PyErr_Print();
                    } else {
                        callable_return = PyObject_CallObject(callable, NULL);
                        PyErr_Print();
                    }
-                   PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
-                   double add_amount = PyFloat_AsDouble(sub_object);
-                   bool replace_item = PyTuple_GetItem(callable_return, 0) == Py_True;
-                   int current_index = secondList->getCurrentItemIndex();
-                   PyObject *data = secondList->getData(current_index);
-                   QListWidgetItem *current_item = secondList->takeItem(current_index);
-                   QString current_text = current_item->text();
-                   slotsTotalFloat = slotsTotalFloat + add_amount;
-                   slotsTotalLabel->setText(QString::number(slotsTotalFloat));
-                   if(replace_item) {
-                       int original_index = secondListIndices.at(current_index);
-                       int new_index;
-                       for(int i = 0;i < firstListIndices.length();i++) {
-                           int index_item = firstListIndices.at(i);
-                           if(original_index > index_item) {
-                               new_index = index_item;
+                   if(callable_return != Py_False) {
+                       PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
+                       double add_amount = PyFloat_AsDouble(sub_object);
+                       bool replace_item = PyTuple_GetItem(callable_return, 1) == Py_True;
+                       int current_index = secondList->getCurrentItemIndex();
+                       PyObject *data = secondList->getData(current_index);
+                       QListWidgetItem *current_item = secondList->takeItem(current_index);
+                       QString current_text = current_item->text();
+                       slotsTotalFloat = slotsTotalFloat + add_amount;
+                       slotsTotalLabel->setText(QString::number(slotsTotalFloat));
+                       if(replace_item) {
+                           int original_index = secondListIndices.at(current_index);
+                           int new_index;
+                           for(int i = 0;i < firstListIndices.length();i++) {
+                               int index_item = firstListIndices.at(i);
+                               if(original_index > index_item) {
+                                   new_index = index_item;
+                               }
                            }
+                           new_index++;
+                           firstList->insertItem(new_index, current_text, data, current_item->toolTip());
+                           firstListIndices.insert(new_index, secondListIndices.takeAt(current_index));
+                           emit completeChanged();
                        }
-                       new_index++;
-                       firstList->insertItem(new_index, current_text, data, current_item->toolTip());
-                       firstListIndices.insert(new_index, secondListIndices.takeAt(current_index));
-                       emit completeChanged();
                    }
                }
             });

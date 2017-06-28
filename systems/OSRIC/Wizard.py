@@ -395,7 +395,7 @@ class EquipmentPage(WizardPage):
             percent = Dice.randomInt(1, 100)
             if percent <= 5:
                 item_id_list.append('armour_elfin_chain')
-        if 'magic_user' in class_dict['unique_id']:
+        if 'magic_user' in class_dict['unique_id'] or 'illusionist' in class_dict['unique_id']:
             item_id_list.append('spellbook')
         if 'cleric' in class_dict['unique_id']:
             item_id_list.append('holy_symbol_pewter')
@@ -424,6 +424,8 @@ class EquipmentPage(WizardPage):
 
     def add_remove_item(self, equipment_dict):
         cost_string = equipment_dict['Cost']
+        if cost_string.lower() == 'not sold':
+            return False
         cost_split = cost_string.split()
         if cost_split[0].lower() == 'free':
             cost = 0
@@ -501,8 +503,8 @@ class ReviewPage(WizardPage):
 <b>Alignment:</b> F{Alignment}<br />
 <b>Race:</b> F{Race}<br />
 <b>Class:</b> F{Class}<br />
-<b>Primary Spells:</b> F{Spells.Name}<br />
-<b>Secondary Spells:</b> F{Spells2.Name}<br />''', True),
+<b>Primary Spells:</b> F{SpellsList.Name}<br />
+<b>Secondary Spells:</b> F{Spells2List.Name}<br />''', True),
         ('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
     ]
 
