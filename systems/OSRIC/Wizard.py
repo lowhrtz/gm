@@ -155,7 +155,7 @@ class InfoPage(WizardPage):
 class ChooseRacePage(WizardPage):
     page_title = "Choose Race"
     page_subtitle = "Choose from the available races"
-    page_id = 45
+    page_id = 50
     layout = 'horizontal'
     template = "InfoPage"
     content = [
@@ -187,10 +187,13 @@ class ChooseRacePage(WizardPage):
         race_id = race_dict['unique_id']
         return 'portraits/Races/{filename}.jpg'.format(filename=race_id)
 
+#class ChooseLangPage(WizardPage):
+#    page_title = "Choose Language"
+
 class ChooseClassPage(WizardPage):
     page_title = "Choose Class"
     page_subtitle = "Choose from the available classes"
-    page_id = 50
+    page_id = 60
     template = "infopage"
     layout = "Horizontal"
     content = [
@@ -296,7 +299,7 @@ class ChooseClassPage(WizardPage):
 class SpellsPage(WizardPage):
     page_title = 'Choose Spells'
     page_subtitle = 'Choose the spells for your character.'
-    page_id = 55
+    page_id = 70
     layout = 'horizontal'
     template = 'DualListPage'
     slots = ('simple','get_spell_slots','^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
@@ -372,7 +375,7 @@ class SpellsPage(WizardPage):
 class SpellsPage2(WizardPage):
     page_title = 'Choose Spells'
     page_subtitle = 'Choose the spells for your character.'
-    page_id = 56
+    page_id = 80
     layout = 'horizontal'
     template = 'DualListPage'
     slots = ('simple', 'get_spell_slots', '^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
@@ -398,7 +401,7 @@ class SpellsPage2(WizardPage):
 class EquipmentPage(WizardPage):
     page_title = 'Equipment'
     page_subtitle = 'Choose your equipment'
-    page_id = 57
+    page_id = 90
     layout = 'horizontal'
     template = 'dualListPage'
     slots = ('complex',
@@ -479,7 +482,7 @@ class EquipmentPage(WizardPage):
 class InfoPage(WizardPage):
     page_title = "Misc Information"
     page_subtitle = "Choose name, alignment and gender."
-    page_id = 58
+    page_id = 100
     template = "InfoPage"
     content = [
         ('text', 'This is the basic information that you will build your character on.'),
@@ -524,7 +527,7 @@ class InfoPage(WizardPage):
 class ReviewPage(WizardPage):
     page_title = "Review"
     page_subtitle = "Review Subtitle"
-    page_id = 60
+    page_id = 110
     layout = 'horizontal'
     template = 'InfoPage'
     content = [
@@ -536,45 +539,73 @@ class ReviewPage(WizardPage):
 <b>Class:</b> F{Class}<br />
 <b>Primary Spells:</b> F{SpellsList.Name}<br />
 <b>Secondary Spells:</b> F{Spells2List.Name}<br />''', True),
-        ('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
+        #('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
+        ('text', 'MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}', True),
     ]
+    #scores_adjusted = False
+    attr_cache = None
 
-    def adjust_attributes(self, race_dict):
-        pass
+    def adjust_attributes(self, attr_dict, race_dict):
+        #print race_dict
+        for meta_row in race_dict['Races_meta']:
+            if meta_row['Type'] == 'ability' and meta_row['Subtype'] == 'attribute':
+                attr_to_modify = meta_row['Modified'].upper()[:3]
+                modifier = meta_row['Modifier']
+                new_score = eval(attr_dict[attr_to_modify] + modifier)
+                attr_dict[attr_to_modify] = str(new_score)
+        return attr_dict
 
-    def roll_attributes(self, race_dict, class_dict):
+    def roll_attributes(self, wiz_attr_dict, race_dict, class_dict):
+#        if self.attr_cache:
+#            return self.attr_cache
+        #print wiz_attr_dict
         attr_dict = {}
         min_dict = {}
-        if 'classes' in class_dict:
-            for cl in class_dict['classes']:
-                min_scores_string = cl['Minimum_Scores']
+        if not wiz_attr_dict:
+            if 'classes' in class_dict:
+                for cl in class_dict['classes']:
+                    min_scores_string = cl['Minimum_Scores']
+                    min_scores_list = [score.strip() for score in min_scores_string.split(',')]
+                    for min_score in min_scores_list:
+                        min_score_split = min_score.split()
+                        attr = min_score_split[0]
+                        min_score = int(min_score_split[1])
+                        if attr not in min_dict:
+                            min_dict[attr] = min_score
+                        else:
+                            min_dict[attr] = max(min_score, min_dict[attr])
+            else:
+                min_scores_string = class_dict['Minimum_Scores']
                 min_scores_list = [score.strip() for score in min_scores_string.split(',')]
                 for min_score in min_scores_list:
                     min_score_split = min_score.split()
                     attr = min_score_split[0]
                     min_score = int(min_score_split[1])
-                    if attr not in min_dict:
-                        min_dict[attr] = min_score
-                    else:
-                        min_dict[attr] = max(min_score, min_dict[attr])
+                    min_dict[attr] = min_score
+
+            if len(min_dict) < 6:
+                for attr in get_attribute_names():
+                    if attr.title() not in min_dict:
+                        min_dict[attr.title()] = 3
+
+            for attr in min_dict:
+                minimum = max(min_dict[attr], race_dict['Minimum_' + attr])
+                maximum = race_dict['Maximum_' + attr]
+                score = Dice.randomInt(minimum, maximum)
+                attr_dict[attr.upper()] = str(score)
+                #attr_dict[attr.upper()] = score
         else:
-            min_scores_string = class_dict['Minimum_Scores']
-            min_scores_list = [score.strip() for score in min_scores_string.split(',')]
-            for min_score in min_scores_list:
-                min_score_split = min_score.split()
-                attr = min_score_split[0]
-                min_score = int(min_score_split[1])
-                min_dict[attr] = min_score
+            attr_dict = self.adjust_attributes(wiz_attr_dict, race_dict)
 
-        if len(min_dict) < 6:
-            for attr in get_attribute_names():
-                if attr.title() not in min_dict:
-                    min_dict[attr.title()] = 3
+        #print race_dict['Races_meta'][0]['race_id']
+        self.attr_cache = attr_dict
 
-        for attr in min_dict:
-            minimum = max(min_dict[attr], race_dict['Minimum_' + attr])
-            maximum = race_dict['Maximum_' + attr]
-            score = Dice.randomInt(minimum, maximum)
-            attr_dict[attr.upper()] = str(score)
-
-        return attr_dict
+        #return attr_dict
+        return '''\
+<b>Str:</b> {STR}<br />
+<b>Int:</b> {INT}<br />
+<b>Wis:</b> {WIS}<br />
+<b>Dex:</b> {DEX}<br />
+<b>Con:</b> {CON}<br />
+<b>Cha:</b> {CHA}
+    '''.format(**attr_dict)

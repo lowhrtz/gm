@@ -168,12 +168,29 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
             } else {
                 sql_rows = wizard->getDb()->getColRowsAsSqlRecord(table_name);
             }
+            QString meta_table_name = wizard->getPythonInterpreter()->getMetaTableName(table_name);
             for(Py_ssize_t i = 0;i < sql_rows.length();i++) {
 //                QList<QVariant> *row = sql_rows.at(i);
                 QSqlRecord sql_row = sql_rows.at(i);
 //                qInfo("row: %d", i);
 //                PyObject *row_dict = wizard->getPythonInterpreter()->makeDictFromRow(sql_row, table_name, wizard->getDb());
                 PyObject *row_dict = wizard->getPythonInterpreter()->makeDictFromSqlRecord(sql_row);
+                if(meta_table_name != NULL) {
+                    int refCol = wizard->getPythonInterpreter()->getMetaReferenceCol(meta_table_name);
+                    QString refColName = wizard->getDb()->getColName(meta_table_name, refCol);
+                    QString refIndexName = wizard->getPythonInterpreter()->getReferenceIndexName(meta_table_name);
+//                    int refIndex = wizard->getDb()->getColFromName(table_name, refIndexName);
+                    QString refName = PyString_AsString(PyDict_GetItemString(row_dict, refIndexName.toStdString().data()));
+//                    qInfo("refName: %s", refName.toStdString().data());
+                    QList<QSqlRecord> meta_rows = wizard->getDb()->getColRowsAsSqlRecord(meta_table_name, "*", refColName, refName);
+                    PyObject *meta_list = PyList_New(0);
+                    for(Py_ssize_t j = 0;j < meta_rows.length();j++) {
+                        QSqlRecord meta_row = meta_rows.at(j);
+                        PyObject *meta_row_dict = wizard->getPythonInterpreter()->makeDictFromSqlRecord(meta_row);
+                        PyList_Append(meta_list, meta_row_dict);
+                    }
+                    PyDict_SetItemString(row_dict, meta_table_name.toStdString().data(), meta_list);
+                }
                 PyList_Append(arg, row_dict);
             }
             pyobject_list.append(arg);
@@ -248,7 +265,7 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
 //    QRegularExpression re("(\\w+\\{[^\\{^\\}]*\\}+)");
 //    QRegularExpression re("(\\w+\\{.*\\}+)");
 //    QRegularExpression re("(WP\\{.*\\}+|F\\{[^\\{^\\}]*\\}+)");
-    QRegularExpression re("(WP\\{.*\\}+|F\\{.+?\\}+)");
+    QRegularExpression re("(WP\\{.*\\}+|F\\{.+?\\}+|MD\\{.*\\}+)");
     QRegularExpressionMatchIterator match_iter = re.globalMatch(templateString);
     while(match_iter.hasNext()) {
         QRegularExpressionMatch match = match_iter.next();
@@ -337,6 +354,7 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
                         }
                         QString score = PyString_AsString(score_object);
                         attr_display_string += "<b>" + attrName + "</b>: " + score + "<br />";
+//                        wizard->attributes[attrName] = PyString_AsString(score_object);
                     }
                 } else {
 //                    QHashIterator<QString, QString> attr_iter(wizard->attributes);
@@ -350,9 +368,32 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
                         attr_display_string += "<b>" + attrName + "</b>: " + wizard->attributes[attrName] + "<br />";
                     }
                 }
+//                foreach(QString attrName, wizard->attributeList) {
+//                    attr_display_string += "<b>" + attrName + "</b>: " + wizard->attributes[attrName] + "<br />";
+//                }
 //                attr_display_string.chop(6);
                 return_string.replace(match_string, attr_display_string);
             }
+        } else if(source_type == "MD") {
+            QString method_name_args = source_split[0];
+            QStringList method_name_args_split = method_name_args.split("(");
+            QString method_name = method_name_args_split[0];
+            QString method_args = method_name_args_split[1];
+            method_args.replace(")", "");
+            PyObject *method_object = PyObject_GetAttrString(pyWizardPageInstance, (char *) method_name.toStdString().data());
+            PyObject *method_return = PyObject_CallObject(method_object, parseArgTemplateString(method_args));
+            PyErr_Print();
+            if(!PyString_Check(method_return)) {
+                qInfo("Problem calling method: %s\nMake sure the naming is correct and that it returns a string", method_name.toStdString().data());
+                continue;
+            }
+            QString output_string = PyString_AsString(method_return);
+//            qInfo("output_string: %s", output_string.toStdString().data());
+//            int match_index = return_string.indexOf(match_string, match.lastCapturedIndex());
+//            qInfo("match_index: %i", match_index);
+//            qInfo("match_string.length(): %i", match_string.length());
+//            return_string.replace(match_index, match_string.length(), output_string);
+            return_string.replace(match_string, output_string);
         }
     }
     return return_string;

@@ -394,6 +394,12 @@ QString DatabaseHandler::getColName(QString tableName, int columnIndex)
     return record.fieldName(columnIndex);
 }
 
+int DatabaseHandler::getColFromName(QString tableName, QString colName)
+{
+    QSqlRecord record = db.record(tableName);
+    return record.indexOf(colName);
+}
+
 void DatabaseHandler::activateForeignKeys(bool enabled) {
 //    QString pragmaQueryString = "PRAGMA foreign_keys";
 //    QSqlQuery pragmaQuery = db.exec(pragmaQueryString);

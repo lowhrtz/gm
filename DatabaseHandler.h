@@ -29,6 +29,7 @@ public:
     QList<QSqlRecord> getColRowsAsSqlRecord(QString tableName, QString cols = NULL, QString whereCol = NULL, QString value = NULL, QList<QString> additionalValues = QList<QString>());
     QList<QString> getDisplayColList(QString tableName, QString displayCol);
     QString getColName(QString tableName, int columnIndex);
+    int getColFromName(QString tableName, QString colName);
     void activateForeignKeys(bool enabled = true);
 
 private:
