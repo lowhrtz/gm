@@ -118,7 +118,7 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
         if(source_type == "DB") {
             arg = PyList_New(0);
             QString table_name = source_split[0];
-            QString cols;
+            QString cols = "*";
             QString where;
             QString where_value;
             QList<QString> additional_where_values;
@@ -139,28 +139,35 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
                         QList<QString> where_split = where_string.split("=");
                         where = where_split[0].trimmed();
                         QList<QString> where_value_split = where_split[1].trimmed().split(":");
-                        QString where_value_field = where_value_split[0];
-                        QString where_value_column = where_value_split[1];
-                        QWidget *field_widget = wizard->field_name_to_widget_hash[where_value_field];
-                        QString field_widget_type = field_widget->metaObject()->className();
-                        if(field_widget_type == "StackedWidget") {
-                            StackedWidget *stacked_widget = (StackedWidget *) field_widget;
-                            int data_index = stacked_widget->getCurrentItemIndex();
-                            PyObject *data = stacked_widget->getData(data_index);
-//                            qInfo("data dict: %s", PyDict_Check(data) ? "true":"false");
-                            if(PyDict_Check(data)) {
-                                PyObject *where_value_pyobject = PyDict_GetItemString(data, where_value_column.toStdString().data());
-                                if(PyList_Check(where_value_pyobject)) {
-                                    int where_list_size = PyList_Size(where_value_pyobject);
-                                    where_value = PyString_AsString(PyList_GetItem(where_value_pyobject, 0));
-                                    for(int j = 1;j < where_list_size;j++) {
-                                        PyObject *add_value_oject = PyList_GetItem(where_value_pyobject, j);
-                                        additional_where_values.append(PyString_AsString(add_value_oject));
+                        if(where_value_split.length() > 1) {
+                            QString where_value_field = where_value_split[0];
+                            QString where_value_column = where_value_split[1];
+                            QWidget *field_widget = wizard->field_name_to_widget_hash[where_value_field];
+                            QString field_widget_type = field_widget->metaObject()->className();
+                            if(field_widget_type == "StackedWidget") {
+                                StackedWidget *stacked_widget = (StackedWidget *) field_widget;
+                                int data_index = stacked_widget->getCurrentItemIndex();
+                                PyObject *data = stacked_widget->getData(data_index);
+                                //                            qInfo("data dict: %s", PyDict_Check(data) ? "true":"false");
+                                if(PyDict_Check(data)) {
+                                    PyObject *where_value_pyobject = PyDict_GetItemString(data, where_value_column.toStdString().data());
+                                    if(PyList_Check(where_value_pyobject)) {
+                                        int where_list_size = PyList_Size(where_value_pyobject);
+                                        where_value = PyString_AsString(PyList_GetItem(where_value_pyobject, 0));
+                                        for(int j = 1;j < where_list_size;j++) {
+                                            PyObject *add_value_oject = PyList_GetItem(where_value_pyobject, j);
+                                            additional_where_values.append(PyString_AsString(add_value_oject));
+                                        }
+                                    } else {
+                                        where_value = PyString_AsString(where_value_pyobject);
                                     }
-                                } else {
-                                    where_value = PyString_AsString(where_value_pyobject);
                                 }
                             }
+                        } else {
+                            where_value = where_value_split[0];
+//                            qInfo("additional_where_values.length: %i", additional_where_values.length());
+//                            qInfo("where: %s", where.toStdString().data());
+//                            qInfo("where_value: %s", where_value.toStdString().data());
                         }
                     }
                 }
@@ -215,6 +222,10 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
                 qInfo("page_id: %i", page_id);
                 WizardPage *ref_page = (WizardPage *) wizard->page(page_id);
                 arg = Py_None;
+                if(source_split.length() > 1) {
+                    QString page_prop_name = source_split[1];
+                    arg = PyObject_GetAttrString(ref_page->pyWizardPageInstance, page_prop_name.toStdString().data());
+                }
             }
 //            PyTuple_SetItem(return_object, match_index, wp_arg);
             pyobject_list.append(arg);

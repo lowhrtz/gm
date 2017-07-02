@@ -348,12 +348,14 @@ QList<QSqlRecord> DatabaseHandler::getColRowsAsSqlRecord(const char *tableName, 
         }
     }
 
+//    qInfo("tableQueryString: %s", tableQueryString.toStdString().data());
+
     QSqlQuery tableQuery(db);
     tableQuery.setForwardOnly(true);
     tableQuery.prepare(tableQueryString);
     bool query_successful = tableQuery.exec(tableQueryString);
     if(!query_successful) {
-        qInfo("Problem with database querty: %s", tableQueryString.toStdString().data());
+        qInfo("Problem with database query: %s", tableQueryString.toStdString().data());
     }
     db.record(QString(tableName));
     while(tableQuery.next()) {

@@ -187,9 +187,6 @@ class ChooseRacePage(WizardPage):
         race_id = race_dict['unique_id']
         return 'portraits/Races/{filename}.jpg'.format(filename=race_id)
 
-#class ChooseLangPage(WizardPage):
-#    page_title = "Choose Language"
-
 class ChooseClassPage(WizardPage):
     page_title = "Choose Class"
     page_subtitle = "Choose from the available classes"
@@ -286,7 +283,7 @@ class ChooseClassPage(WizardPage):
 
         if spellcaster:
             return SpellsPage.page_id
-        return EquipmentPage.page_id
+        return ProficiencyPage.page_id
 
     def has_spells_at_level(self, level, class_meta_dict_list, class_id):
         level_dict_list = [class_meta_dict for class_meta_dict in class_meta_dict_list if class_meta_dict['class_id'] == class_id and class_meta_dict['Type'] == 'xp table']
@@ -295,6 +292,35 @@ class ChooseClassPage(WizardPage):
         if level_dict['Casting_Level'] != 0 and level_dict['Casting_Level'] != '':
             return True
         return False
+
+def prefill_chosen_spells(class_dict, spells_dict_list, multiclass_index):
+    prechosen_ids = []
+    prechosen_spells = []
+    if 'classes' in class_dict:
+        spell_type = class_dict['Primary_Spell_List'][multiclass_index]
+    else:
+        spell_type = class_dict['Primary_Spell_List']
+    avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
+    if spell_type == 'magic_user':
+        prechosen_ids.append('read_magic')
+        for spell in avail_list:
+            if spell['spell_id'] == 'read_magic':
+                avail_list.remove(spell)
+
+    if spell_type == 'magic_user' or spell_type == 'illusionist':
+        first_random = Dice.randomInt(0, len(avail_list) - 1)
+        first_random_spell = avail_list.pop(first_random)
+        prechosen_ids.append(first_random_spell['spell_id'])
+
+        second_random = Dice.randomInt(0, len(avail_list) - 1)
+        second_random_spell = avail_list.pop(second_random)
+        prechosen_ids.append(first_random_spell['spell_id'])
+        prechosen_ids.append(second_random_spell['spell_id'])
+
+    for spell_dict in spells_dict_list:
+        if spell_dict['spell_id'] in prechosen_ids:
+            prechosen_spells.append((spell_dict['Name'], spell_dict, True))
+    return prechosen_spells
 
 class SpellsPage(WizardPage):
     page_title = 'Choose Spells'
@@ -327,34 +353,36 @@ class SpellsPage(WizardPage):
                 spell_list.append(spell_tuple)
         return spell_list
 
+#    def prefill_chosen_spells(self, class_dict, spells_dict_list):
+#        prechosen_ids = []
+#        prechosen_spells = []
+#        if 'classes' in class_dict:
+#            spell_type = class_dict['Primary_Spell_List'][0]
+#        else:
+#            spell_type = class_dict['Primary_Spell_List']
+#        avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
+#        if spell_type == 'magic_user':
+#            prechosen_ids.append('read_magic')
+#            for spell in avail_list:
+#                if spell['spell_id'] == 'read_magic':
+#                    avail_list.remove(spell)
+
+#        if spell_type == 'magic_user' or spell_type == 'illusionist':
+#            first_random = Dice.randomInt(0, len(avail_list) - 1)
+#            first_random_spell = avail_list.pop(first_random)
+#            prechosen_ids.append(first_random_spell['spell_id'])
+
+#            second_random = Dice.randomInt(0, len(avail_list) - 1)
+#            second_random_spell = avail_list.pop(second_random)
+#            prechosen_ids.append(first_random_spell['spell_id'])
+#            prechosen_ids.append(second_random_spell['spell_id'])
+
+#        for spell_dict in spells_dict_list:
+#            if spell_dict['spell_id'] in prechosen_ids:
+#                prechosen_spells.append((spell_dict['Name'], spell_dict, True))
+#        return prechosen_spells
     def prefill_chosen_spells(self, class_dict, spells_dict_list):
-        prechosen_ids = []
-        prechosen_spells = []
-        if 'classes' in class_dict:
-            spell_type = class_dict['Primary_Spell_List'][0]
-        else:
-            spell_type = class_dict['Primary_Spell_List']
-        avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
-        if spell_type == 'magic_user':
-            prechosen_ids.append('read_magic')
-            for spell in avail_list:
-                if spell['spell_id'] == 'read_magic':
-                    avail_list.remove(spell)
-
-        if spell_type == 'magic_user' or spell_type == 'illusionist':
-            first_random = Dice.randomInt(0, len(avail_list) - 1)
-            first_random_spell = avail_list.pop(first_random)
-            prechosen_ids.append(first_random_spell['spell_id'])
-
-            second_random = Dice.randomInt(0, len(avail_list) - 1)
-            second_random_spell = avail_list.pop(second_random)
-            prechosen_ids.append(first_random_spell['spell_id'])
-            prechosen_ids.append(second_random_spell['spell_id'])
-
-        for spell_dict in spells_dict_list:
-            if spell_dict['spell_id'] in prechosen_ids:
-                prechosen_spells.append((spell_dict['Name'], spell_dict, True))
-        return prechosen_spells
+        return prefill_chosen_spells(class_dict, spells_dict_list, 0)
 
     def get_spell_slots(self, class_dict, class_meta_dict_list):
         if 'classes' in class_dict:
@@ -370,7 +398,7 @@ class SpellsPage(WizardPage):
     def get_next_page_id(self):
         if multi_next_spells:
             return SpellsPage2.page_id
-        return EquipmentPage.page_id
+        return ProficiencyPage.page_id
 
 class SpellsPage2(WizardPage):
     page_title = 'Choose Spells'
@@ -379,7 +407,9 @@ class SpellsPage2(WizardPage):
     layout = 'horizontal'
     template = 'DualListPage'
     slots = ('simple', 'get_spell_slots', '^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
-    content = ('Spells2', 'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description')
+    content = ('Spells2',
+               'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description',
+               'prefill_chosen_spells', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}')
 
     def fill_list(self, class_dict, spells_dict_list):
 #        print multi_next_spells
@@ -390,6 +420,9 @@ class SpellsPage2(WizardPage):
                 spell_list.append(spell_tuple)
         return spell_list
 
+    def prefill_chosen_spells(self, class_dict, spells_dict_list):
+        return prefill_chosen_spells(class_dict, spells_dict_list, 1)
+
     def get_spell_slots(self, class_dict, class_meta_dict_list):
 #        print class_meta_dict_list[0]
         spell_type = multi_next_spells[0]
@@ -397,6 +430,82 @@ class SpellsPage2(WizardPage):
         char_levels = [row for row in class_meta_dict_list if row['Type'] == 'xp table' and row['class_id'] == multi_next_spells[0]]
         level_one = char_levels[0]
         return (spell_type, level_one['Level_1_Spells'])
+
+class ProficiencyPage(WizardPage):
+    page_title = 'Weapon Proficiency'
+    page_subtitle = 'Choose your proficiencies'
+    page_id = 85
+    layout = 'horizontal'
+    template = 'dualListPage'
+    slots = ('simple', 'get_slots', '^$ F{Class} F{Race}')
+    content = ('Proficiency', 'fill_proficiencies', '^$ F{Class} F{Race} DB{Items.where(Is_Proficiency=yes)}')
+
+    def get_slots(self, class_dict, race_dict):
+        if 'classes' in class_dict:
+            cl_slots = []
+            for cl in class_dict['classes']:
+                cl_slots.append(cl['Initial_Weapon_Proficiencies'])
+            if race_dict['unique_id'] == 'dwarf' or race_dict['unique_id'] == 'half_orc':
+                slots = min(cl_slots)
+            else:
+                slots = max(cl_slots)
+        else:
+            slots = class_dict['Initial_Weapon_Proficiencies']
+        return ('Proficiency Slots:', slots)
+
+    def race_wp(self, wp_list, race_id, item_dict_list):
+        blunt_list = [blunt['Name'].lower() for blunt in item_dict_list if 'blunt' in blunt['Damage_Type'].split(',')]
+        race_wp = []
+        wp_expand = []
+        for wp in wp_list:
+            wp_expand.append([w.strip().lower() for w in wp.split(',')])
+        if race_id == 'dwarf' or race_id == 'half_orc':
+            bucket = wp_expand[0]
+            if 'blunt' in bucket:
+                bucket.remove('blunt')
+                bucket.extend(blunt_list)
+            for i in range(1, len(wp_expand)):
+                if 'blunt' in wp_expand[i]:
+                    wp_expand[i].remove('blunt')
+                    wp_expand[i].extend(blunt_list)
+                if 'any' in bucket:
+                    bucket = wp_expand[i]
+                elif 'any' in wp_expand[i]:
+                    bucket = bucket
+                else:
+                    bucket = [w for w in bucket if w in wp_expand[i]]
+                print bucket
+        else:
+            wp_flat = sum(wp_expand, [])
+            bucket = []
+            for wp in wp_flat:
+                if wp not in bucket:
+                    bucket.append(wp)
+        if 'any' in bucket:
+            bucket = ['any',]
+        return bucket
+
+    def fill_proficiencies(self, class_dict, race_dict, item_dict_list):
+        if 'classes' in class_dict:
+            wp_list = [cl['Weapons_Permitted'] for cl in class_dict['classes']]
+            weapons_permitted = self.race_wp(wp_list, race_dict['unique_id'], item_dict_list)
+        else:
+            weapons_permitted = [weapon.strip().lower() for weapon in class_dict['Weapons_Permitted'].split(',')]
+        item_list = []
+        for item_dict in item_dict_list:
+            item_tuple = (item_dict['Name'], item_dict)
+            damage_type_list = [damage_type.strip().lower() for damage_type in item_dict['Damage_Type'].split(',')]
+            if 'any' in weapons_permitted:
+                item_list.append(item_tuple)
+            elif any(weapon in item_dict['Name'].lower() for weapon in weapons_permitted):
+                item_list.append(item_tuple)
+            elif [i for i in weapons_permitted if i in damage_type_list]:
+                item_list.append(item_tuple)
+            elif 'single-handed swords (except bastard swords)' in weapons_permitted:
+                if item_dict['unique_id'].startswith('sword') and \
+                'both-hand' not in damage_type_list and 'two-hand' not in damage_type_list:
+                    item_list.append(item_tuple)
+        return item_list
 
 class EquipmentPage(WizardPage):
     page_title = 'Equipment'
@@ -416,7 +525,7 @@ class EquipmentPage(WizardPage):
     def fill_list(self, class_dict, items_dict_list):
         item_list = []
         for item_dict in items_dict_list:
-            if item_dict['Cost'] != 'Not sold':
+            if item_dict['Cost'].lower() != 'not sold' and item_dict['Cost'].lower() != 'proficiency':
                 item_tuple = (item_dict['Name'] + ' - ' + item_dict['Cost'], item_dict)
                 item_list.append(item_tuple)
 
@@ -466,11 +575,17 @@ class EquipmentPage(WizardPage):
             denomination = None
         else:
             cost = ''.join(d for d in cost_split[0] if d.isdigit())
-            denomination = cost_split[1]
+            try:
+                denomination = cost_split[1]
+            except KeyError:
+                denomination = None
 
         if denomination:
-            ratio = SystemSettings.economy[denomination]
-            final_cost = ratio * float(cost)
+            try:
+                ratio = SystemSettings.economy[denomination]
+                final_cost = ratio * float(cost)
+            except KeyError:
+                final_cost = cost
         else:
             final_cost = cost
 #        print final_cost
@@ -609,3 +724,64 @@ class ReviewPage(WizardPage):
 <b>Con:</b> {CON}<br />
 <b>Cha:</b> {CHA}
     '''.format(**attr_dict)
+
+class ChooseLangPage(WizardPage):
+    enabled = False
+    page_title = 'Choose Language'
+    page_subtitle = 'Choose a language'
+    page_id = 120
+    template = 'DualListPage'
+    layout = 'Horizontal'
+    slots = ('simple', 'get_slots', '^$ F{Race} WP{' + str(ReviewPage.page_id)  + '.attr_cache}')
+    content = ('Languages', 'fill_langs', '')
+
+    def get_slots(self, race_dict, attr_dict):
+        int_score = int(attr_dict['INT'])
+        if int_score < 8:
+            langs = 0
+        elif int_score < 10:
+            langs = 1
+        elif int_score < 12:
+            langs = 2
+        elif int_score < 14:
+            if race_dict['unique_id'] == 'human':
+                langs = 3
+            else:
+                langs = 2
+        elif int_score < 16:
+            if race_dict['unique_id'] == 'human':
+                langs = 4
+            else:
+                langs = 2
+        elif int_score == 16:
+            if race_dict['unique_id'] == 'human':
+                langs = 5
+            else:
+                langs = 2
+        elif int_score == 17:
+            if race_dict['unique_id'] == 'human':
+                langs = 6
+            else:
+                langs = 2
+        elif int_score == 18:
+            if race_dict['unique_id'] == 'human':
+                langs = 7
+            else:
+                langs = 2
+        elif int_score == 19:
+            if race_dict['unique_id'] == 'human':
+                langs = 7
+            elif race_dict['unique_id'] == 'elf':
+                langs = 3
+            else:
+                langs = 2
+        return ('Languages', langs)
+
+    def fill_langs(self):
+        return [('Dwarfish', {}),
+                ('Gnomish', {}),
+                ('Goblin', {}),
+                ('Kobold', {}),
+                ('Orcish', {}),
+                ('Common', {}),
+               ]
