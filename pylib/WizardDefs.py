@@ -9,6 +9,9 @@ class WizardPage(object):
     banner = None
     template = "default"
     content = None
+    custom_button1 = None
+    custom_button2 = None
+    custom_button3 = None
     
     def __str__(self):
         return self.page_title

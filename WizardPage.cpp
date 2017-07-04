@@ -2,6 +2,7 @@
 #include "Dice.h"
 #include "Dialogs.h"
 #include "PyToolButton.h"
+#include "PDFCreator.h"
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialog>
@@ -251,6 +252,35 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
                     } else {
                         arg = PyString_FromString(chosen_item.toStdString().data());
                     }
+                }
+            } else if(field_data_type == "QList<PyObject*>") {
+                QWidget *field_widget = wizard->field_name_to_widget_hash[field_name];
+                QString field_widget_type = field_widget->metaObject()->className();
+                if(field_widget_type == "StackedWidget") {
+                    StackedWidget *stacked_widget = (StackedWidget *) field_widget;
+                    QList<PyObject *> dataList = stacked_widget->getDataList();
+//                    int match_index = return_string.indexOf(match_string, match.lastCapturedIndex());
+//                    QString data_list_string;
+//                    if(dataList.isEmpty()) {
+//                        data_list_string = "&lt;None&gt;";
+//                    } else {
+//                        foreach(PyObject *data, dataList) {
+//                            QString display_key("Name");
+//                            if(source_split.length() > 1) {
+//                                display_key = source_split[1];
+//                            }
+//                            PyObject *data_object = PyDict_GetItemString(data, display_key.toStdString().data());
+//                            QString data_string = PyString_AsString(data_object);
+//                            data_list_string += data_string + ", ";
+//                        }
+//                        data_list_string.chop(2);
+//                    }
+//                    return_string.replace(match_index, match_string.length(), data_list_string);
+                    PyObject *dataListObj = PyList_New(0);
+                    foreach(PyObject *data, dataList) {
+                        PyList_Append(dataListObj, data);
+                    }
+                    arg = dataListObj;
                 }
             }
             pyobject_list.append(arg);
@@ -757,6 +787,7 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     Py_ssize_t pyContentSize, tupleSize;
 //    QGridLayout *layout;
     QBoxLayout *layout, *choose_layout;
+//    QLayout *layout, *choose_layout;
     Qt::Alignment layoutAlign;
 //    QString pageTitle, pageSubtitle, layoutString, itemType, itemName, bannerString;
     QString layoutString, itemType, itemName, bannerString;
@@ -774,7 +805,10 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 //    setSubTitle(pageSubtitle);
 
     layoutString = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_layout", NULL));
-    if(layoutString.toLower() == "horizontal") {
+    /*if(layoutString.toLower() == "grid") {
+        layout = new QGridLayout;
+        layoutAlign = Qt::AlignVCenter;
+    } else*/ if(layoutString.toLower() == "horizontal") {
         layout = new QHBoxLayout;
         layoutAlign = Qt::AlignVCenter;
     } else {
@@ -895,6 +929,14 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 //                QString templateString;
 //                QTextStream(&templateString) << "^$ F{" << itemName << "}";
 //                nextIdArgs = templateString;
+            } else if(itemType.toLower().endsWith("halfwidth")) {
+//                ((QListWidget *) choose->currentWidget())->setFixedWidth(100);
+                choose->setFixedWidth(100);
+            } else if(itemType.toLower().endsWith("halfheight")) {
+                choose->setFixedHeight(100);
+            } else if(itemType.toLower().endsWith("halfsize")) {
+                choose->setFixedWidth(100);
+                choose->setFixedHeight(100);
             }
             publicRegisterField(getMandatoryString(itemName, pyContentItem), choose, "currentItemIndex", "currentItemChanged");
 //            publicRegisterField(getMandatoryString(itemName, pyContentItem), choose);
@@ -934,18 +976,23 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 //            layout->addWidget(button, i, 0, 1, 2, Qt::AlignCenter);
             layout->addWidget(button, layoutAlign);
             if(tupleSize > 2) {
-                PyObject *actionName = PyTuple_GetItem(pyContentItem, 2);
-                PyObject *pyAction = PyObject_CallMethodObjArgs(pyWizardPageInstance, actionName, NULL);
-                if(!pyAction ||
-                        !PyTuple_Check(pyAction)) {
-                    PyErr_Print();
-                    PyErr_Clear();
-                    printf("Error getting action tuple!\n");
-                    continue;
+                QString action_type = PyString_AsString(PyTuple_GetItem(pyContentItem, 2));
+                if(action_type.toLower() == "printpdf") {
+                    PyObject *callable = PyTuple_GetItem(pyContentItem, 3);
+                    QString arg_template = PyString_AsString(PyTuple_GetItem(pyContentItem, 4));
+                    button->setPyObject(callable, arg_template);
                 }
-//                currentActionTuple = pyAction;
-                button->setPyAction(pyAction);
-                connect(button, SIGNAL(clicked(PyObject*)), this, SLOT(buttonPushed(PyObject*)));
+                connect(button, SIGNAL(clicked(PyObject*, QString)), this, SLOT(buttonPushedPDF(PyObject*, QString)));
+//                if(!pyAction ||
+//                        !PyTuple_Check(pyAction)) {
+//                    PyErr_Print();
+//                    PyErr_Clear();
+//                    printf("Error getting action tuple!\n");
+//                    continue;
+//                }
+////                currentActionTuple = pyAction;
+//                button->setPyObject(pyAction);
+//                connect(button, SIGNAL(clicked(PyObject*)), this, SLOT(buttonPushed(PyObject*)));
             }
         } else if(itemType.toLower() == "buttonleft") {
             QToolButton *button = new QToolButton(this);
@@ -1282,6 +1329,18 @@ void InfoPage::addBindCallable(QWidget *widget, PyObject *callable, QString bind
 void InfoPage::addParsableString(QLabel *label, QString templateString) {
     QLabelWithTextTemplate widget_with_text_template(label, templateString);
     page_init_string_parse.append(widget_with_text_template);
+}
+
+void InfoPage::buttonPushedPDF(PyObject *callable, QString arg_template) {
+    PyObject *args = parseArgTemplateString(arg_template);
+    PyObject *callable_return = PyObject_CallObject(callable, args);
+    if(!PyString_Check(callable_return)) {
+        qInfo("Callable doesn't return string.");
+    }
+    QString markup = PyString_AsString(callable_return);
+//    qInfo("markup: %s", markup.toStdString().data());
+    PDFCreator *pdf = new PDFCreator(parseTextTemplateString(markup));
+    pdf->save();
 }
 
 StackedWidget::StackedWidget(QWidget *parent, QString displayType, DatabaseHandler *db, PythonInterpreter *interpreter) :

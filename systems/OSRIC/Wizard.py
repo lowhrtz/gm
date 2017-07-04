@@ -645,20 +645,42 @@ class ReviewPage(WizardPage):
     page_id = 110
     layout = 'horizontal'
     template = 'InfoPage'
-    content = [
-        ('text', '''\
-<b>Name:</b> F{Name}<br />
-<b>Gender:</b> F{Gender}<br />
-<b>Alignment:</b> F{Alignment}<br />
-<b>Race:</b> F{Race}<br />
-<b>Class:</b> F{Class}<br />
-<b>Primary Spells:</b> F{SpellsList.Name}<br />
-<b>Secondary Spells:</b> F{Spells2List.Name}<br />''', True),
-        #('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
-        ('text', 'MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}', True),
-    ]
-    #scores_adjusted = False
+#    content = [
+#        ('text', '''\
+#<b>Name:</b> F{Name}<br />
+#<b>Gender:</b> F{Gender}<br />
+#<b>Align:</b> F{Alignment}<br />
+#<b>Race:</b> F{Race}<br />
+#<b>Class:</b> F{Class}<br />
+#<br />
+#MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
+#        #('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
+##        ('text', 'MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}', True),
+#        ('listbox-halfwidth', 'All Spells', 'method', 'fill_items', '^$ F{SpellsList}'),
+#        ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
+#        ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
+#        ('listbox-halfwidth', 'Equip', 'method', 'fill_items', '^$ F{EquipmentList}'),
+#        ('button', 'Create PDF', 'printpdf', get_pdf_markup, '^$ F{Class}'),
+#    ]
+
     attr_cache = None
+
+    def __init__(self):
+        self.content = [
+            ('text', '''\
+    <b>Name:</b> F{Name}<br />
+    <b>Gender:</b> F{Gender}<br />
+    <b>Align:</b> F{Alignment}<br />
+    <b>Race:</b> F{Race}<br />
+    <b>Class:</b> F{Class}<br />
+    <br />
+    MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
+            ('listbox-halfwidth', 'All Spells', 'method', 'fill_items', '^$ F{SpellsList}'),
+            ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
+            ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
+            ('listbox-halfwidth', 'Equip', 'method', 'fill_items', '^$ F{EquipmentList}'),
+            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, '^$ F{Class}'),
+        ]
 
     def adjust_attributes(self, attr_dict, race_dict):
         #print race_dict
@@ -724,6 +746,81 @@ class ReviewPage(WizardPage):
 <b>Con:</b> {CON}<br />
 <b>Cha:</b> {CHA}
     '''.format(**attr_dict)
+
+    def fill_items(self, items):
+        if len(items) > 0:
+            return [(item['Name'], item) for item in items]
+        else:
+            return []
+
+    def get_pdf_markup(self, class_dict):
+        markup = '''\
+<style type=text/css>
+.border {
+    color: red;
+    border-style: solid;
+    border-color: purple;
+}
+
+.bigger-font {
+    font-size: 15px;
+}
+
+.pad-cell {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.pad-bottom {
+    padding-bottom: 5px;
+}
+
+.no-pad {
+    padding: 0px;
+}
+
+.lpad {
+    padding-left: 10px;
+}
+
+.float-right {
+    float: right;
+}
+
+.attr-bonuses {
+    font-size: 8px;
+    vertical-align: middle;
+    white-space: pre;
+}
+
+p.page-break {
+    page-break-after:always;
+}
+</style>
+<h1 align=center>F{Name}</h1>
+<img class=float-right align=right height=140 src=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAFLklEQVR4nO3dMYscdRzG8eckRYpDRIIEi3B2EURSScqzEKzSmMJK7grxXQR8Ab6GiJ2NoNUVgRNsAjZphHQGQUllESxSCGeRswm3m53ZvZ2dPJ8PDFfMzv1/W8yX+y+7twkAAAAAAAAA8LrYe8X5q0k+2sYgA/yR5MnUQ8ACt5LcmXqIl3yXkffMQZKzHTvujXkisCVHmf4eefk4XDTsGxt5ysAsCQAUEwAodmXkdU82OcQS15Lsb2ktuCxPk5xsaa1Pk1xf9cFjA/DeyOuGup8XL6rAnD1OcryltU4zIAC2AFBs7F8AU3o/yZ9J/pp6ELjAO1MPMMQcA/D5+c93J50CLvbv1AMMYQsAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBsjp8GTJKHSZ5PPQRc4HqSm1MPsao5BuBBks+SPJt6ELjAUV78J6tZmOMW4Je4+WEj5hgAYEMEAIoJABQTACgmAFBMAKDY2PcBnG50isVm84YKWOJ2kt+3tNbK3wqUjA/A4cjroNHVJAdTD3ERWwAoJgBQTACg2N4rzu8nubvi71rnAxAnSb5f8bGPzg/YRftJrg285tcR1/zvQZIvX/GYp9nCp2fP1ji+uezhYIf9lvH3zo/rLLzJLcCsvhUV8BoAVBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAodmXJuf0kbw/4XevE5M0kN1Z43N9J/lljHbhMt5J8OOK6t9ZY80aSL5ac/yEj75mjJGc7dhyNeSKwJfcy/T3y8nGwbGBbACgmAFBMAKDYshcBgfU9TfJ4S2sdDr1gaAB+TvLx0EVGOs2IJwQ75iTJ8ZbWOht6gS0AFBMAKCYAUEwAoJgAQDEBgGJzex/AV0k+mXoIWOCDqQcYam4BuH1+ABtgCwDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUGxunwZMXvybZdg1++fHrMwtAMdJvp16CFjgXpKvpx5iCFsAKCYAUGzoFuBmkvuXMciCtWDu7maHv+FqaACuJzm6hDngdbXTLw7aAkAxAYBiAgDF9pacu5XkzrYGWdFPSR5NPQQscHB+7JKHSZ5PPQQAAAAAAAAAcPn+A+VH6ACOcfiQAAAAAElFTkSuQmCC></img>
+
+<table>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>F{Name}</td><td class=lpad><b>XP: </b></td></tr>
+<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>F{Gender}</td><td class=lpad><b>HP: </b></td></tr>
+<tr><td class=pad-bottom><b>Class: </b></td><td align=right>F{Class}</td><td class=lpad><b>AC: </b></td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>F{Alignment}</td><td class=lpad><b>Level: </b></td></tr>
+<tr><td class=pad-bottom><b>Race: </b></td><td align=right>F{Race}</td></tr>
+</table>
+
+<hr />
+
+<table class='border bigger-font' border=1 ><tr><td>
+<table class=pad-cell>
+<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>9</td><td class=attr-bonuses> To Hit: 0     Damage: 0     Encumbrance: 0     Minor Test: 1-2     Major Test: 1 </td></tr>
+<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>10</td><td class=attr-bonuses> Additional Languages: 2 </td></tr>
+<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>12</td><td class=attr-bonuses> Mental Save: 0 </td></tr>
+<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>8</td><td class=attr-bonuses> Surprise: 0     Missile To Hit: 0     AC Adjustment: 0 </td></tr>
+<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>7</td></tr>
+<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>14</td></tr>
+</table>
+</td></tr></table>'''
+        return markup
 
 class ChooseLangPage(WizardPage):
     enabled = False

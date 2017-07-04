@@ -163,6 +163,9 @@ private:
     QList<BindCallable> bind_callable_list;
     QList<QLabelWithTextTemplate> page_init_string_parse;
 
+private slots:
+    void buttonPushedPDF(PyObject *callable, QString arg_template);
+
 };
 
 class StackedWidget : public QStackedWidget {

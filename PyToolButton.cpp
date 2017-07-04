@@ -5,11 +5,12 @@ PyToolButton::PyToolButton(QWidget *parent)
 
 }
 
-void PyToolButton::setPyAction(PyObject *pyAction) {
+void PyToolButton::setPyObject(PyObject *py_object, QString arg_template) {
     connect(this, SIGNAL(clicked()), this, SLOT(reemitClicked()));
-    this->currentAction = pyAction;
+    this->argTemplate = arg_template;
+    this->pyObject = py_object;
 }
 
 void PyToolButton::reemitClicked() {
-    emit clicked(currentAction);
+    emit clicked(pyObject, argTemplate);
 }

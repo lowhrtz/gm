@@ -15,6 +15,7 @@ win32 {
     LIBS += -lpython2.7
 }
 QT += sql
+QT += printsupport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
 
@@ -29,7 +30,8 @@ HEADERS += MainWindow.h \
     CharacterCreationWizard.h \
     PyToolButton.h \
     WizardPage.h \
-    Dialogs.h
+    Dialogs.h \
+    PDFCreator.h
 SOURCES += main.cpp MainWindow.cpp \
     PythonInterpreter.cpp \
     ListObject.cpp \
@@ -40,7 +42,8 @@ SOURCES += main.cpp MainWindow.cpp \
     CharacterCreationWizard.cpp \
     PyToolButton.cpp \
     WizardPage.cpp \
-    Dialogs.cpp
+    Dialogs.cpp \
+    PDFCreator.cpp
 
 RESOURCES += \
     resources.qrc

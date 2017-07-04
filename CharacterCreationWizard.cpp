@@ -1,6 +1,7 @@
 #include "CharacterCreationWizard.h"
 #include "PyToolButton.h"
 #include "Dice.h"
+//#include "PDFCreator.h"
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QGridLayout>
@@ -33,7 +34,8 @@ CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandle
 }
 
 void CharacterCreationWizard::accept() {
-//    printf("Wizard Accepted\n");
+    qInfo("Wizard Accepted");
+//    PDFCreator pdf = PDFCreator();
     QDialog::accept();
 }
 
@@ -250,8 +252,8 @@ WizardPage *CharacterCreationWizard::getInfoPage(PyObject *pyWizardPageInstance)
                     continue;
                 }
 //                currentActionTuple = pyAction;
-                button->setPyAction(pyAction);
-                connect(button, SIGNAL(clicked(PyObject*)), this, SLOT(buttonPushed(PyObject*)));
+//                button->setPyAction(pyAction);
+//                connect(button, SIGNAL(clicked(PyObject*)), this, SLOT(buttonPushed(PyObject*)));
             }
         } else if(itemType.toLower() == "buttonleft") {
             QToolButton *button = new QToolButton(wizardPage);

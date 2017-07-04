@@ -15,16 +15,17 @@ class PyToolButton : public QToolButton {
 
 public:
     PyToolButton(QWidget *parent);
-    void setPyAction(PyObject *pyAction);
+    void setPyObject(PyObject *py_object, QString arg_template);
 
 signals:
-    void clicked(PyObject *pyAction);
+    void clicked(PyObject *py_object, QString arg_template);
 
 private slots:
     void reemitClicked();
 
-public:
-    PyObject *currentAction;
+private:
+    PyObject *pyObject;
+    QString argTemplate;
 };
 
 #endif // PYTOOLBUTTON_H
