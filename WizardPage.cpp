@@ -206,10 +206,10 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
         } else if(source_type == "WP") {
 //            PyObject *arg;
             if(source_split[0] == "attributes") {
-                arg = PyDict_New();
                 if(wizard->attributes.isEmpty()) {
                     arg = Py_None;
-                } else {
+                } else if(source_split.length() == 1) {
+                    arg = PyDict_New();
                     QHashIterator<QString, QString> attr_iter(wizard->attributes);
                     while(attr_iter.hasNext()) {
                         attr_iter.next();
@@ -217,15 +217,30 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
                         const QString attr_score_string = attr_iter.value();
                         PyDict_SetItemString(arg, attr_key.toStdString().data(), Py_BuildValue("s", attr_score_string.toStdString().data()));
                     }
+                } else {
+                    QString attr_name = source_split[1];
+                    QString attr_score = wizard->attributes[attr_name];
+                    arg = PyString_FromString(attr_score.toStdString().data());
                 }
             } else {
                 int page_id = source_split[0].toInt();
-                qInfo("page_id: %i", page_id);
+//                qInfo("page_id: %i", page_id);
                 WizardPage *ref_page = (WizardPage *) wizard->page(page_id);
                 arg = Py_None;
                 if(source_split.length() > 1) {
                     QString page_prop_name = source_split[1];
-                    arg = PyObject_GetAttrString(ref_page->pyWizardPageInstance, page_prop_name.toStdString().data());
+                    PyObject *page_prop_obj = PyObject_GetAttrString(ref_page->pyWizardPageInstance, page_prop_name.toStdString().data());
+                    arg = page_prop_obj;
+                    if(source_split.length() > 2) {
+                        QString dict_key = source_split[2];
+                        if(PyDict_Check(page_prop_obj)) {
+//                            qInfo("dict_key: %s", dict_key.toStdString().data());
+                            arg = PyDict_GetItemString(page_prop_obj, dict_key.toStdString().data());
+                        } else if(PyList_Check(page_prop_obj)) {
+                            QString list_index = source_split[2];
+                            arg = PyList_GetItem(page_prop_obj, list_index.toInt());
+                        }
+                    }
                 }
             }
 //            PyTuple_SetItem(return_object, match_index, wp_arg);
@@ -285,6 +300,20 @@ PyObject *WizardPage::parseArgTemplateString(QString templateString) const {
             }
             pyobject_list.append(arg);
 
+        } else if(source_type == "LIT") {
+            QString literal = source_split[0];
+            QRegExp digit_re("\\d*");
+            if(literal.startsWith("'") || literal.startsWith("\"")) {
+                literal.remove(0, 1);
+                if(literal.endsWith("'") || literal.endsWith("\"")) {
+                    literal.chop(1);
+                }
+//                qInfo("literal: %s", literal.toStdString().data());
+                arg = PyString_FromString(literal.toStdString().data());
+            } else if(digit_re.exactMatch(literal)) {
+                arg = PyInt_FromLong(literal.toInt());
+            }
+            pyobject_list.append(arg);
         }
 
         match_index++;
@@ -306,7 +335,7 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
 //    QRegularExpression re("(\\w+\\{[^\\{^\\}]*\\}+)");
 //    QRegularExpression re("(\\w+\\{.*\\}+)");
 //    QRegularExpression re("(WP\\{.*\\}+|F\\{[^\\{^\\}]*\\}+)");
-    QRegularExpression re("(WP\\{.*\\}+|F\\{.+?\\}+|MD\\{.*\\}+)");
+    QRegularExpression re("(WP\\{.*\\}+|F\\{.+?\\}+|MD\\{.*\\}+|LIT\\{.*\\}+)");
     QRegularExpressionMatchIterator match_iter = re.globalMatch(templateString);
     while(match_iter.hasNext()) {
         QRegularExpressionMatch match = match_iter.next();
@@ -362,7 +391,9 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
             }
 
         } else if(source_type == "WP") {
+//            qInfo("WP Text");
             QString wp_type = source_split[0];
+            QRegExp digit_re("\\d*");  // a digit (\d), zero or more times (*)
             if(wp_type == "attributes") {
                 QString method_name_args = source_split[1];
                 QStringList method_name_args_list = method_name_args.split("(");
@@ -379,44 +410,66 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
                         continue;
                     }
 
-//                    PyObject *keys = PyDict_Keys(method_return);
-//                    for(Py_ssize_t i = 0;i < PyList_Size(keys);i++) {
-//                        PyObject *key = PyList_GetItem(keys, i);
-//                        PyObject *value = PyDict_GetItem(method_return, key);
-//                        QString key_string = PyString_AsString(key);
-//                        QString value_string = PyString_AsString(value);
-//                        attr_display_string += "<b>" + key_string + "</b>: " + value_string + "<br />";
-//                    }
-                    foreach(QString attrName, wizard->attributeList) {
-                        PyObject *score_object = PyDict_GetItemString(method_return, attrName.toStdString().data());
+                    foreach(QString attr_name, wizard->attributeList) {
+                        PyObject *score_object = PyDict_GetItemString(method_return, attr_name.toStdString().data());
                         if(!score_object) {
-                            qInfo("Attribute: %s, not a key in returned dictionary. Make sure the dictionary keys are the same as the attribute list given in the Roll Methods Page.", attrName.toStdString().data());
+                            qInfo("Attribute: %s, not a key in returned dictionary. Make sure the dictionary keys are the same as the attribute list given in the Roll Methods Page.", attr_name.toStdString().data());
                             continue;
                         }
                         QString score = PyString_AsString(score_object);
-                        attr_display_string += "<b>" + attrName + "</b>: " + score + "<br />";
-//                        wizard->attributes[attrName] = PyString_AsString(score_object);
+                        attr_display_string += "<b>" + attr_name + "</b>: " + score + "<br />";
                     }
                 } else {
-//                    QHashIterator<QString, QString> attr_iter(wizard->attributes);
-//                    while(attr_iter.hasNext()) {
-//                        attr_iter.next();
-//                        const QString attr_key = attr_iter.key();
-//                        const QString attr_score_string = attr_iter.value();
-//                        attr_display_string += "<b>" + attr_key + "</b>: " + attr_score_string + "<br />";
-//                    }
                     foreach(QString attrName, wizard->attributeList) {
                         attr_display_string += "<b>" + attrName + "</b>: " + wizard->attributes[attrName] + "<br />";
                     }
                 }
-//                foreach(QString attrName, wizard->attributeList) {
-//                    attr_display_string += "<b>" + attrName + "</b>: " + wizard->attributes[attrName] + "<br />";
-//                }
-//                attr_display_string.chop(6);
+
                 return_string.replace(match_string, attr_display_string);
+            } else if(digit_re.exactMatch(wp_type)) {
+                int page_id = wp_type.toInt();
+                WizardPage *ref_page = (WizardPage *) wizard->page(page_id);
+                QString wp_string;
+                if(source_split.length() > 1) {
+                    QString page_prop_name = source_split[1];
+                    PyObject *page_prop_obj = PyObject_GetAttrString(ref_page->pyWizardPageInstance, page_prop_name.toStdString().data());
+                    if(PyString_Check(page_prop_obj)) {
+                        wp_string = PyString_AsString(page_prop_obj);
+                    } else if(PyDict_Check(page_prop_obj)) {
+                        if(source_split.length() > 2) {
+                            QString dict_key = source_split[2];
+                            PyObject *dict_item_obj = PyDict_GetItemString(page_prop_obj, dict_key.toStdString().data());
+                            if(!PyString_Check(dict_item_obj)) {
+                                qInfo("%s shoud return a string.", source);
+                                continue;
+                            }
+                            wp_string = PyString_AsString(dict_item_obj);
+                        } else {
+                            wp_string = source;
+                        }
+                    } else if(PyList_Check(page_prop_obj)) {
+                        if(source_split.length() > 2) {
+                            QString list_index = source_split[2];
+                            PyObject *list_item_obj = PyList_GetItem(page_prop_obj, list_index.toInt());
+                            if(!PyString_Check(list_item_obj)) {
+                                qInfo("%s shoud return a string.", source);
+                                continue;
+                            }
+                            wp_string = PyString_AsString(list_item_obj);
+                        } else {
+                            wp_string = source;
+                        }
+                    }
+
+                }
+
+                int match_index = return_string.indexOf(match_string, match.lastCapturedIndex());
+//                return_string.replace(match_string, wp_string);
+                return_string.replace(match_index, match_string.length(), wp_string);
             }
         } else if(source_type == "MD") {
-            QString method_name_args = source_split[0];
+//            QString method_name_args = source_split[0];
+            QString method_name_args = source;
             QStringList method_name_args_split = method_name_args.split("(");
             QString method_name = method_name_args_split[0];
             QString method_args = method_name_args_split[1];

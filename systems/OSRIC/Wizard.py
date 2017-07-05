@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from string import Template
 from WizardDefs import WizardPage
 import Dice
 import SystemSettings
@@ -668,13 +669,13 @@ class ReviewPage(WizardPage):
     def __init__(self):
         self.content = [
             ('text', '''\
-    <b>Name:</b> F{Name}<br />
-    <b>Gender:</b> F{Gender}<br />
-    <b>Align:</b> F{Alignment}<br />
-    <b>Race:</b> F{Race}<br />
-    <b>Class:</b> F{Class}<br />
-    <br />
-    MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
+<b>Name:</b> F{Name}<br />
+<b>Gender:</b> F{Gender}<br />
+<b>Align:</b> F{Alignment}<br />
+<b>Race:</b> F{Race}<br />
+<b>Class:</b> F{Class}<br />
+<br />
+MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             ('listbox-halfwidth', 'All Spells', 'method', 'fill_items', '^$ F{SpellsList}'),
             ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
             ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
@@ -753,7 +754,21 @@ class ReviewPage(WizardPage):
         else:
             return []
 
+    def get_attr_bonuses_string(self, attr_key, score):
+        #print attr_key, score
+        score = int(score)
+        bonuses_dict = {}
+        bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
+        bonuses_dict['INT'] = 'Additional Languages: {}'
+        bonuses_dict['WIS'] = 'Mental Save: {}'
+        bonuses_dict['DEX'] = 'Surprise: {}     Missile To Hit: {}     AC Adjustment: {}'
+        bonuses_dict['CON'] = 'HP Bonus: {}     Resurrection/Raise Dead(Major Test): {}%     System Shock(Minor Test): {}%'
+        bonuses_dict['CHA'] = 'Max Henchman: {}     Loyalty: {}     Reaction: {}'
+
+        return bonuses_dict[attr_key].format(*SystemSettings.get_attribute_bonuses(attr_key, score))
+
     def get_pdf_markup(self, class_dict):
+        markup_template_dict = {'review_page': ReviewPage.page_id}
         markup = '''\
 <style type=text/css>
 .border {
@@ -766,6 +781,10 @@ class ReviewPage(WizardPage):
     font-size: 15px;
 }
 
+.smaller-font {
+    font-size: 10px;
+}
+
 .pad-cell {
     padding-left: 5px;
     padding-right: 5px;
@@ -773,6 +792,10 @@ class ReviewPage(WizardPage):
 
 .pad-bottom {
     padding-bottom: 5px;
+}
+
+.pad-all {
+    padding: 5px;
 }
 
 .no-pad {
@@ -793,6 +816,10 @@ class ReviewPage(WizardPage):
     white-space: pre;
 }
 
+.pre {
+    white-space: pre;
+}
+
 p.page-break {
     page-break-after:always;
 }
@@ -810,17 +837,41 @@ p.page-break {
 
 <hr />
 
-<table class='border bigger-font' border=1 ><tr><td>
+<table><tr>
+
+<td>
+<table align=left class='border bigger-font' border=2 ><tr><td>
 <table class=pad-cell>
-<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>9</td><td class=attr-bonuses> To Hit: 0     Damage: 0     Encumbrance: 0     Minor Test: 1-2     Major Test: 1 </td></tr>
-<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>10</td><td class=attr-bonuses> Additional Languages: 2 </td></tr>
-<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>12</td><td class=attr-bonuses> Mental Save: 0 </td></tr>
-<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>8</td><td class=attr-bonuses> Surprise: 0     Missile To Hit: 0     AC Adjustment: 0 </td></tr>
-<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>7</td></tr>
-<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>14</td></tr>
+<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.STR}</td>
+    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'STR'}, WP{$review_page.attr_cache.STR})} </td></tr>
+<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.INT}</td>
+    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'INT'}, WP{$review_page.attr_cache.INT})} </td></tr>
+<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.WIS}</td>
+    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'WIS'}, WP{$review_page.attr_cache.WIS})} </td></tr>
+<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.DEX}</td>
+    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'DEX'}, WP{$review_page.attr_cache.DEX})} </td></tr>
+<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.CON}</td>
+    <td class=attr-bonuses>  MD{get_attr_bonuses_string(LIT{'CON'}, WP{$review_page.attr_cache.CON})}  </td></tr>
+<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.CHA}</td>
+    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'CHA'}, WP{$review_page.attr_cache.CHA})} </td></tr>
 </table>
-</td></tr></table>'''
-        return markup
+</td></tr></table>
+</td>
+
+<td>
+<table class=smaller-font align=center border=1>
+<tr><td colspan=2><h3 align=center>Saving Throws</h3></td></tr>
+<tr><td class=pad-cell>Aimed Magic Items</td><td class=pad-cell align=right>0 </td></tr>
+<tr><td class=pad-cell>Breath Weapon</td><td class=pad-cell align=right>0 </td></tr>
+<tr><td class=pad-cell>Death, Paralysis, Poison</td><td class=pad-cell align=right>0 </td></tr>
+<tr><td class=pad-cell>Petrification, Polymorph</td><td class=pad-cell align=right>0 </td></tr>
+<tr><td class=pad-cell>Spells</td><td class=pad-cell align=right>0 </td></tr>
+</tr></table>
+</td>
+
+</tr></table>'''
+        t = Template(markup)
+        return t.safe_substitute(markup_template_dict)
 
 class ChooseLangPage(WizardPage):
     enabled = False
