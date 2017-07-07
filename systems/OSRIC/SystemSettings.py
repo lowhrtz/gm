@@ -20,6 +20,7 @@ economy = {
 'sp':.1,
 'cp':.01
 }
+restrictive_races = ['dwarf', 'half_orc']
 
 bonuses = {
     'STR': [(3, '-3', '-1', '-35', '1', '0'),
@@ -35,8 +36,8 @@ bonuses = {
             (18.5, '+1', '+3', '+100', '1-3', '20'),
             (18.75, '+2', '+3', '+125', '1-4', '25'),
             (18.9, '+2', '+4', '+150', '1-4', '30'),
-            (18.99, '+2', '+5', '+200', '1-4 (1 in 6 extraordinary success)', '35'),
-            (19, '+3', '+6', '+300', '1-5 (1 in 6 extraordinary success)', '40'),],
+            (18.99, '+2', '+5', '+200', '1-4(1 in 6)', '35'),
+            (19, '+3', '+6', '+300', '1-5(1 in 6)', '40'),],
     'INT': [(3, '0'),
             (4, '0'),
             (5, '0'),
@@ -102,9 +103,9 @@ bonuses = {
             (14, '0', '92', '88'),
             (15, '+1', '94', '91'),
             (16, '+2', '96', '95'),
-            (17, '+2 (+3 for Fighters, Paladins and Rangers)', '98', '97'),
-            (18, '+2 (+4 for Fighters, Paladins and Rangers)', '100', '99'),
-            (19, '+2 (+5 for Fighters, Paladins and Rangers)', '100', '99'),],
+            (17, '+2 (+3 for Warriors)', '98', '97'),
+            (18, '+2 (+4 for Warriors)', '100', '99'),
+            (19, '+2 (+5 for Warriors)', '100', '99'),],
     'CHA': [(3, '1', '-30', '-25'),
             (4, '1', '-25', '-20'),
             (5, '2', '-20', '-15'),
@@ -125,9 +126,58 @@ bonuses = {
 }
 
 def get_attribute_bonuses(attr_key, score):
+    score = float(score)
     return_bonus = ()
     for row in bonuses[attr_key]:
-        if score < row[0]:
-            break
+        if score > row[0]:
+            continue
         return_bonus = row
+        break
     return tuple(bonus for bonus in return_bonus[1:])
+
+def get_saves(level, attr_dict, class_dict, race_dict):
+    saves_dict = {'Aimed_Magic_Items': [],
+                  'Breath_Weapons': [],
+                  'Death_Paralysis_Poison': [],
+                  'Petrifaction_Polymorph': [],
+                  'Spells': [],}
+    if 'classes' in class_dict:
+        for cl in class_dict['classes']:
+            for meta_row in cl['Classes_meta']:
+                if meta_row['Type'] == 'xp table' and meta_row['Level'] != 'each' and int(meta_row['Level']) == level:
+                    for save in list(saves_dict.keys()):
+                        saves_dict[save].append(meta_row[save])
+        if race_dict['unique_id'] in restrictive_races:
+            for save in list(saves_dict.keys()):
+                saves_dict[save] = max(*tuple(int(l) for l in saves_dict[save]))
+        else:
+            for save in list(saves_dict.keys()):
+                saves_dict[save] = min(*tuple(int(l) for l in saves_dict[save]))
+    else:
+        for meta_row in class_dict['Classes_meta']:
+            if meta_row['Type'] == 'xp table' and meta_row['Level'] != 'each' and int(meta_row['Level']) == level:
+                for save in list(saves_dict.keys()):
+                    saves_dict[save] = meta_row[save]
+
+    for meta_row in race_dict['Races_meta']:
+        if meta_row['Type'] == 'ability' and meta_row['Subtype'] == 'save':
+            modifier = meta_row['Modifier']
+            modified = meta_row['Modified']
+            num_modifier = ''
+            for attr_name in list(attr_dict.keys()):
+                if attr_name.lower() in modifier.lower():
+                    num_modifier = modifier.lower().replace(attr_name.lower(), attr_dict[attr_name])
+            #print num_modifier
+            for mod in modified.split('/'):
+                for save in list(saves_dict.keys()):
+                    if mod.strip().replace(' ', '_') == save:
+                        saves_dict[save] = eval(str(saves_dict[save]) + num_modifier)
+                    elif mod.strip().replace(' ', '_') in save:
+                        saves_dict[save] = str(saves_dict[save]) + ' (' + mod.strip() + ' ' + str(eval(str(saves_dict[save]) + num_modifier)) + ')'
+                    elif save.replace('_', ' ') in mod:
+                        mod_list = mod.split(':')
+                        saves_dict[save] = str(saves_dict[save]) + ' (' + mod_list[1] + ' ' + str(eval(str(saves_dict[save]) + num_modifier)) + ')'
+                    if len(str(saves_dict[save])) > 15:
+                        saves_dict[save] = saves_dict[save].replace(' (', '<br />(')
+
+    return saves_dict

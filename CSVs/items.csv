@@ -1,6 +1,6 @@
 'Items',,,,,,,,,,,,
 'unique_id','Name','Weight','Cost','Damage_Vs_S_or_M','Damage_Vs_L','Damage_Type','Is_Proficiency','Rate_of_Fire','Range','Max_Move_Rate','AC_Effect','Notes'
-'VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','TEXT'
+'VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(10)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','TEXT'
 ,'display_col',,,,,,,,,,,
 'ale_pint','Ale, pint','1','1 sp',,,,,,,,,
 'backpack','Backpack','10 (empty)','2 gp',,,,,,,,,

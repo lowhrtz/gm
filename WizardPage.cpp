@@ -435,6 +435,8 @@ QString WizardPage::parseTextTemplateString(QString templateString) {
                     PyObject *page_prop_obj = PyObject_GetAttrString(ref_page->pyWizardPageInstance, page_prop_name.toStdString().data());
                     if(PyString_Check(page_prop_obj)) {
                         wp_string = PyString_AsString(page_prop_obj);
+                    } else if(PyInt_Check(page_prop_obj)) {
+                        wp_string = QString::number(PyInt_AsLong(page_prop_obj));
                     } else if(PyDict_Check(page_prop_obj)) {
                         if(source_split.length() > 2) {
                             QString dict_key = source_split[2];
@@ -738,8 +740,10 @@ bool RollMethodsPage::validatePage(){
 
     if(return_bool == true) {
         foreach(QString attr, attributeList) {
+//            qInfo("attr: %s, score: %s", attr.toStdString().data(), wizard->attributes[attr].toStdString().data());
             QString score = getField(attr).toString();
             wizard->attributes[attr] = score;
+//            qInfo("attr: %s, score: %s", attr.toStdString().data(), wizard->attributes[attr].toStdString().data());
         }
     }
 
@@ -1387,6 +1391,7 @@ void InfoPage::addParsableString(QLabel *label, QString templateString) {
 void InfoPage::buttonPushedPDF(PyObject *callable, QString arg_template) {
     PyObject *args = parseArgTemplateString(arg_template);
     PyObject *callable_return = PyObject_CallObject(callable, args);
+    PyErr_Print();
     if(!PyString_Check(callable_return)) {
         qInfo("Callable doesn't return string.");
     }

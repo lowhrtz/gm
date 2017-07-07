@@ -3,25 +3,25 @@ from DbDefs import Table
 
 class classes(Table):
     table_name = 'Classes'
-    cols = ['unique_id','Name','Minimum_Scores','Hit_Die_Type','Hit_Die_Max','Alignment','Experience_Bonus','Armour_Permitted','Shield_Permitted','Weapons_Permitted','Initial_Wealth_GP','Initial_Weapon_Proficiencies','Weapon_Proficiency_Advancement','Non-Proficiency_Penalty','Primary_Spell_List','Secondary_Spell_List']
-    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(50)','INTEGER','INTEGER','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','INTEGER','VARCHAR(20)','INTEGER','VARCHAR(25)','VARCHAR(25)']
+    cols = ['unique_id','Name','Minimum_Scores','Hit_Die_Type','Hit_Die_Max','Alignment','Experience_Bonus','Armour_Permitted','Shield_Permitted','Weapons_Permitted','Initial_Wealth_GP','Initial_Weapon_Proficiencies','Weapon_Proficiency_Advancement','Non-Proficiency_Penalty','Primary_Spell_List','Secondary_Spell_List','Is_Warrior']
+    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(50)','INTEGER','INTEGER','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','INTEGER','VARCHAR(20)','INTEGER','VARCHAR(25)','VARCHAR(25)','VARCHAR(10)']
     display_col = 1
     data = [
-        ['assassin','Assassin','Str 12, Dex 12, Con 6, Int 11, Wis 6','6','15','Any Evil','None','Leather, Studded Leather','Leather, Studded Leather','Any','2d6 × 10','3','1 / 4','-3','None','None'],
-        ['cleric','Cleric','Str 6, Dex 3, Con 6, Int 6, Wis 9, Cha 6','8','9','Any','Wis 16+','Any','Any','Blunt','3d6 × 10','2','1 / 3','-3','cleric','None'],
-        ['druid','Druid','Str 6, Dex 6, Con 6, Int 6, Wis 12, Cha 15','8','14','Neutral only','Wis and Cha 16+','Leather','Wooden','Club, dagger, dart, hammer, oil, scimitar, sling, spear, staff','3d6 × 10','2','1 / 3','-4','druid','None'],
-        ['fighter','Fighter','Str 9, Dex 6, Con 7, Int 3, Wis 6, Cha 6','10','9','Any','Str 16+','Any','Any','Any','(3d6+2) × 10','4','1 / 2','-2','None','None'],
-        ['illusionist','Illusionist','Str 6, Dex 16, Int 15, Wis 6, Cha 6','4','10','Any','None','None','None','Dagger, dart, oil, staff','2d4 × 10','1','1 / 5','-5','illusionist','None'],
-        ['magic_user','Magic User','Str 3, Dex 6, Int 9, Wis 6, Con 6, Cha 6','4','11','Any','Int 16+','None','None','Dagger, dart, oil, staff','2d4 × 10','1','1 / 5','-5','magic_user','None'],
-        ['paladin','Paladin','Str 12, Dex 6, Con 9, Int 9, Wis 13, Cha 17','10','9','Lawful Good only','Str and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','cleric','None'],
-        ['ranger','Ranger','Str 13, Dex 6, Con 14, Int 13, Wis 14, Cha 6','8','11','Any Good','Str, Int, and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','druid','magic_user'],
-        ['thief','Thief','Str 6, Dex 9, Con 6, Int 6, Cha 6','6','10','Any Neutral or Evil','Dex 16+','Leather or studded leather only','None','Club, dagger, dart, oil, sling, single-handed swords (except bastard swords)','2d6 × 10','2','1 / 4','-3','None','None'],
+        ['assassin','Assassin','Str 12, Dex 12, Con 6, Int 11, Wis 6','6','15','Any Evil','None','Leather, Studded Leather','Leather, Studded Leather','Any','2d6 × 10','3','1 / 4','-3','None','None','No'],
+        ['cleric','Cleric','Str 6, Dex 3, Con 6, Int 6, Wis 9, Cha 6','8','9','Any','Wis 16+','Any','Any','Blunt','3d6 × 10','2','1 / 3','-3','cleric','None','No'],
+        ['druid','Druid','Str 6, Dex 6, Con 6, Int 6, Wis 12, Cha 15','8','14','Neutral only','Wis and Cha 16+','Leather','Wooden','Club, dagger, dart, hammer, oil, scimitar, sling, spear, staff','3d6 × 10','2','1 / 3','-4','druid','None','No'],
+        ['fighter','Fighter','Str 9, Dex 6, Con 7, Int 3, Wis 6, Cha 6','10','9','Any','Str 16+','Any','Any','Any','(3d6+2) × 10','4','1 / 2','-2','None','None','Yes'],
+        ['illusionist','Illusionist','Str 6, Dex 16, Int 15, Wis 6, Cha 6','4','10','Any','None','None','None','Dagger, dart, oil, staff','2d4 × 10','1','1 / 5','-5','illusionist','None','No'],
+        ['magic_user','Magic User','Str 3, Dex 6, Int 9, Wis 6, Con 6, Cha 6','4','11','Any','Int 16+','None','None','Dagger, dart, oil, staff','2d4 × 10','1','1 / 5','-5','magic_user','None','No'],
+        ['paladin','Paladin','Str 12, Dex 6, Con 9, Int 9, Wis 13, Cha 17','10','9','Lawful Good only','Str and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','cleric','None','Yes'],
+        ['ranger','Ranger','Str 13, Dex 6, Con 14, Int 13, Wis 14, Cha 6','8','11','Any Good','Str, Int, and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','druid','magic_user','Yes'],
+        ['thief','Thief','Str 6, Dex 9, Con 6, Int 6, Cha 6','6','10','Any Neutral or Evil','Dex 16+','Leather or studded leather only','None','Club, dagger, dart, oil, sling, single-handed swords (except bastard swords)','2d6 × 10','2','1 / 4','-3','None','None','No'],
         ]
 
 class classes_meta(Table):
     table_name = 'Classes_meta'
     cols = ['class_id','Type','Level','XP','Hit_Dice','Notes','Casting_Level','Level_1_Spells','Level_2_Spells','Level_3_Spells','Level_4_Spells','Level_5_Spells','Level_6_Spells','Level_7_Spells','Level_8_Spells','Level_9_Spells','Aimed_Magic_Items','Breath_Weapons','Death_Paralysis_Poison','Petrifaction_Polymorph','Spells','To_Hit_-10','To_Hit_-9','To_Hit_-8','To_Hit_-7','To_Hit_-6','To_Hit_-5','To_Hit_-4','To_Hit_-3','To_Hit_-2','To_Hit_-1','To_Hit_0','To_Hit_1','To_Hit_2','To_Hit_3','To_Hit_4','To_Hit_5','To_Hit_6','To_Hit_7','To_Hit_8','To_Hit_9','To_Hit_10','Climb_Walls','Find_Traps','Hear_Noise','Hide_in_Shadows','Move_Quietly','Open_Locks','Pick_Pockets','Read_Languages','Turn_Undead_Type_1','Turn_Undead_Type_2','Turn_Undead_Type_3','Turn_Undead_Type_4','Turn_Undead_Type_5','Turn_Undead_Type_6','Turn_Undead_Type_7','Turn_Undead_Type_8','Turn_Undead_Type_9','Turn_Undead_Type_10','Turn_Undead_Type_11','Turn_Undead_Type_12','Turn_Undead_Type_13','Level_1_Spells_Secondary','Level_2_Spells_Secondary','Level_3_Spells_Secondary','Level_4_Spells_Secondary','Level_5_Spells_Secondary','Level_6_Spells_Secondary','Level_7_Spells_Secondary','Level_8_Spells_Secondary','Level_9_Spells_Secondary','Ability','Level_Gained','Ability_Description']
-    colDefs = ['VARCHAR(50) REFERENCES Classes(unique_id) ON UPDATE CASCADE ON DELETE CASCADE','VARCHAR(20)','INTEGER','INTEGER','INTEGER','VARCHAR(50)','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','VARCHAR(20)','INTEGER','TEXT']
+    colDefs = ['VARCHAR(50) REFERENCES Classes(unique_id) ON UPDATE CASCADE ON DELETE CASCADE','VARCHAR(20)','VARCHAR(20)','INTEGER','INTEGER','VARCHAR(50)','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','VARCHAR(10)','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','INTEGER','VARCHAR(20)','INTEGER','TEXT']
     display_col = 0
     data = [
         ['assassin','xp table','1','0','1','','0','0','0','0','0','0','0','0','0','0','14','16','13','12','15','26','25','24','23','22','21','20','20','20','20','20','20','19','18','17','16','15','14','13','12','11','80','25','10','20','20','30','35','1','-','-','-','-','-','-','-','-','-','-','-','-','-','0','0','0','0','0','0','0','0','0','','',''],
@@ -285,7 +285,7 @@ class classes_meta(Table):
 class items(Table):
     table_name = 'Items'
     cols = ['unique_id','Name','Weight','Cost','Damage_Vs_S_or_M','Damage_Vs_L','Damage_Type','Is_Proficiency','Rate_of_Fire','Range','Max_Move_Rate','AC_Effect','Notes']
-    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','TEXT']
+    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(10)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','INTEGER','TEXT']
     display_col = 1
     data = [
         ['ale_pint','Ale, pint','1','1 sp','','','','','','','','',''],
@@ -534,7 +534,7 @@ class races_meta(Table):
         ['dwarf','ability','attribute','-1','Charisma','Doesn\'t apply to other Dwarves.'],
         ['dwarf','ability','combat','+1','To Hit','Vs Goblins, half-Orcs, Hobgoblins, and Orcs'],
         ['dwarf','ability','combat','-4','To Hit','By Giants, Ogres, Ogre Mages, Titans and Trolls.'],
-        ['dwarf','ability','save','+(Con)2/7','Spells/Poison',''],
+        ['dwarf','ability','save','-Con*2/7','Aimed Magic Items/Spells/Poison',''],
         ['dwarf','ability','starting languages','','Dwarfish, Gnomish, Goblin, Kobold, Orcish, Common and the alignment tongue.','Dwarves can only learn up to two additional languages.'],
         ['dwarf','ability','infravision','60\'','',''],
         ['dwarf','ability','misc','75%','Detect the existence of slopes or grades',''],
@@ -574,7 +574,7 @@ class races_meta(Table):
         ['elf','class','level limit','7 (Str 18), 6 (Str 17), 5 (Str 16 and below)','Fighter',''],
         ['elf','class','level limit','11 (Int 18+), 10 (Int 17), 9 (Int 16 and below)','Magic User',''],
         ['elf','class','level limit','U','Thief',''],
-        ['gnome','ability','save','+(Con)2/7','Spells/Poison',''],
+        ['gnome','ability','save','-Con*2/7','Spells/Poison',''],
         ['gnome','ability','combat','+1','To Hit','Vs Kobolds, Goblins'],
         ['gnome','ability','combat','-4','To Hit','By Bugbears, Giants, Gnolls, Ogres, Ogre Mages, Titans, and Trolls'],
         ['gnome','ability','starting languages','','Common, dwarfish, gnomish, goblin, halfling, kobold','Gnomes may communicate with any normal burrowing animal. They may not learn more than two additional languages to those listed, regardless of intelligence.'],
@@ -614,7 +614,7 @@ class races_meta(Table):
         ['half_elf','class','level limit','U','Thief',''],
         ['halfling','ability','attribute','-1','Strength',''],
         ['halfling','ability','attribute','+1','Dexterity',''],
-        ['halfling','ability','save','+(Con)2/7','Aimed Magic Items/Spells/Poison',''],
+        ['halfling','ability','save','-Con*2/7','Aimed Magic Items/Spells/Poison',''],
         ['halfling','ability','combat','+3','To Hit','With Bow'],
         ['halfling','ability','combat','4 in 6','Surprise','Non-metal Armour, Alone or All Elf/Halfing Party, Door (or similar contraption) drops chance to 2 in 6'],
         ['halfling','ability','starting languages','','Common, Dwarfish, Gnome, Goblin, Halfling, Orcish',''],
@@ -659,7 +659,7 @@ class races_meta(Table):
 class spells(Table):
     table_name = 'Spells'
     cols = ['spell_id','Name','Reversible','Type','School','Level','Damage','Range','Duration','Area_of_Effect','Components','Casting_Time','Saving_Throw','Description']
-    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','VARCHAR(20)','VARCHAR(100)','INTEGER','VARCHAR(20)','VARCHAR(50)','VARCHAR(50)','VARCHAR(50)','VARCHAR(20)','VARCHAR(50)','VARCHAR(20)','TEXT']
+    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(10)','VARCHAR(20)','VARCHAR(100)','INTEGER','VARCHAR(20)','VARCHAR(50)','VARCHAR(50)','VARCHAR(50)','VARCHAR(20)','VARCHAR(50)','VARCHAR(20)','TEXT']
     display_col = 1
     data = [
         ['aerial_servant','Aerial Servant','no','cleric','Conjuration/Summoning','6','N/A','10\'','1 day/caster level','Special','V,S','9 segments','None','Aerial Servant summons an aerial servant to do his or her bidding. The aerial servant will not fight, but will find and bring to the caster whatever creature or object the caster describes (provided the task is within the aerial servant’s capacity to complete). The aerial servant will return to its native plane of existence at the end of the spell’s duration, and earlier if the cleric who summoned it is slain, if the cleric releases the creature from its bondage, or if the servant is banished. When summoning an aerial servant, the cleric must be protected by a protection from evil spell or a holy symbol, or must stand within a magic circle. If the summoner does not take these precautions, the aerial servant will not be subject to any sort of control and will immediately attack the one who called it forth.\n\nWhen fetching forth a living subject, the aerial servant always gains the benefit of surprise on its first attack for 4 surprise segments (unless it is detected). When the aerial servant scores a hit, it has successfully grabbed hold of its target and may bring it back to the cleric if the aerial servant is stronger than its victim. To determine the result of this test of strength, both the aerial servant and its victim roll their hit dice (using the proper die type), and the higher number wins.'],

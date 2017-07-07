@@ -43,7 +43,7 @@ int Dice::rollDice(QString diceString) {
 
     if(diceString.contains(singleDiceFormat)) {
         diceString.replace("d", "");
-        cout << "diceString.toInt(): " << diceString.toInt() << endl;
+//        cout << "diceString.toInt(): " << diceString.toInt() << endl;
         return rollDice(diceString.toInt());
 
     } else if (diceString.contains(diceFormat)) {

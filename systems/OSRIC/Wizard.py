@@ -446,7 +446,8 @@ class ProficiencyPage(WizardPage):
             cl_slots = []
             for cl in class_dict['classes']:
                 cl_slots.append(cl['Initial_Weapon_Proficiencies'])
-            if race_dict['unique_id'] == 'dwarf' or race_dict['unique_id'] == 'half_orc':
+            #if race_dict['unique_id'] == 'dwarf' or race_dict['unique_id'] == 'half_orc':
+            if race_dict['unique_id'] in SystemSettings.restrictive_races:
                 slots = min(cl_slots)
             else:
                 slots = max(cl_slots)
@@ -460,7 +461,8 @@ class ProficiencyPage(WizardPage):
         wp_expand = []
         for wp in wp_list:
             wp_expand.append([w.strip().lower() for w in wp.split(',')])
-        if race_id == 'dwarf' or race_id == 'half_orc':
+        #if race_id == 'dwarf' or race_id == 'half_orc':
+        if race_id in SystemSettings.restrictive_races:
             bucket = wp_expand[0]
             if 'blunt' in bucket:
                 bucket.remove('blunt')
@@ -475,7 +477,7 @@ class ProficiencyPage(WizardPage):
                     bucket = bucket
                 else:
                     bucket = [w for w in bucket if w in wp_expand[i]]
-                print bucket
+                #print bucket
         else:
             wp_flat = sum(wp_expand, [])
             bucket = []
@@ -665,6 +667,7 @@ class ReviewPage(WizardPage):
 #    ]
 
     attr_cache = None
+    hp_cache = None
 
     def __init__(self):
         self.content = [
@@ -680,8 +683,34 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
             ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
             ('listbox-halfwidth', 'Equip', 'method', 'fill_items', '^$ F{EquipmentList}'),
-            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, '^$ F{Class}'),
+            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, '^$ F{Class} F{Race}'),
         ]
+
+    def roll_hp(self, level, attr_dict, class_dict):
+        hp = 0
+        con_score = attr_dict['CON']
+        con_bonus = SystemSettings.get_attribute_bonuses('CON', con_score)[0]
+        con_bonus_list = con_bonus.replace(' for Warriors)', '').split(' (')
+        if len(con_bonus_list) > 1:
+            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
+                con_bonus = con_bonus_list[1]
+            else:
+                con_bonus = con_bonus_list[1]
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                hp_temp = 0
+                hit_dice_string = 'd{}'.format(cl['Hit_Die_Type'])
+                for i in range(0, int(level)):
+                    hp_temp += Dice.rollString(hit_dice_string)
+                    hp_temp += int(con_bonus)
+                hp += hp_temp / len(class_dict['classes'])
+        else:
+            hit_dice_string = 'd{}'.format(class_dict['Hit_Die_Type'])
+            for i in range(0, int(level)):
+                hp += Dice.rollString(hit_dice_string)
+                hp += int(con_bonus)
+
+        return hp
 
     def adjust_attributes(self, attr_dict, race_dict):
         #print race_dict
@@ -689,14 +718,22 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             if meta_row['Type'] == 'ability' and meta_row['Subtype'] == 'attribute':
                 attr_to_modify = meta_row['Modified'].upper()[:3]
                 modifier = meta_row['Modifier']
-                new_score = eval(attr_dict[attr_to_modify] + modifier)
+                attr_orig_score = attr_dict[attr_to_modify]
+                new_score = eval(attr_orig_score + modifier)
                 attr_dict[attr_to_modify] = str(new_score)
         return attr_dict
 
     def roll_attributes(self, wiz_attr_dict, race_dict, class_dict):
-#        if self.attr_cache:
-#            return self.attr_cache
         #print wiz_attr_dict
+        is_warrior = False
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                if cl['Is_Warrior'].lower() == 'yes' or cl['Is_Warrior'].lower() == 'y':
+                    is_warrior = True
+        else:
+            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
+                is_warrior = True
+
         attr_dict = {}
         min_dict = {}
         if not wiz_attr_dict:
@@ -735,8 +772,18 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         else:
             attr_dict = self.adjust_attributes(wiz_attr_dict, race_dict)
 
+        for attr in attr_dict:
+            if attr.lower() == 'str' and attr_dict[attr] == '18' and is_warrior:
+                score = 18
+                exceptional_strength = Dice.randomInt(1, 99) / float(100)
+                attr_dict[attr] = '{0:.2f}'.format(score + exceptional_strength)
+
+
         #print race_dict['Races_meta'][0]['race_id']
         self.attr_cache = attr_dict
+
+        # Now that we have guaranteed attributes lets roll for hp and cache the results
+        self.hp_cache = self.roll_hp(1, attr_dict, class_dict)
 
         #return attr_dict
         return '''\
@@ -755,26 +802,32 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             return []
 
     def get_attr_bonuses_string(self, attr_key, score):
-        #print attr_key, score
-        score = int(score)
+        #print attr_key, score, class_dict
+        #score = int(score)
         bonuses_dict = {}
         bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
         bonuses_dict['INT'] = 'Additional Languages: {}'
         bonuses_dict['WIS'] = 'Mental Save: {}'
         bonuses_dict['DEX'] = 'Surprise: {}     Missile To Hit: {}     AC Adjustment: {}'
-        bonuses_dict['CON'] = 'HP Bonus: {}     Resurrection/Raise Dead(Major Test): {}%     System Shock(Minor Test): {}%'
+        bonuses_dict['CON'] = 'HP Bonus: {}   Resurrect/Raise Dead: {}%   System Shock: {}%'
         bonuses_dict['CHA'] = 'Max Henchman: {}     Loyalty: {}     Reaction: {}'
 
         return bonuses_dict[attr_key].format(*SystemSettings.get_attribute_bonuses(attr_key, score))
 
-    def get_pdf_markup(self, class_dict):
-        markup_template_dict = {'review_page': ReviewPage.page_id}
+    def get_pdf_markup(self, class_dict, race_dict):
+        saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
+        markup_template_dict = {
+            'review_page': ReviewPage.page_id,
+            }
+        for save in list(saves_dict.keys()):
+            markup_template_dict[save] = saves_dict[save]
         markup = '''\
 <style type=text/css>
 .border {
     color: red;
     border-style: solid;
     border-color: purple;
+    margin-right: 5px;
 }
 
 .bigger-font {
@@ -828,19 +881,19 @@ p.page-break {
 <img class=float-right align=right height=140 src=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAFLklEQVR4nO3dMYscdRzG8eckRYpDRIIEi3B2EURSScqzEKzSmMJK7grxXQR8Ab6GiJ2NoNUVgRNsAjZphHQGQUllESxSCGeRswm3m53ZvZ2dPJ8PDFfMzv1/W8yX+y+7twkAAAAAAAAA8LrYe8X5q0k+2sYgA/yR5MnUQ8ACt5LcmXqIl3yXkffMQZKzHTvujXkisCVHmf4eefk4XDTsGxt5ysAsCQAUEwAodmXkdU82OcQS15Lsb2ktuCxPk5xsaa1Pk1xf9cFjA/DeyOuGup8XL6rAnD1OcryltU4zIAC2AFBs7F8AU3o/yZ9J/pp6ELjAO1MPMMQcA/D5+c93J50CLvbv1AMMYQsAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBsjp8GTJKHSZ5PPQRc4HqSm1MPsao5BuBBks+SPJt6ELjAUV78J6tZmOMW4Je4+WEj5hgAYEMEAIoJABQTACgmAFBMAKDY2PcBnG50isVm84YKWOJ2kt+3tNbK3wqUjA/A4cjroNHVJAdTD3ERWwAoJgBQTACg2N4rzu8nubvi71rnAxAnSb5f8bGPzg/YRftJrg285tcR1/zvQZIvX/GYp9nCp2fP1ji+uezhYIf9lvH3zo/rLLzJLcCsvhUV8BoAVBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAodmXJuf0kbw/4XevE5M0kN1Z43N9J/lljHbhMt5J8OOK6t9ZY80aSL5ac/yEj75mjJGc7dhyNeSKwJfcy/T3y8nGwbGBbACgmAFBMAKDYshcBgfU9TfJ4S2sdDr1gaAB+TvLx0EVGOs2IJwQ75iTJ8ZbWOht6gS0AFBMAKCYAUEwAoJgAQDEBgGJzex/AV0k+mXoIWOCDqQcYam4BuH1+ABtgCwDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUGxunwZMXvybZdg1++fHrMwtAMdJvp16CFjgXpKvpx5iCFsAKCYAUGzoFuBmkvuXMciCtWDu7maHv+FqaACuJzm6hDngdbXTLw7aAkAxAYBiAgDF9pacu5XkzrYGWdFPSR5NPQQscHB+7JKHSZ5PPQQAAAAAAAAAcPn+A+VH6ACOcfiQAAAAAElFTkSuQmCC></img>
 
 <table>
-<tr><td class=pad-bottom><b>Name: </b></td><td align=right>F{Name}</td><td class=lpad><b>XP: </b></td></tr>
-<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>F{Gender}</td><td class=lpad><b>HP: </b></td></tr>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>F{Name}</td><td class=lpad><b>XP: </b></td><td align=right>0</td></tr>
+<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>F{Gender}</td><td class=lpad><b>HP: </b></td><td align=right>WP{$review_page.hp_cache}</td></tr>
 <tr><td class=pad-bottom><b>Class: </b></td><td align=right>F{Class}</td><td class=lpad><b>AC: </b></td></tr>
-<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>F{Alignment}</td><td class=lpad><b>Level: </b></td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>F{Alignment}</td><td class=lpad><b>Level: </b></td><td align=right>0</td></tr>
 <tr><td class=pad-bottom><b>Race: </b></td><td align=right>F{Race}</td></tr>
 </table>
 
 <hr />
 
-<table><tr>
+<table align=center><tr>
 
 <td>
-<table align=left class='border bigger-font' border=2 ><tr><td>
+<table class='border bigger-font' border=2 ><tr><td>
 <table class=pad-cell>
 <tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.STR}</td>
     <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'STR'}, WP{$review_page.attr_cache.STR})} </td></tr>
@@ -861,15 +914,17 @@ p.page-break {
 <td>
 <table class=smaller-font align=center border=1>
 <tr><td colspan=2><h3 align=center>Saving Throws</h3></td></tr>
-<tr><td class=pad-cell>Aimed Magic Items</td><td class=pad-cell align=right>0 </td></tr>
-<tr><td class=pad-cell>Breath Weapon</td><td class=pad-cell align=right>0 </td></tr>
-<tr><td class=pad-cell>Death, Paralysis, Poison</td><td class=pad-cell align=right>0 </td></tr>
-<tr><td class=pad-cell>Petrification, Polymorph</td><td class=pad-cell align=right>0 </td></tr>
-<tr><td class=pad-cell>Spells</td><td class=pad-cell align=right>0 </td></tr>
+<tr><td class=pad-cell>Aimed Magic Items</td><td class=pad-cell align=right>$Aimed_Magic_Items </td></tr>
+<tr><td class=pad-cell>Breath Weapon</td><td class=pad-cell align=right>$Breath_Weapons </td></tr>
+<tr><td class=pad-cell>Death, Paralysis, Poison</td><td class=pad-cell align=right>$Death_Paralysis_Poison </td></tr>
+<tr><td class=pad-cell>Petrifaction, Polymorph</td><td class=pad-cell align=right>$Petrifaction_Polymorph </td></tr>
+<tr><td class=pad-cell>Spells</td><td class=pad-cell align=right>$Spells </td></tr>
 </tr></table>
 </td>
 
-</tr></table>'''
+</tr></table>
+
+<hr />'''
         t = Template(markup)
         return t.safe_substitute(markup_template_dict)
 

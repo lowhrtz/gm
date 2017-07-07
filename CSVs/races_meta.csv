@@ -6,7 +6,7 @@
 'dwarf','ability','attribute','-1','Charisma','Doesn''t apply to other Dwarves.'
 'dwarf','ability','combat','+1','To Hit','Vs Goblins, half-Orcs, Hobgoblins, and Orcs'
 'dwarf','ability','combat','-4','To Hit','By Giants, Ogres, Ogre Mages, Titans and Trolls.'
-'dwarf','ability','save','+(Con)2/7','Spells/Poison',
+'dwarf','ability','save','-Con*2/7','Aimed Magic Items/Spells/Poison',
 'dwarf','ability','starting languages',,'Dwarfish, Gnomish, Goblin, Kobold, Orcish, Common and the alignment tongue.','Dwarves can only learn up to two additional languages.'
 'dwarf','ability','infravision','60''',,
 'dwarf','ability','misc','75%','Detect the existence of slopes or grades',
@@ -46,7 +46,7 @@
 'elf','class','level limit','7 (Str 18), 6 (Str 17), 5 (Str 16 and below)','Fighter',
 'elf','class','level limit','11 (Int 18+), 10 (Int 17), 9 (Int 16 and below)','Magic User',
 'elf','class','level limit','U','Thief',
-'gnome','ability','save','+(Con)2/7','Spells/Poison',
+'gnome','ability','save','-Con*2/7','Spells/Poison',
 'gnome','ability','combat','+1','To Hit','Vs Kobolds, Goblins'
 'gnome','ability','combat','-4','To Hit','By Bugbears, Giants, Gnolls, Ogres, Ogre Mages, Titans, and Trolls'
 'gnome','ability','starting languages',,'Common, dwarfish, gnomish, goblin, halfling, kobold','Gnomes may communicate with any normal burrowing animal. They may not learn more than two additional languages to those listed, regardless of intelligence.'
@@ -86,7 +86,7 @@
 'half_elf','class','level limit','U','Thief',
 'halfling','ability','attribute','-1','Strength',
 'halfling','ability','attribute','+1','Dexterity',
-'halfling','ability','save','+(Con)2/7','Aimed Magic Items/Spells/Poison',
+'halfling','ability','save','-Con*2/7','Aimed Magic Items/Spells/Poison',
 'halfling','ability','combat','+3','To Hit','With Bow'
 'halfling','ability','combat','4 in 6','Surprise','Non-metal Armour, Alone or All Elf/Halfing Party, Door (or similar contraption) drops chance to 2 in 6'
 'halfling','ability','starting languages',,'Common, Dwarfish, Gnome, Goblin, Halfling, Orcish',
