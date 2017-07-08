@@ -31,6 +31,14 @@ CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandle
     this->setWindowTitle("Character Creation Wizard");
 //    printf("ccWizard instantiated.\n");
 //    setDefaultProperty("StackedWidget", "currentItemIndex", "currentItemChanged()");
+
+//    static PyMethodDef wizardMethods[] = {
+//        {"getField", getField, METH_VARARGS,
+//             "Return the field as the aprropriate data type."},
+//        {NULL, NULL, 0, NULL}
+//    };
+//    Py_InitModule("Wizard", wizardMethods);
+
 }
 
 void CharacterCreationWizard::accept() {
@@ -381,6 +389,20 @@ DatabaseHandler *CharacterCreationWizard::getDb() {
 PythonInterpreter *CharacterCreationWizard::getPythonInterpreter() {
     return interpreter;
 }
+
+//PyObject *CharacterCreationWizard::getField(PyObject *self, PyObject *args) {
+//    QString field_name;
+//    if(!PyArg_ParseTuple(args, "s", &field_name)) {
+//        return NULL;
+//    }
+//    QVariant field_data = field(field_name.toStdString().data());
+//    QString field_data_type = field_data.typeName();
+//    if(field_data_type == "QString") {
+//        return Py_BuildValue("s", field_data.toString().toStdString().data());
+//    }
+
+//    return NULL;
+//}
 
 void CharacterCreationWizard::buttonPushed(PyObject *currentActionTuple) {
     if(!currentActionTuple) {

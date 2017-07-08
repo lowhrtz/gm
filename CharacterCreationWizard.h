@@ -32,6 +32,8 @@ public:
     void accept();
     DatabaseHandler *getDb();
     PythonInterpreter *getPythonInterpreter();
+//    PyObject *getField(PyObject *self, PyObject *args);
+    PyObject *fieldsDict = PyDict_New();
 
 private:
     QList<WizardPage *> getWizardPages();
@@ -52,5 +54,6 @@ private:
 public slots:
     void buttonPushed(PyObject *currentActionTuple);
 };
+//extern "C" PyObject *CharacterCreationWizard::getField(PyObject *self, PyObject *args);
 
 #endif // CHARACTERCREATIONWIZARD_H
