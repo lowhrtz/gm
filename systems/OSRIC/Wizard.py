@@ -815,10 +815,24 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         return bonuses_dict[attr_key].format(*SystemSettings.get_attribute_bonuses(attr_key, score))
 
     def get_pdf_markup(self, class_dict, race_dict):
+        #print self.fields['INT']
+        class_dict = self.fields['Class']
+        race_dict = self.fields['Race']
         saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
         markup_template_dict = {
             'review_page': ReviewPage.page_id,
+            'name': self.fields['Name'],
+            'gender': self.fields['Gender'],
+            'class': class_dict['Name'],
+            'alignment': self.fields['Alignment'],
+            'race': race_dict['Name'],
+            'xp': 0,
+            'hp': self.hp_cache,
+            'level': 1,
             }
+        for attr_name in list(self.attr_cache.keys()):
+            markup_template_dict[attr_name] = self.attr_cache[attr_name]
+            markup_template_dict[attr_name + '_bonus'] = self.get_attr_bonuses_string(attr_name, self.attr_cache[attr_name])
         for save in list(saves_dict.keys()):
             markup_template_dict[save] = saves_dict[save]
         markup = '''\
@@ -881,11 +895,11 @@ p.page-break {
 <img class=float-right align=right height=140 src=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAFLklEQVR4nO3dMYscdRzG8eckRYpDRIIEi3B2EURSScqzEKzSmMJK7grxXQR8Ab6GiJ2NoNUVgRNsAjZphHQGQUllESxSCGeRswm3m53ZvZ2dPJ8PDFfMzv1/W8yX+y+7twkAAAAAAAAA8LrYe8X5q0k+2sYgA/yR5MnUQ8ACt5LcmXqIl3yXkffMQZKzHTvujXkisCVHmf4eefk4XDTsGxt5ysAsCQAUEwAodmXkdU82OcQS15Lsb2ktuCxPk5xsaa1Pk1xf9cFjA/DeyOuGup8XL6rAnD1OcryltU4zIAC2AFBs7F8AU3o/yZ9J/pp6ELjAO1MPMMQcA/D5+c93J50CLvbv1AMMYQsAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBsjp8GTJKHSZ5PPQRc4HqSm1MPsao5BuBBks+SPJt6ELjAUV78J6tZmOMW4Je4+WEj5hgAYEMEAIoJABQTACgmAFBMAKDY2PcBnG50isVm84YKWOJ2kt+3tNbK3wqUjA/A4cjroNHVJAdTD3ERWwAoJgBQTACg2N4rzu8nubvi71rnAxAnSb5f8bGPzg/YRftJrg285tcR1/zvQZIvX/GYp9nCp2fP1ji+uezhYIf9lvH3zo/rLLzJLcCsvhUV8BoAVBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAodmXJuf0kbw/4XevE5M0kN1Z43N9J/lljHbhMt5J8OOK6t9ZY80aSL5ac/yEj75mjJGc7dhyNeSKwJfcy/T3y8nGwbGBbACgmAFBMAKDYshcBgfU9TfJ4S2sdDr1gaAB+TvLx0EVGOs2IJwQ75iTJ8ZbWOht6gS0AFBMAKCYAUEwAoJgAQDEBgGJzex/AV0k+mXoIWOCDqQcYam4BuH1+ABtgCwDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUGxunwZMXvybZdg1++fHrMwtAMdJvp16CFjgXpKvpx5iCFsAKCYAUGzoFuBmkvuXMciCtWDu7maHv+FqaACuJzm6hDngdbXTLw7aAkAxAYBiAgDF9pacu5XkzrYGWdFPSR5NPQQscHB+7JKHSZ5PPQQAAAAAAAAAcPn+A+VH6ACOcfiQAAAAAElFTkSuQmCC></img>
 
 <table>
-<tr><td class=pad-bottom><b>Name: </b></td><td align=right>F{Name}</td><td class=lpad><b>XP: </b></td><td align=right>0</td></tr>
-<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>F{Gender}</td><td class=lpad><b>HP: </b></td><td align=right>WP{$review_page.hp_cache}</td></tr>
-<tr><td class=pad-bottom><b>Class: </b></td><td align=right>F{Class}</td><td class=lpad><b>AC: </b></td></tr>
-<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>F{Alignment}</td><td class=lpad><b>Level: </b></td><td align=right>0</td></tr>
-<tr><td class=pad-bottom><b>Race: </b></td><td align=right>F{Race}</td></tr>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td></tr>
+<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>$gender</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td></tr>
+<tr><td class=pad-bottom><b>Class: </b></td><td align=right>$class</td><td class=lpad><b>AC: </b></td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>$alignment</td><td class=lpad><b>Level: </b></td><td align=right>$level</td></tr>
+<tr><td class=pad-bottom><b>Race: </b></td><td align=right>$race</td></tr>
 </table>
 
 <hr />
@@ -895,18 +909,12 @@ p.page-break {
 <td>
 <table class='border bigger-font' border=2 ><tr><td>
 <table class=pad-cell>
-<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.STR}</td>
-    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'STR'}, WP{$review_page.attr_cache.STR})} </td></tr>
-<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.INT}</td>
-    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'INT'}, WP{$review_page.attr_cache.INT})} </td></tr>
-<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.WIS}</td>
-    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'WIS'}, WP{$review_page.attr_cache.WIS})} </td></tr>
-<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.DEX}</td>
-    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'DEX'}, WP{$review_page.attr_cache.DEX})} </td></tr>
-<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.CON}</td>
-    <td class=attr-bonuses>  MD{get_attr_bonuses_string(LIT{'CON'}, WP{$review_page.attr_cache.CON})}  </td></tr>
-<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>WP{$review_page.attr_cache.CHA}</td>
-    <td class=attr-bonuses> MD{get_attr_bonuses_string(LIT{'CHA'}, WP{$review_page.attr_cache.CHA})} </td></tr>
+<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>$STR</td><td class=attr-bonuses> $STR_bonus </td></tr>
+<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>$INT</td><td class=attr-bonuses> $INT_bonus </td></tr>
+<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>$WIS</td><td class=attr-bonuses> $WIS_bonus </td></tr>
+<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>$DEX</td><td class=attr-bonuses> $DEX_bonus </td></tr>
+<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>$CON</td><td class=attr-bonuses> $CON_bonus  </td></tr>
+<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>$CHA</td><td class=attr-bonuses> $CHA_bonus </td></tr>
 </table>
 </td></tr></table>
 </td>
