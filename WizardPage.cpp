@@ -1356,10 +1356,10 @@ void InfoPage::initializePage() {
             argsTuple = parseArgTemplateString(args);
         }
         PyObject *callable_return = PyObject_CallObject(callable, argsTuple);
+        PyErr_Print();
         if(!callable_return ||
                 !PyList_Check(callable_return)) {
             qInfo("Error calling callable!\n");
-            PyErr_Print();
             continue;
         }
 

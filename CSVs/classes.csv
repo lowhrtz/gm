@@ -10,4 +10,4 @@
 'magic_user','Magic User','Str 3, Dex 6, Int 9, Wis 6, Con 6, Cha 6','4','11','Any','Int 16+','None','None','Dagger, dart, oil, staff','2d4 × 10','1','1 / 5','-5','magic_user','None','No'
 'paladin','Paladin','Str 12, Dex 6, Con 9, Int 9, Wis 13, Cha 17','10','9','Lawful Good only','Str and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','cleric','None','Yes'
 'ranger','Ranger','Str 13, Dex 6, Con 14, Int 13, Wis 14, Cha 6','8','11','Any Good','Str, Int, and Wis 16+','Any','Any','Any','(3d6+2) × 10','3','1 / 2','-2','druid','magic_user','Yes'
-'thief','Thief','Str 6, Dex 9, Con 6, Int 6, Cha 6','6','10','Any Neutral or Evil','Dex 16+','Leather or studded leather only','None','Club, dagger, dart, oil, sling, single-handed swords (except bastard swords)','2d6 × 10','2','1 / 4','-3','None','None','No'
+'thief','Thief','Str 6, Dex 9, Con 6, Int 6, Cha 6','6','10','Any Neutral or Evil','Dex 16+','Leather, Studded Leather','None','Club, dagger, dart, oil, sling, single-handed swords (except bastard swords)','2d6 × 10','2','1 / 4','-3','None','None','No'

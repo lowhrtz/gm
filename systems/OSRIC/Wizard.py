@@ -668,6 +668,8 @@ class ReviewPage(WizardPage):
 
     attr_cache = None
     hp_cache = None
+    height_weight_cache = None
+    age_cache = None
 
     def __init__(self):
         self.content = [
@@ -691,26 +693,126 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         con_score = attr_dict['CON']
         con_bonus = SystemSettings.get_attribute_bonuses('CON', con_score)[0]
         con_bonus_list = con_bonus.replace(' for Warriors)', '').split(' (')
-        if len(con_bonus_list) > 1:
-            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
-                con_bonus = con_bonus_list[1]
-            else:
-                con_bonus = con_bonus_list[1]
+        if len(con_bonus_list) == 1:
+            con_bonus_list.append(con_bonus_list[0])
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
                 hp_temp = 0
+                if cl['Is_Warrior'].lower() == 'yes' or cl['Is_Warrior'].lower() == 'y':
+                    con_bonus = con_bonus_list[1]
+                else:
+                    con_bonus = con_bonus_list[0]
                 hit_dice_string = 'd{}'.format(cl['Hit_Die_Type'])
                 for i in range(0, int(level)):
                     hp_temp += Dice.rollString(hit_dice_string)
                     hp_temp += int(con_bonus)
                 hp += hp_temp / len(class_dict['classes'])
         else:
+            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
+                con_bonus = con_bonus_list[1]
+            else:
+                con_bonus = con_bonus_list[0]
             hit_dice_string = 'd{}'.format(class_dict['Hit_Die_Type'])
             for i in range(0, int(level)):
                 hp += Dice.rollString(hit_dice_string)
                 hp += int(con_bonus)
 
         return hp
+
+    def roll_age(self):
+        race_dict = self.fields['Race']
+        class_dict = self.fields['Class']
+
+        starting_ages = [row for row in race_dict['Races_meta'] if row['Type'] == 'class' and row['Subtype'] == 'starting age']
+
+        class_groups = {'Cleric': ['cleric', 'druid'],
+                        'Fighter': ['fighter', 'ranger', 'paladin'],
+                        'Magic User': ['magic_user', 'illusionist'],
+                        'Thief': ['thief', 'assassin'],
+                        }
+
+        dice_string = ''
+        if 'classes' in class_dict:
+            bucket = []
+            for cl in class_dict['classes']:
+                for row in starting_ages:
+                    if cl['unique_id'] in class_groups[row['Modified']]:
+                        bucket.append(row)
+            rating = 0
+            best_dice = ''
+            for row in bucket:
+                new_rating = eval(row['Modifier'].replace('d', '*'))
+                if new_rating > rating:
+                    rating = new_rating
+                    best_dice = row['Modified']
+            dice_string = best_dice
+        else:
+            for row in starting_ages:
+                if class_dict['unique_id'] in class_groups[row['Modified']]:
+                    dice_string = row['Modifier']
+
+        dice_string_list = dice_string.split('+')
+        dice_string = dice_string_list[1] + '+' + dice_string_list[0]
+        print dice_string
+        return Dice.rollString(dice_string)
+
+    def roll_height_weight(self):
+        race_dict = self.fields['Race']
+        gender = self.fields['Gender']
+
+        height_table = [row for row in race_dict['Races_meta'] if row['Type'] == 'height table' and row['Subtype'] == gender.lower()]
+        weight_table = [row for row in race_dict['Races_meta'] if row['Type'] == 'weight table' and row['Subtype'] == gender.lower()]
+
+        height_roll = Dice.randomInt(1, 100)
+        weight_roll = Dice.randomInt(1, 100)
+
+        def lookup(roll, table):
+            for row in table:
+                d = row['Modifier']
+                result = row['Modified']
+                bounds = [int(b) for b in d.split('-')]
+                if roll >= bounds[0] and roll <= bounds[1]:
+                    return result
+
+        height_result = lookup(height_roll, height_table)
+        weight_result = lookup(weight_roll, weight_table)
+
+        height_result_list = height_result.split('+')
+        weight_result_list = weight_result.split('+')
+
+        height_base = height_result_list[0].split()
+        height_base_in = int(height_base[0]) * 12 + int(height_base[2])
+        height_mod = height_result_list[1].replace(' in', '')
+        weight_base = weight_result_list[0].replace(' lbs', '')
+        weight_mod = weight_result_list[1].replace(' lbs', '')
+
+        height = height_base_in + Dice.rollString(height_mod)
+        weight = int(weight_base) + Dice.rollString(weight_mod)
+
+        last_height_roll = Dice.rollString('d6')
+        last_weight_roll = Dice.rollString('d6')
+
+        while last_height_roll == 1 or last_height_roll == 6:
+            height_sign = 1
+            if last_height_roll == 1:
+                height_sign = -1
+            height = height + height_sign * Dice.rollString('1d4')
+            last_height_roll = Dice.rollString('d6')
+
+#        print weight, last_weight_roll
+        while last_weight_roll == 1 or last_weight_roll == 6:
+            weight_sign = 1
+            if last_weight_roll == 1:
+                weight_sign = -1
+            weight = weight + weight_sign * Dice.rollString('1d20')
+            last_weight_roll = Dice.rollString('d6')
+
+#        print height
+        height_tuple = (height/12, height%12)
+
+#        print (height_tuple, weight)
+        return (height_tuple, weight)
+
 
     def adjust_attributes(self, attr_dict, race_dict):
         #print race_dict
@@ -785,6 +887,10 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         # Now that we have guaranteed attributes lets roll for hp and cache the results
         self.hp_cache = self.roll_hp(1, attr_dict, class_dict)
 
+        # Might as well roll age, height and weight too
+        self.height_weight_cache = self.roll_height_weight()
+        self.age_cache = self.roll_age()
+
         #return attr_dict
         return '''\
 <b>Str:</b> {STR}<br />
@@ -817,10 +923,17 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
     def get_pdf_markup(self, class_dict, race_dict):
         #print self.fields['INT']
         class_dict = self.fields['Class']
+        class_name = class_dict['Name']
+        class_font_size = '14px'
+        if len(class_name) > 15:
+            class_font_size = '8px'
+        #print class_font_size
         race_dict = self.fields['Race']
+        equipment_list = self.fields['EquipmentList']
+        #print equipment_list
         saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
         markup_template_dict = {
-            'review_page': ReviewPage.page_id,
+            'class_font_size': class_font_size,
             'name': self.fields['Name'],
             'gender': self.fields['Gender'],
             'class': class_dict['Name'],
@@ -828,7 +941,11 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'race': race_dict['Name'],
             'xp': 0,
             'hp': self.hp_cache,
+            'ac': SystemSettings.calculate_ac(self.attr_cache, class_dict, race_dict, equipment_list),
             'level': 1,
+            'age': self.age_cache,
+            'height': str(self.height_weight_cache[0][0]) + 'ft ' + str(self.height_weight_cache[0][1]) + 'in',
+            'weight': str(self.height_weight_cache[1]) + ' lbs',
             }
         for attr_name in list(self.attr_cache.keys()):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
@@ -877,6 +994,14 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
     float: right;
 }
 
+.class-font {
+    font-size: $class_font_size;
+}
+
+.alignment-font {
+    font-size: 10px;
+}
+
 .attr-bonuses {
     font-size: 8px;
     vertical-align: middle;
@@ -891,14 +1016,14 @@ p.page-break {
     page-break-after:always;
 }
 </style>
-<h1 align=center>F{Name}</h1>
+<h1 align=center>$name</h1>
 <img class=float-right align=right height=140 src=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAFLklEQVR4nO3dMYscdRzG8eckRYpDRIIEi3B2EURSScqzEKzSmMJK7grxXQR8Ab6GiJ2NoNUVgRNsAjZphHQGQUllESxSCGeRswm3m53ZvZ2dPJ8PDFfMzv1/W8yX+y+7twkAAAAAAAAA8LrYe8X5q0k+2sYgA/yR5MnUQ8ACt5LcmXqIl3yXkffMQZKzHTvujXkisCVHmf4eefk4XDTsGxt5ysAsCQAUEwAodmXkdU82OcQS15Lsb2ktuCxPk5xsaa1Pk1xf9cFjA/DeyOuGup8XL6rAnD1OcryltU4zIAC2AFBs7F8AU3o/yZ9J/pp6ELjAO1MPMMQcA/D5+c93J50CLvbv1AMMYQsAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBsjp8GTJKHSZ5PPQRc4HqSm1MPsao5BuBBks+SPJt6ELjAUV78J6tZmOMW4Je4+WEj5hgAYEMEAIoJABQTACgmAFBMAKDY2PcBnG50isVm84YKWOJ2kt+3tNbK3wqUjA/A4cjroNHVJAdTD3ERWwAoJgBQTACg2N4rzu8nubvi71rnAxAnSb5f8bGPzg/YRftJrg285tcR1/zvQZIvX/GYp9nCp2fP1ji+uezhYIf9lvH3zo/rLLzJLcCsvhUV8BoAVBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAodmXJuf0kbw/4XevE5M0kN1Z43N9J/lljHbhMt5J8OOK6t9ZY80aSL5ac/yEj75mjJGc7dhyNeSKwJfcy/T3y8nGwbGBbACgmAFBMAKDYshcBgfU9TfJ4S2sdDr1gaAB+TvLx0EVGOs2IJwQ75iTJ8ZbWOht6gS0AFBMAKCYAUEwAoJgAQDEBgGJzex/AV0k+mXoIWOCDqQcYam4BuH1+ABtgCwDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUGxunwZMXvybZdg1++fHrMwtAMdJvp16CFjgXpKvpx5iCFsAKCYAUGzoFuBmkvuXMciCtWDu7maHv+FqaACuJzm6hDngdbXTLw7aAkAxAYBiAgDF9pacu5XkzrYGWdFPSR5NPQQscHB+7JKHSZ5PPQQAAAAAAAAAcPn+A+VH6ACOcfiQAAAAAElFTkSuQmCC></img>
 
 <table>
-<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td></tr>
-<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>$gender</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td></tr>
-<tr><td class=pad-bottom><b>Class: </b></td><td align=right>$class</td><td class=lpad><b>AC: </b></td></tr>
-<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right>$alignment</td><td class=lpad><b>Level: </b></td><td align=right>$level</td></tr>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td><td>$age</td></tr>
+<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>$gender</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td>$height</td></tr>
+<tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td>$weight</td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>Level: </b></td><td align=right>$level</td></tr>
 <tr><td class=pad-bottom><b>Race: </b></td><td align=right>$race</td></tr>
 </table>
 

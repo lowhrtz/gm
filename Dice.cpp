@@ -50,12 +50,15 @@ int Dice::rollDice(QString diceString) {
         const char *dividerChar = "d";
         QChar divider(*dividerChar);
         int dividerIndex = diceString.indexOf(divider);
-        QString numberString = diceString.left(dividerIndex);
-        QString sidesString = diceString.right(dividerIndex);
+        QStringList diceStringList = diceString.split(divider);
+        QString numberString = diceStringList[0];
+        QString sidesString = diceStringList[1];
         int number = numberString.toInt();
         int sides = sidesString.toInt();
 //        cout << "number: " << numberString.toStdString() << endl;
 //        cout << "sides: " << sidesString.toStdString() << endl;
+//        qInfo("diceString: %s", diceString.toStdString().data());
+//        qInfo("sidesString: %s", sidesString.toStdString().data());
         return rollDice(number, sides);
 
     } else if(diceString.contains(complexFormat)) {

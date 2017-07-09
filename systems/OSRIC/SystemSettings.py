@@ -135,6 +135,127 @@ def get_attribute_bonuses(attr_key, score):
         break
     return tuple(bonus for bonus in return_bonus[1:])
 
+def calculate_ac(attr_dict, class_dict, race_dict, equipment_list):
+    base_ac = 10
+    dex_score = attr_dict['DEX']
+    ac_bonus = get_attribute_bonuses('DEX', dex_score)[2]
+    char_base_ac = base_ac + int(ac_bonus)
+
+    armour_list = [e for e in equipment_list if e['unique_id'].startswith('armour_')]
+    shield_list = [e for e in equipment_list if e['unique_id'].startswith('shield_')]
+
+    useable_armour = []
+    useable_shield = []
+
+    if 'classes' in class_dict:
+        ap_lists = []
+        sp_lists = []
+        for cl in class_dict['classes']:
+            armour_permitted_list = [ap.strip() for ap in cl['Armour_Permitted'].split(',')]
+            shield_permitted_list = [sp.strip() for sp in cl['Shield_Permitted'].split(',')]
+            ap_lists.append(armour_permitted_list)
+            sp_lists.append(shield_permitted_list)
+        if race_dict['unique_id'] in restrictive_races:
+            bucket = []
+            all_any = True
+            for ap_list in ap_lists:
+                if 'None' in ap_list:
+                    bucket = []
+                    all_any = False
+                    break
+                elif 'Any' in ap_list:
+                    continue
+                else:
+                    all_any = False
+                    for ap in ap_list:
+                        if ap not in bucket:
+                            bucket.append(ap)
+            if all_any:
+                useable_armour = armour_list
+            else:
+                for a in armour_list:
+                    if a['Name'] in bucket:
+                        useable_armour.append(a)
+            bucket = []
+            all_any = True
+            for sp_list in sp_lists:
+                if 'None' in sp_list:
+                    bucket = []
+                    all_any = False
+                    break
+                elif 'Any' in ap_list:
+                    continue
+                else:
+                    all_any = False
+                    for sp in sp_list:
+                        if sp not in sp_list:
+                            bucket.append(sp)
+            if all_any:
+                useable_shield = shield_list
+            else:
+                for s in shield_list:
+                    if s['Name'] in bucket:
+                        useable_shield.append(s)
+        else:
+            bucket = []
+            for ap_list in ap_lists:
+                for ap in ap_list:
+                    if ap not in bucket:
+                        bucket.append(ap)
+
+            if 'Any' in bucket:
+                useable_armor = armour_list
+            else:
+                for a in armour_list:
+                    if a['Name'] in bucket:
+                        useable_armour.append(a)
+            bucket = []
+            for sp_list in sp_lists:
+                for sp in sp_list:
+                    if sp not in bucket:
+                        bucket.append(sp)
+
+            if 'Any' in bucket:
+                useable_shield = shield_list
+            else:
+                for s in shield_list:
+                    if s['Name'] in bucket:
+                        useable_shield.append(s)
+    else:
+        armour_permitted_list = [ap.strip() for ap in class_dict['Armour_Permitted'].split(',')]
+        shield_permitted_list = [sp.strip() for sp in class_dict['Shield_Permitted'].split(',')]
+        if 'Any' in armour_permitted_list:
+            useable_armour = armour_list
+        elif 'None' in armour_permitted_list:
+            useable_armour = []
+        else:
+            for a in armour_list:
+                if a['Name'] in armour_permitted_list:
+                    useable_armour.append(a)
+        if 'Any' in shield_permitted_list:
+            useable_shield = shield_list
+        elif 'None' in shield_permitted_list:
+            useable_shield = []
+        else:
+            for s in shield_list:
+                if s['Name'] in shield_permitted_list:
+                    useable_shield.append(s)
+
+    best_armour = None
+    for a in useable_armour:
+        if not best_armour or a['AC_Effect'] < best_armour['AC_Effect']:
+            best_armour = a
+    best_shield = None
+    for s in useable_shield:
+        if not best_shield or s['AC_Effect'] < best_shield['AC_Effect']:
+            best_shield = s
+
+    if best_armour == None:
+        best_armour = {'AC_Effect': 0}
+    if best_shield == None:
+        best_shield = {'AC_Effect': 0}
+    return char_base_ac + best_armour['AC_Effect'] + best_shield['AC_Effect']
+
 def get_saves(level, attr_dict, class_dict, race_dict):
     saves_dict = {'Aimed_Magic_Items': [],
                   'Breath_Weapons': [],

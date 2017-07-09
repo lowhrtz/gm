@@ -64,6 +64,7 @@ PDFCreator::PDFCreator(QString markup) {
     QFont font("Times", 10, QFont::Normal);
     document.setDefaultFont(font);
 //    document.setHtml(html);
+//    qInfo("%s", markup.toStdString().data());
     document.setHtml(markup);
 
 //    QPrinter printer(QPrinter::PrinterResolution);
