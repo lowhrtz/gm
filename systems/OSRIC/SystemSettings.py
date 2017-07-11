@@ -381,3 +381,47 @@ def get_coinage_from_float(gp_decimal):
                 return_dict[cd] = cd_bucket
 
     return return_dict
+
+def calculate_movement(race_dict, class_dict, attr_dict, equipment_list):
+    base_movement = race_dict['Movement_Rate']
+    str_bonus = get_attribute_bonuses('STR', attr_dict['STR'])[2]
+    max_movement = 120
+    equipment_weight = 0
+    wearable_armour = []
+    for equip in equipment_list:
+        if equip['Weight'] != 'N/A' and equip['Weight'] != '-':
+            equip_weight = ''.join([c for c in equip['Weight'] if c.isdigit() or c == '/'])
+            if equip_weight.find('/') != -1:
+                equip_weight_tuple = equip_weight.split('/')
+                numerator = int(equip_weight_tuple[0])
+                denominator = int(equip_weight_tuple[1])
+                equipment_weight += numerator / float(denominator)
+            else:
+                equipment_weight += float(equipment_weight)
+
+        if equip['Max_Move_Rate'] != '' and equip['Max_Move_Rate'] != 'N/A':
+            base_ac = calculate_ac(attr_dict, class_dict, race_dict, [])
+            adj_ac = calculate_ac(attr_dict, class_dict, race_dict, [equip])
+            if adj_ac < base_ac:
+                wearable_armour.append(equip)
+    best_armour = None
+    for wa in wearable_armour:
+        if not best_armour or wa['AC_Effect'] < best_armour['AC_Effect']:
+            best_armour = wa
+    if best_armour:
+        max_move = ''.join([c for c in best_armour['Max_Move_Rate'] if c.isdigit()])
+        if int(max_move) < max_movement:
+            max_movement = int(max_move)
+
+    if equipment_weight <= 35 + int(str_bonus):
+        movement = (min(base_movement, max_movement), '+1 (for armour lighter than chain mail only)')
+    elif equipment_weight <= 70 + int(str_bonus):
+        movement = (min(base_movement - 30, max_movement), 'Normal bonuses apply')
+    elif equipment_weight <= 105 + int(str_bonus):
+        movement = (min(base_movement - 60, max_movement), 'No normal bonuses apply (but penalties do)')
+    elif equipment_weight <= 150 + int(str_bonus):
+        movement = (min(30, max_movement), 'No normal bonuses apply (but penalties do); -1 extra penalty')
+    else:
+        movement = (0, 'No movement possible')
+
+    return movement

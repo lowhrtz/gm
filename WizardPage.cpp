@@ -40,7 +40,7 @@ WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
     // Create a field attribute for each python wizard page instance that will get updated on each new page
     PyObject_SetAttrString(pyWizardPageInstance, "fields", wizard->fieldsDict);
 
-    // Create a page_dict attribute after addig this instance
+    // Create a pages attribute after addig this instance
     QString py_class_name = PyString_AsString(PyObject_GetAttrString(PyObject_Type(pyWizardPageInstance), "__name__"));
 //    qInfo("py_class_name: %s", py_class_name.toStdString().data());
     PyDict_SetItemString(wizard->pyWizardPageList, py_class_name.toStdString().data(), pyWizardPageInstance);

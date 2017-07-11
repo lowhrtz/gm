@@ -955,10 +955,12 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             portrait = base64.b64encode(portrait_file.read())
 
         equipment_list = self.fields['EquipmentList']
+        proficiency_list = self.fields['ProficiencyList']
         #print equipment_list
         saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
         money_dict = SystemSettings.get_coinage_from_float(self.pages['EquipmentPage'].slots_remaining)
         #print money_dict
+        movement_tuple = SystemSettings.calculate_movement(race_dict, class_dict, self.attr_cache, equipment_list)
         markup_template_dict = {
             'class_font_size': class_font_size,
             'class_padding': class_padding,
@@ -977,6 +979,8 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'portrait': portrait,
             'image_type': ext,
             'tohit_row': '<td align=center>' + '</td><td align=center>'.join(SystemSettings.get_tohit_row(1, class_dict, race_dict)) + '</td>',
+            'movement_rate': movement_tuple[0],
+            'movement_desc': movement_tuple[1],
             }
         for attr_name in list(self.attr_cache.keys()):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
@@ -1065,6 +1069,10 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
     font-size: 10px;
 }
 
+.equip-legend {
+    font-size: 8px;
+}
+
 .pre {
     white-space: pre;
 }
@@ -1136,12 +1144,22 @@ p.page-break {
 '''
 
         for equip in equipment_list:
-            equip_list = [equip['Name'], equip['Damage_Vs_S_or_M'], equip['Damage_Vs_L'], equip['Damage_Type'],
+            equip_name = equip['Name']
+            if equip in proficiency_list:
+                equip_name = equip_name + '*'
+            equip_list = [equip_name, equip['Damage_Vs_S_or_M'], equip['Damage_Vs_L'], equip['Damage_Type'],
                            equip['Rate_of_Fire'], equip['Range'], equip['Max_Move_Rate'], str(equip['AC_Effect']), equip['Notes']]
             markup += '<tr><td align=center>' + '</td><td align=center>'.join(equip_list) + '</td></tr>'
 
         markup += '''
 </table></td></tr></table>
+<div align=center class=equip-legend>*=Proficient</div>
+<div><b>Movement Rate: </b>$movement_rate ft/round<br />
+<b>Surprise: </b>$movement_desc</div>
+
+<hr />
+
+
 '''
 
         t = Template(markup)
