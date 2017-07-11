@@ -34,6 +34,7 @@ public:
     PythonInterpreter *getPythonInterpreter();
 //    PyObject *getField(PyObject *self, PyObject *args);
     PyObject *fieldsDict = PyDict_New();
+    PyObject *pyWizardPageList = PyDict_New();
 
 private:
     QList<WizardPage *> getWizardPages();

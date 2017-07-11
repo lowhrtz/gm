@@ -204,11 +204,12 @@ def calculate_ac(attr_dict, class_dict, race_dict, equipment_list):
                         bucket.append(ap)
 
             if 'Any' in bucket:
-                useable_armor = armour_list
+                useable_armour = armour_list
             else:
                 for a in armour_list:
                     if a['Name'] in bucket:
                         useable_armour.append(a)
+
             bucket = []
             for sp_list in sp_lists:
                 for sp in sp_list:
@@ -302,3 +303,81 @@ def get_saves(level, attr_dict, class_dict, race_dict):
                         saves_dict[save] = saves_dict[save].replace(' (', '<br />(')
 
     return saves_dict
+
+def get_tohit_row(level, class_dict, race_dict):
+    tohit_list = []
+    if 'classes' in class_dict:
+        bucket = []
+        for cl in class_dict['classes']:
+            for row in cl['Classes_meta']:
+                if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level:
+                    tohit_tuple = (row['To_Hit_-10'],
+                                   row['To_Hit_-9'],
+                                   row['To_Hit_-8'],
+                                   row['To_Hit_-7'],
+                                   row['To_Hit_-6'],
+                                   row['To_Hit_-5'],
+                                   row['To_Hit_-4'],
+                                   row['To_Hit_-3'],
+                                   row['To_Hit_-2'],
+                                   row['To_Hit_-1'],
+                                   row['To_Hit_0'],
+                                   row['To_Hit_1'],
+                                   row['To_Hit_2'],
+                                   row['To_Hit_3'],
+                                   row['To_Hit_4'],
+                                   row['To_Hit_5'],
+                                   row['To_Hit_6'],
+                                   row['To_Hit_7'],
+                                   row['To_Hit_8'],
+                                   row['To_Hit_9'],
+                                   row['To_Hit_10'],
+                                   )
+                    bucket.append(tohit_tuple)
+        for i in range(0, 21):
+            items = (row[i] for row in bucket)
+            if race_dict['unique_id'] in restrictive_races:
+                tohit_list.append(str(max(*items)))
+            else:
+                tohit_list.append(str(min(*items)))
+
+    else:
+        for row in class_dict['Classes_meta']:
+            if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level:
+                tohit_list = [str(row['To_Hit_-10']),
+                              str(row['To_Hit_-9']),
+                              str(row['To_Hit_-8']),
+                              str(row['To_Hit_-7']),
+                              str(row['To_Hit_-6']),
+                              str(row['To_Hit_-5']),
+                              str(row['To_Hit_-4']),
+                              str(row['To_Hit_-3']),
+                              str(row['To_Hit_-2']),
+                              str(row['To_Hit_-1']),
+                              str(row['To_Hit_0']),
+                              str(row['To_Hit_1']),
+                              str(row['To_Hit_2']),
+                              str(row['To_Hit_3']),
+                              str(row['To_Hit_4']),
+                              str(row['To_Hit_5']),
+                              str(row['To_Hit_6']),
+                              str(row['To_Hit_7']),
+                              str(row['To_Hit_8']),
+                              str(row['To_Hit_9']),
+                              str(row['To_Hit_10']),
+                              ]
+    return tohit_list
+
+def get_coinage_from_float(gp_decimal):
+    bucket = int(gp_decimal * 100)
+    coin_denominations = sorted(economy, key=lambda x: economy[x], reverse=True)
+    return_dict = dict.fromkeys(coin_denominations, 0)
+    for cd in coin_denominations:
+        if economy[cd] <= 1:
+            cd_bucket = 0
+            while bucket >= economy[cd] * 100:
+                bucket = bucket - int(economy[cd] * 100)
+                cd_bucket = cd_bucket + 1
+                return_dict[cd] = cd_bucket
+
+    return return_dict

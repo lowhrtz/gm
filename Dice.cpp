@@ -49,7 +49,7 @@ int Dice::rollDice(QString diceString) {
     } else if (diceString.contains(diceFormat)) {
         const char *dividerChar = "d";
         QChar divider(*dividerChar);
-        int dividerIndex = diceString.indexOf(divider);
+//        int dividerIndex = diceString.indexOf(divider);
         QStringList diceStringList = diceString.split(divider);
         QString numberString = diceStringList[0];
         QString sidesString = diceStringList[1];

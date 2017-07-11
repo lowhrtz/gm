@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from string import Template
 from WizardDefs import WizardPage
+import base64
 import Dice
+import os
 import SystemSettings
 
 def get_pc_gender_list():
@@ -536,8 +538,8 @@ class EquipmentPage(WizardPage):
 
     def prefill_bought_list(self, race_dict, class_dict, items_dict_list):
         item_id_list = []
+#        print class_dict['unique_id']
         if race_dict['unique_id'] == 'elf' and 'fighter' in class_dict['unique_id']:
-            #percent = random.randint(1, 100)
             percent = Dice.randomInt(1, 100)
             if percent <= 5:
                 item_id_list.append('armour_elfin_chain')
@@ -729,6 +731,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                         'Fighter': ['fighter', 'ranger', 'paladin'],
                         'Magic User': ['magic_user', 'illusionist'],
                         'Thief': ['thief', 'assassin'],
+                        'Druid': ['druid'],
                         }
 
         dice_string = ''
@@ -744,16 +747,17 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                 new_rating = eval(row['Modifier'].replace('d', '*'))
                 if new_rating > rating:
                     rating = new_rating
-                    best_dice = row['Modified']
+                    best_dice = row['Modifier']
             dice_string = best_dice
         else:
             for row in starting_ages:
                 if class_dict['unique_id'] in class_groups[row['Modified']]:
                     dice_string = row['Modifier']
 
+
         dice_string_list = dice_string.split('+')
-        dice_string = dice_string_list[1] + '+' + dice_string_list[0]
-        print dice_string
+        dice_string = dice_string_list[1].strip() + '+' + dice_string_list[0].strip()
+#        print dice_string
         return Dice.rollString(dice_string)
 
     def roll_height_weight(self):
@@ -922,18 +926,42 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 
     def get_pdf_markup(self, class_dict, race_dict):
         #print self.fields['INT']
+        #print self.pages['EquipmentPage'].slots_remaining
         class_dict = self.fields['Class']
         class_name = class_dict['Name']
         class_font_size = '14px'
+        class_padding = '0px'
         if len(class_name) > 15:
             class_font_size = '8px'
+            class_padding = '4px'
         #print class_font_size
         race_dict = self.fields['Race']
+
+        filename = ''
+        ext = ''
+        race_portrait_path = 'systems/OSRIC/portraits/Races/'
+        valid_images = [".jpg",".gif",".png",".jpeg"]
+        for f in os.listdir(race_portrait_path):
+            f_split = os.path.splitext(f)
+            f_root = f_split[0]
+            f_ext = f_split[1]
+            if race_dict['unique_id'] == f_root and f_ext.lower() in valid_images:
+                    filename = f
+                    ext = f_ext
+                    break
+        if ext == 'jpeg':
+            ext = 'jpg'
+        with open(os.path.join(race_portrait_path, filename)) as portrait_file:
+            portrait = base64.b64encode(portrait_file.read())
+
         equipment_list = self.fields['EquipmentList']
         #print equipment_list
         saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
+        money_dict = SystemSettings.get_coinage_from_float(self.pages['EquipmentPage'].slots_remaining)
+        #print money_dict
         markup_template_dict = {
             'class_font_size': class_font_size,
+            'class_padding': class_padding,
             'name': self.fields['Name'],
             'gender': self.fields['Gender'],
             'class': class_dict['Name'],
@@ -946,12 +974,18 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'age': self.age_cache,
             'height': str(self.height_weight_cache[0][0]) + 'ft ' + str(self.height_weight_cache[0][1]) + 'in',
             'weight': str(self.height_weight_cache[1]) + ' lbs',
+            'portrait': portrait,
+            'image_type': ext,
+            'tohit_row': '<td align=center>' + '</td><td align=center>'.join(SystemSettings.get_tohit_row(1, class_dict, race_dict)) + '</td>',
             }
         for attr_name in list(self.attr_cache.keys()):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
             markup_template_dict[attr_name + '_bonus'] = self.get_attr_bonuses_string(attr_name, self.attr_cache[attr_name])
         for save in list(saves_dict.keys()):
             markup_template_dict[save] = saves_dict[save]
+        for denomination in list(money_dict.keys()):
+            markup_template_dict[denomination] = money_dict[denomination]
+
         markup = '''\
 <style type=text/css>
 .border {
@@ -987,7 +1021,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 }
 
 .lpad {
-    padding-left: 10px;
+    padding-left: 15px;
 }
 
 .float-right {
@@ -996,16 +1030,39 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 
 .class-font {
     font-size: $class_font_size;
+    padding-top: $class_padding;
 }
 
 .alignment-font {
     font-size: 10px;
+    padding-top: 3px;
 }
 
 .attr-bonuses {
     font-size: 8px;
     vertical-align: middle;
     white-space: pre;
+}
+
+.tohit-table {
+    border-style: solid;
+}
+
+.tohit-table > tr > td {
+    padding: 2px;
+    vertical-align: middle;
+}
+
+.equipment-table > tr > th {
+    padding: 4px;
+    align: center;
+    font-size: 10px;
+}
+
+.equipment-table > tr > td {
+    padding: 4px;
+    align: center;
+    font-size: 10px;
 }
 
 .pre {
@@ -1017,14 +1074,13 @@ p.page-break {
 }
 </style>
 <h1 align=center>$name</h1>
-<img class=float-right align=right height=140 src=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAFLklEQVR4nO3dMYscdRzG8eckRYpDRIIEi3B2EURSScqzEKzSmMJK7grxXQR8Ab6GiJ2NoNUVgRNsAjZphHQGQUllESxSCGeRswm3m53ZvZ2dPJ8PDFfMzv1/W8yX+y+7twkAAAAAAAAA8LrYe8X5q0k+2sYgA/yR5MnUQ8ACt5LcmXqIl3yXkffMQZKzHTvujXkisCVHmf4eefk4XDTsGxt5ysAsCQAUEwAodmXkdU82OcQS15Lsb2ktuCxPk5xsaa1Pk1xf9cFjA/DeyOuGup8XL6rAnD1OcryltU4zIAC2AFBs7F8AU3o/yZ9J/pp6ELjAO1MPMMQcA/D5+c93J50CLvbv1AMMYQsAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBsjp8GTJKHSZ5PPQRc4HqSm1MPsao5BuBBks+SPJt6ELjAUV78J6tZmOMW4Je4+WEj5hgAYEMEAIoJABQTACgmAFBMAKDY2PcBnG50isVm84YKWOJ2kt+3tNbK3wqUjA/A4cjroNHVJAdTD3ERWwAoJgBQTACg2N4rzu8nubvi71rnAxAnSb5f8bGPzg/YRftJrg285tcR1/zvQZIvX/GYp9nCp2fP1ji+uezhYIf9lvH3zo/rLLzJLcCsvhUV8BoAVBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUEwAoJgAQDEBgGICAMUEAIoJABQTACgmAFBMAKCYAEAxAYBiAgDFBACKCQAUEwAodmXJuf0kbw/4XevE5M0kN1Z43N9J/lljHbhMt5J8OOK6t9ZY80aSL5ac/yEj75mjJGc7dhyNeSKwJfcy/T3y8nGwbGBbACgmAFBMAKDYshcBgfU9TfJ4S2sdDr1gaAB+TvLx0EVGOs2IJwQ75iTJ8ZbWOht6gS0AFBMAKCYAUEwAoJgAQDEBgGJzex/AV0k+mXoIWOCDqQcYam4BuH1+ABtgCwDFBACKCQAUEwAoJgBQTACgmABAMQGAYgIAxQQAigkAFBMAKCYAUGxunwZMXvybZdg1++fHrMwtAMdJvp16CFjgXpKvpx5iCFsAKCYAUGzoFuBmkvuXMciCtWDu7maHv+FqaACuJzm6hDngdbXTLw7aAkAxAYBiAgDF9pacu5XkzrYGWdFPSR5NPQQscHB+7JKHSZ5PPQQAAAAAAAAAcPn+A+VH6ACOcfiQAAAAAElFTkSuQmCC></img>
+<img class=float-right align=right height=140 src=data:image/$image_type;base64,$portrait</img>
 
 <table>
-<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td><td>$age</td></tr>
-<tr><td class=pad-bottom><b>Gender: </b></td><td align=right>$gender</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td>$height</td></tr>
-<tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td>$weight</td></tr>
-<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>Level: </b></td><td align=right>$level</td></tr>
-<tr><td class=pad-bottom><b>Race: </b></td><td align=right>$race</td></tr>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td align=right><td align=right>$age</td></tr>
+<tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td align=right>$height</td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td align=right>$weight</td></tr>
+<tr><td class=pad-bottom><b>Race: </b></td><td align=right>$race</td><td class=lpad><b>Level: </b></td><td align=right>$level</td><td class=lpad><b>Gender: </b></td><td align=right>$gender</td></tr>
 </table>
 
 <hr />
@@ -1057,7 +1113,37 @@ p.page-break {
 
 </tr></table>
 
-<hr />'''
+<hr />
+
+<table class=tohit-table border=1 align=center>
+<tr><td><b>Enemy AC</b></td><td align=center> -10 </td><td align=center> -9 </td><td align=center> -8 </td><td align=center> -7 </td><td align=center> -6 </td><td align=center> -5 </td>
+    <td align=center> -4 </td><td align=center> -3 </td><td align=center> -2 </td><td align=center> -1 </td><td align=center> 0 </td><td align=center> 1 </td>
+    <td align=center> 2 </td><td align=center> 3 </td><td align=center> 4 </td><td align=center> 5 </td><td align=center> 6 </td><td align=center> 7 </td>
+    <td align=center> 8 </td><td align=center> 9 </td><td align=center> 10 </td></tr>
+<tr><td><b>To Hit</b></td>$tohit_row</tr>
+</table>
+
+<hr />
+
+<div class=pre align=center>GP: $gp     PP: $pp     EP: $ep     SP: $sp     CP: $cp</div>
+
+<hr />
+
+<table align=center>
+<tr><th><h4>Equipment</h4></th></tr>
+<tr><td><table border=1 class=equipment-table>
+<tr><th>Name</th><th>Damage Vs S or M</th><th>Damage Vs L</th><th>Damage Type</th><th>RoF</th><th>Range</th><th>Max Move</th><th>AC Effect</th><th>Notes</th></tr>
+'''
+
+        for equip in equipment_list:
+            equip_list = [equip['Name'], equip['Damage_Vs_S_or_M'], equip['Damage_Vs_L'], equip['Damage_Type'],
+                           equip['Rate_of_Fire'], equip['Range'], equip['Max_Move_Rate'], str(equip['AC_Effect']), equip['Notes']]
+            markup += '<tr><td align=center>' + '</td><td align=center>'.join(equip_list) + '</td></tr>'
+
+        markup += '''
+</table></td></tr></table>
+'''
+
         t = Template(markup)
         return t.safe_substitute(markup_template_dict)
 

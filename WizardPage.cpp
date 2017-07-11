@@ -39,6 +39,12 @@ WizardPage::WizardPage(PyObject *pyWizardPageInstance, QWidget *parent) :
 
     // Create a field attribute for each python wizard page instance that will get updated on each new page
     PyObject_SetAttrString(pyWizardPageInstance, "fields", wizard->fieldsDict);
+
+    // Create a page_dict attribute after addig this instance
+    QString py_class_name = PyString_AsString(PyObject_GetAttrString(PyObject_Type(pyWizardPageInstance), "__name__"));
+//    qInfo("py_class_name: %s", py_class_name.toStdString().data());
+    PyDict_SetItemString(wizard->pyWizardPageList, py_class_name.toStdString().data(), pyWizardPageInstance);
+    PyObject_SetAttrString(pyWizardPageInstance, "pages", wizard->pyWizardPageList);
 }
 
 void WizardPage::publicRegisterField(const QString &name, QWidget *widget, const char *property, const char *changedSignal) {
@@ -70,8 +76,8 @@ void WizardPage::initializePage() {
             if(field_widget_type == "StackedWidget") {
                 StackedWidget *stacked_widget = (StackedWidget *) field_widget;
                 QList<PyObject *> data_list = stacked_widget->getDataList();
-//                qInfo("%s, %i", field_name.toStdString().data(), data_list.count());
                 if(data_list.count() > 0) {
+//                    qInfo("Field Name: %s, Data List Count: %i", field_name.toStdString().data(), data_list.count());
                     QString chosen_item = stacked_widget->getCurrentItemText();
                     int data_index = stacked_widget->getCurrentItemIndex();
                     PyObject *data = stacked_widget->getData(data_index);
@@ -1545,6 +1551,7 @@ QString StackedWidget::getCurrentItemText() {
     if(widget_type == "QListWidget") {
         QListWidget *list_widget = (QListWidget *) widget;
 //        current_text = list_widget->currentItem()->text();
+//        qInfo("getCurrentItemIndex(): %i", getCurrentItemIndex());
         current_text = list_widget->item(getCurrentItemIndex())->text();
     } else {
         QComboBox *combo_box = (QComboBox *) widget;
@@ -1722,7 +1729,7 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
     }
 
     publicRegisterField(fieldName + "Available", firstList, "currentItemIndex", "currentItemChanged");
-    publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
+    //publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
     publicRegisterField(fieldName + "List", secondList, "dataList", "dataListChanged");
 
     slotsObject = PyObject_GetAttrString(pyWizardPageInstance, "slots");
@@ -2003,6 +2010,11 @@ void DualListSelection::cleanupPage() {
 
 bool DualListSelection::isComplete() const {
 //    qInfo("isComplete Fired!");
+    if(slotsTotalFloat != NULL) {
+        PyObject_SetAttrString(pyWizardPageInstance, "slots_remaining", PyFloat_FromDouble(slotsTotalFloat));
+    } else {
+        PyObject_SetAttrString(pyWizardPageInstance, "slots_remaining", PyInt_FromLong(slotsTotal));
+    }
     foreach(DualListCallableAndArgs dlcaa, page_init_callable_list) {
         QString type = dlcaa.getType();
         PyObject *callable = dlcaa.getCallable();
