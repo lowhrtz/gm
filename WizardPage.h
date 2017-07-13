@@ -196,7 +196,7 @@ private:
     QList<PyObject *> m_dataList;
     PythonInterpreter *interpreter;
     DatabaseHandler *db;
-    int m_currentItemIndex;
+    int m_currentItemIndex = 0;
 
 signals:
     void currentItemChanged(int itemIndex);

@@ -95,12 +95,13 @@ void WizardPage::initializePage() {
             QString field_widget_type = field_widget->metaObject()->className();
             if(field_widget_type == "StackedWidget") {
                 StackedWidget *stacked_widget = (StackedWidget *) field_widget;
-                QList<PyObject *> dataList = stacked_widget->getDataList();
-                PyObject *dataListObj = PyList_New(0);
-                foreach(PyObject *data, dataList) {
-                    PyList_Append(dataListObj, data);
+                QList<PyObject *> data_list = stacked_widget->getDataList();
+//                qInfo("Field Name: %s, Data List Count: %i", field_name.toStdString().data(), data_list.count());
+                PyObject *data_list_obj = PyList_New(0);
+                foreach(PyObject *data, data_list) {
+                    PyList_Append(data_list_obj, data);
                 }
-                PyObject *field_data_obj = dataListObj;
+                PyObject *field_data_obj = data_list_obj;
                 PyDict_SetItemString(wizard->fieldsDict, field_name.toStdString().data(), field_data_obj);
             }
         }
@@ -1729,7 +1730,7 @@ DualListSelection::DualListSelection(PyObject *pyWizardPageInstance, QWidget *pa
     }
 
     publicRegisterField(fieldName + "Available", firstList, "currentItemIndex", "currentItemChanged");
-    //publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
+    publicRegisterField(fieldName, secondList, "currentItemIndex", "currentItemChanged");
     publicRegisterField(fieldName + "List", secondList, "dataList", "dataListChanged");
 
     slotsObject = PyObject_GetAttrString(pyWizardPageInstance, "slots");

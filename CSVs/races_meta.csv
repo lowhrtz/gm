@@ -14,6 +14,7 @@
 'dwarf','ability','misc','66%','Detect sliding or shifting rooms or walls',
 'dwarf','ability','misc','50%','Detect traps involving stonework',
 'dwarf','ability','misc','50%','Determine depth underground',
+'dwarf','ability','misc','+1','Charisma','Vs Dwarves'
 'dwarf','class','multi-class restrictions',,,'The more restrictive of any two class requirements apply to multi-classed Dwarfish characters for the use of class abilities.'
 'dwarf','class','permitted class options',,'assassin, cleric, fighter, thief, fighter/thief',
 'dwarf','class','starting age','250+2d20','Cleric',

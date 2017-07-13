@@ -55,23 +55,23 @@ bonuses = {
             (17, '6'),
             (18, '7'),
             (19, '8'),],
-    'WIS': [(3, '-3'),
-            (4, '-2'),
-            (5, '-1'),
-            (6, '-1'),
-            (7, '-1'),
-            (8, '0'),
-            (9, '0'),
-            (10, '0'),
-            (11, '0'),
-            (12, '0'),
-            (13, '0'),
-            (14, '0'),
-            (15, '+1'),
-            (16, '+2'),
-            (17, '+3'),
-            (18, '+4'),
-            (19, '+5'),],
+    'WIS': [(3, '-3', '0', '45'),
+            (4, '-2', '0', '40'),
+            (5, '-1', '0', '35'),
+            (6, '-1', '0', '30'),
+            (7, '-1', '0', '25'),
+            (8, '0', '0', '20'),
+            (9, '0', '0', '15'),
+            (10, '0', '0', '10'),
+            (11, '0', '0', '5'),
+            (12, '0', '0', '1'),
+            (13, '0', '1', '0'),
+            (14, '0', '2', '0'),
+            (15, '+1', '2/1', '0'),
+            (16, '+2', '2/2', '0'),
+            (17, '+3', '2/2/1', '0'),
+            (18, '+4', '2/2/1/1', '0'),
+            (19, '+5', '3/2/1/1', '0'),],
     'DEX': [(3, '-3', '-3', '+4'),
             (4, '-2', '-2', '+3'),
             (5, '-1', '-1', '+2'),
@@ -425,3 +425,91 @@ def calculate_movement(race_dict, class_dict, attr_dict, equipment_list):
         movement = (0, 'No movement possible')
 
     return movement
+
+def get_spells_by_level(level, attr_dict, single_class_dict):
+    primary_spell_string = 'Level_{}_Spells'
+    secondary_spell_string = 'Level_{}_Spells_Secondary'
+    primary = ''
+    secondary = ''
+    for row in single_class_dict['Classes_meta']:
+        if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level and row['Casting_Level'] > 0:
+            for i in range(1, 10):
+                primary_key = primary_spell_string.format(i)
+                secondary_key = secondary_spell_string.format(i)
+                if row[primary_key] > 0:
+                    primary_int = row[primary_key]
+                    if i > 1:
+                        primary += '/'
+                    if single_class_dict['Category'] == 'priest':
+                        bonus_spells = get_attribute_bonuses('WIS', attr_dict['WIS'])[1]
+                        bonus_spells_list = bonus_spells.split('/')
+                        if i - 1 < len(bonus_spells_list):
+                            primary_int += int(bonus_spells_list[i - 1])
+                    primary += str(primary_int)
+                if row[secondary_key] > 0:
+                    if i > 1:
+                        secondary += '/'
+                    secondary += str(row[secondary_key])
+    return ( primary, secondary )
+
+def get_turn_undead_row( level, single_class_dict ):
+    tu_list = []
+    col_string = 'Turn_Undead_Type_{}'
+    for row in single_class_dict['Classes_meta']:
+        if row['Type'] == 'xp table' and row['Level'].isdigit() and int( row['Level'] ) == level:
+            for i in range( 1, 14 ):
+                col = col_string.format(i)
+                tu_list.append( row[col] )
+    return tu_list
+
+ta_col_list = ['Climb_Walls', 'Find_Traps', 'Hear_Noise', 'Hide_in_Shadows',
+               'Move_Quietly', 'Open_Locks', 'Pick_Pockets', 'Read_Languages']
+def get_thief_abilities_row( level, single_class_dict ):
+    ta_list = []
+    for row in single_class_dict['Classes_meta']:
+        if row['Type'] == 'xp table' and row['Level'].isdigit() and int( row['Level'] ) == level:
+            for ta_col in ta_col_list:
+                ta_list.append( '{}%'.format( row[ta_col] ) )
+    return ta_list
+
+def get_class_abilities( level, attr_dict, single_class_dict ):
+    spells_by_level = get_spells_by_level( level, attr_dict, single_class_dict )
+    cl_ab = []
+    if spells_by_level[0]:
+        primary_spells = single_class_dict['Primary_Spell_List'].replace('_', ' ').title()
+        cl_ab.append(('{} Spells by Level'.format(primary_spells), spells_by_level[0]))
+        if spells_by_level[1]:
+            secondary_spells = class_dict['Secondary_Spell_List'].replace('_', ' ').title()
+            cl_ab.append(('{} Spells by Level'.format(secondary_spells), spells_by_level[1]))
+    tu_list = get_turn_undead_row( level, single_class_dict )
+    ta_list = get_thief_abilities_row( level, single_class_dict )
+    for row in single_class_dict['Classes_meta']:
+        if row['Type'] == 'ability' and level >= row['Level_Gained']:
+            cl_ab.append((row['Ability'], row['Ability_Description']))
+            if tu_list and 'turn' in row['Ability'].lower() and 'undead' in row['Ability'].lower():
+                headers = [ 'Type {}'.format( i ) for i in range( 1, 14 ) ]
+                cl_ab.append( ( '', ( headers, tu_list ) ) )
+            if ta_list and 'thief abilities' in row['Ability'].lower():
+                headers = [ h.replace( '_', ' ' ) for h in ta_col_list ]
+                cl_ab.append( ( '', ( headers, ta_list ) ) )
+
+    return cl_ab
+
+def get_race_abilities( race_dict ):
+    return_list = []
+    subtype_list = [ 'combat', 'starting languages', 'infravision', 'misc' ]
+    for row in race_dict['Races_meta']:
+        if row['Type'] == 'ability' and row['Subtype'] in subtype_list:
+            if row['Subtype'] == 'infravision':
+                first_item = 'Infravision {}'.format( row['Modifier'] )
+            elif row['Subtype'] == 'starting languages':
+                first_item = 'Starting Languages: '
+            else:
+                first_item = row['Modifier']
+            return_list.append( ( first_item, row['Modified'], row['Notes'] ) )
+    return return_list
+
+def get_spell_book( spell_list ):
+    output_string = ''
+    for spell in spell_list:
+        spell['Name']

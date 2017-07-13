@@ -274,16 +274,26 @@ class ChooseClassPage(WizardPage):
         return 'portraits/Classes/{filename}.jpg'.format(filename=class_id)
 
     def get_next_page_id(self, class_dict={}, class_meta_dict_list=[]):
+        wizard = False
+        self.wizard_type = None
         spellcaster = False
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
                 if cl['Primary_Spell_List'] != 'None':
+                    if cl['Category'] == 'wizard':
+                        wizard = True
+                        self.wizard_type = cl['unique_id']
                     if not spellcaster:
                         spellcaster = self.has_spells_at_level(1, class_meta_dict_list, cl['unique_id'])
         else:
             if class_dict['Primary_Spell_List'] != 'None':
+                if class_dict['Category'] == 'wizard':
+                    wizard = True
+                    self.wizard_type = class_dict['unique_id']
                 spellcaster = self.has_spells_at_level(1, class_meta_dict_list, class_dict['unique_id'])
 
+        if wizard and spellcaster:
+            return SpellbookPage.page_id
         if spellcaster:
             return SpellsPage.page_id
         return ProficiencyPage.page_id
@@ -296,13 +306,9 @@ class ChooseClassPage(WizardPage):
             return True
         return False
 
-def prefill_chosen_spells(class_dict, spells_dict_list, multiclass_index):
+def prefill_chosen_spells( spell_type, spells_dict_list ):
     prechosen_ids = []
     prechosen_spells = []
-    if 'classes' in class_dict:
-        spell_type = class_dict['Primary_Spell_List'][multiclass_index]
-    else:
-        spell_type = class_dict['Primary_Spell_List']
     avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
     if spell_type == 'magic_user':
         prechosen_ids.append('read_magic')
@@ -325,114 +331,131 @@ def prefill_chosen_spells(class_dict, spells_dict_list, multiclass_index):
             prechosen_spells.append((spell_dict['Name'], spell_dict, True))
     return prechosen_spells
 
-class SpellsPage(WizardPage):
+class SpellbookPage(WizardPage):
     page_title = 'Choose Spells'
-    page_subtitle = 'Choose the spells for your character.'
+    page_subtitle = 'Choose the spell(s) in your spell book.'
+    page_id = 68
+    layout = 'horizontal'
+    template = 'DualListPage'
+    slots = ( 'simple','get_spell_slots', '^$ ' )
+    content = ( 'Spellbook',
+                'fill_list', '^$ DB{Spells}', 'Description',
+                'prefill_chosen_spells', '^$ DB{Spells}' )
+
+    def get_spell_slots( self ):
+        #class_dict = self.fields['Class']
+
+        if self.wizard_type == 'magic_user':
+            return ( 'Magic User Spells: ', 1 )
+        else:
+            return ( '{} Spells: '.format( self.wizard_type.title().replace( '_', ' ' ) ), 2 )
+
+    def fill_list( self, spells_dict_list ):
+        self.wizard_type = self.pages['ChooseClassPage'].wizard_type
+        spell_list = []
+        for spell_dict in spells_dict_list:
+            if spell_dict['Type'] == self.wizard_type and spell_dict['Level'] == 1:
+                spell_tuple = ( spell_dict['Name'], spell_dict )
+                spell_list.append( spell_tuple )
+        return spell_list
+
+    def prefill_chosen_spells( self, spells_dict_list ):
+        return prefill_chosen_spells( self.wizard_type, spells_dict_list )
+
+def get_spell_slots( class_dict, index=0 ):
+    if 'classes' in class_dict:
+        spell_type = class_dict['Primary_Spell_List'][index]
+        spell_type_label = spell_type.title().replace( '_', ' ' ) + ' Spells:'
+        if class_dict['classes'][index]['Classes_meta'][0]['class_id'] == spell_type:
+            class_meta_dict_list =  class_dict['classes'][index]['Classes_meta']
+        else:
+            class_meta_dict_list =  class_dict['classes'][index + 1]['Classes_meta']
+    else:
+        spell_type = class_dict['Primary_Spell_List']
+        spell_type_label = class_dict['Name'] + ' Spells:'
+        class_meta_dict_list = class_dict['Classes_meta']
+
+    char_levels = [ row for row in class_meta_dict_list if row['Type'] == 'xp table' and row['class_id'] == spell_type ]
+    level_one = char_levels[0]
+    return ( spell_type_label, level_one['Level_1_Spells'] )
+
+class SpellsPage( WizardPage ):
+    page_title = 'Choose Spells'
+    page_subtitle = 'Choose the typical daily spell(s) for your character.'
     page_id = 70
     layout = 'horizontal'
     template = 'DualListPage'
-    slots = ('simple','get_spell_slots','^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
+    slots = ( 'simple','get_spell_slots','^$ ' )
     content = ('Spells',
-               'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description',
-               'prefill_chosen_spells', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}')
+               'fill_list', '^$ DB{Spells}', 'Description',
+               'prefill_chosen_spells', '^$ DB{Spells}')
 
-    spell_types = []
+    multi_next_spell_type = ''
 
-    def fill_list(self, class_dict, spells_dict_list):
-#        print spells_dict_list
-        global multi_next_spells
-        multi_next_spells = []
+    def fill_list( self, spells_dict_list):
+        class_dict = self.fields['Class']
         if 'classes' in class_dict:
             self.spell_types = class_dict['Primary_Spell_List']
             if len(self.spell_types) > 1:
-                multi_next_spells.append(self.spell_types[1])
+                self.multi_next_spell_type = self.spell_types[1]
         else:
-            self.spell_types = [class_dict['Primary_Spell_List'],]
-            multi_next_spells = []
+            self.spell_types = [ class_dict['Primary_Spell_List'], ]
         spell_list = []
-        for spell_dict in spells_dict_list:
-            if spell_dict['Type'] == self.spell_types[0] and spell_dict['Level'] == 1:
-                spell_tuple = (spell_dict['Name'], spell_dict)
-                spell_list.append(spell_tuple)
+        if self.spell_types[0] == self.pages['ChooseClassPage'].wizard_type:
+            for spell_dict in self.fields['SpellbookList']:
+                spell_tuple = ( spell_dict['Name'], spell_dict )
+                spell_list.append( spell_tuple )
+        else:
+            for spell_dict in spells_dict_list:
+                if spell_dict['Type'] == self.spell_types[0] and spell_dict['Level'] == 1:
+                    spell_tuple = ( spell_dict['Name'], spell_dict )
+                    spell_list.append( spell_tuple )
+
         return spell_list
 
-#    def prefill_chosen_spells(self, class_dict, spells_dict_list):
-#        prechosen_ids = []
-#        prechosen_spells = []
-#        if 'classes' in class_dict:
-#            spell_type = class_dict['Primary_Spell_List'][0]
-#        else:
-#            spell_type = class_dict['Primary_Spell_List']
-#        avail_list = [spell_dict for spell_dict in spells_dict_list if spell_dict['Type'] == spell_type and spell_dict['Level'] == 1]
-#        if spell_type == 'magic_user':
-#            prechosen_ids.append('read_magic')
-#            for spell in avail_list:
-#                if spell['spell_id'] == 'read_magic':
-#                    avail_list.remove(spell)
+    def prefill_chosen_spells( self, spells_dict_list ):
+        return []
 
-#        if spell_type == 'magic_user' or spell_type == 'illusionist':
-#            first_random = Dice.randomInt(0, len(avail_list) - 1)
-#            first_random_spell = avail_list.pop(first_random)
-#            prechosen_ids.append(first_random_spell['spell_id'])
+    def get_spell_slots( self ):
+        class_dict = self.fields['Class']
+        return get_spell_slots( class_dict )
 
-#            second_random = Dice.randomInt(0, len(avail_list) - 1)
-#            second_random_spell = avail_list.pop(second_random)
-#            prechosen_ids.append(first_random_spell['spell_id'])
-#            prechosen_ids.append(second_random_spell['spell_id'])
-
-#        for spell_dict in spells_dict_list:
-#            if spell_dict['spell_id'] in prechosen_ids:
-#                prechosen_spells.append((spell_dict['Name'], spell_dict, True))
-#        return prechosen_spells
-    def prefill_chosen_spells(self, class_dict, spells_dict_list):
-        return prefill_chosen_spells(class_dict, spells_dict_list, 0)
-
-    def get_spell_slots(self, class_dict, class_meta_dict_list):
-        if 'classes' in class_dict:
-            spell_type = class_dict['Primary_Spell_List'][0]
-            spell_type = spell_type.title().replace('_', '') + ' Spells:'
-        else:
-            spell_type = class_dict['Name'] + ' Spells:'
-        char_levels = [row for row in class_meta_dict_list if row['Type'] == 'xp table' and row['class_id'] == self.spell_types[0]]
-#        print char_levels
-        level_one = char_levels[0]
-        return (spell_type, level_one['Level_1_Spells'])
-
-    def get_next_page_id(self):
-        if multi_next_spells:
+    def get_next_page_id( self ):
+        if self.multi_next_spell_type:
             return SpellsPage2.page_id
         return ProficiencyPage.page_id
 
 class SpellsPage2(WizardPage):
     page_title = 'Choose Spells'
-    page_subtitle = 'Choose the spells for your character.'
+    page_subtitle = 'Choose the typical daily spell(s) for your character.'
     page_id = 80
     layout = 'horizontal'
     template = 'DualListPage'
-    slots = ('simple', 'get_spell_slots', '^$ F{Class} DB{classes_meta.cols(class_id, Type, Level_1_Spells, Level_1_Spells_Secondary)}')
+    slots = ('simple', 'get_spell_slots', '^$ ')
     content = ('Spells2',
-               'fill_list', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}', 'Description',
-               'prefill_chosen_spells', '^$ F{Class} DB{Spells.where(Type=Class:Primary_Spell_List)}')
+               'fill_list', '^$ DB{Spells}', 'Description',
+               'prefill_chosen_spells', '^$ DB{Spells}')
 
-    def fill_list(self, class_dict, spells_dict_list):
-#        print multi_next_spells
+    def fill_list(self, spells_dict_list):
         spell_list = []
-        for spell_dict in spells_dict_list:
-            if spell_dict['Type'] == multi_next_spells[0] and spell_dict['Level'] == 1:
+
+        if self.pages['SpellsPage'].multi_next_spell_type == self.pages['ChooseClassPage'].wizard_type:
+            for spell_dict in self.fields['SpellbookList']:
                 spell_tuple = (spell_dict['Name'], spell_dict)
-                spell_list.append(spell_tuple)
+                spell_list.append( spell_tuple )
+        else:
+            for spell_dict in spells_dict_list:
+                if spell_dict['Type'] == self.pages['SpellsPage'].multi_next_spell_type and spell_dict['Level'] == 1:
+                    spell_tuple = (spell_dict['Name'], spell_dict)
+                    spell_list.append( spell_tuple )
         return spell_list
 
-    def prefill_chosen_spells(self, class_dict, spells_dict_list):
-        return prefill_chosen_spells(class_dict, spells_dict_list, 1)
+    def prefill_chosen_spells( self, spells_dict_list ):
+        return []
 
-    def get_spell_slots(self, class_dict, class_meta_dict_list):
-#        print class_meta_dict_list[0]
-        spell_type = multi_next_spells[0]
-        spell_type = spell_type.title().replace('_', ' ') + ' Spells:'
-        char_levels = [row for row in class_meta_dict_list if row['Type'] == 'xp table' and row['class_id'] == multi_next_spells[0]]
-        level_one = char_levels[0]
-        return (spell_type, level_one['Level_1_Spells'])
+    def get_spell_slots( self ):
+        class_dict = self.fields['Class']
+        return get_spell_slots( class_dict, 1 )
 
 class ProficiencyPage(WizardPage):
     page_title = 'Weapon Proficiency'
@@ -700,7 +723,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
                 hp_temp = 0
-                if cl['Is_Warrior'].lower() == 'yes' or cl['Is_Warrior'].lower() == 'y':
+                if cl['Category'].lower() == 'warrior':
                     con_bonus = con_bonus_list[1]
                 else:
                     con_bonus = con_bonus_list[0]
@@ -710,7 +733,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                     hp_temp += int(con_bonus)
                 hp += hp_temp / len(class_dict['classes'])
         else:
-            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
+            if class_dict['Category'].lower() == 'warrior':
                 con_bonus = con_bonus_list[1]
             else:
                 con_bonus = con_bonus_list[0]
@@ -834,10 +857,10 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         is_warrior = False
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
-                if cl['Is_Warrior'].lower() == 'yes' or cl['Is_Warrior'].lower() == 'y':
+                if cl['Category'].lower() == 'warrior':
                     is_warrior = True
         else:
-            if class_dict['Is_Warrior'].lower() == 'yes' or class_dict['Is_Warrior'].lower() == 'y':
+            if class_dict['Category'].lower() == 'warrior':
                 is_warrior = True
 
         attr_dict = {}
@@ -917,16 +940,17 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         bonuses_dict = {}
         bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
         bonuses_dict['INT'] = 'Additional Languages: {}'
-        bonuses_dict['WIS'] = 'Mental Save: {}'
+        bonuses_dict['WIS'] = 'Mental Save: {}     Bonus Cleric Spells: {}     Cleric Spell Failure: {}%'
         bonuses_dict['DEX'] = 'Surprise: {}     Missile To Hit: {}     AC Adjustment: {}'
         bonuses_dict['CON'] = 'HP Bonus: {}   Resurrect/Raise Dead: {}%   System Shock: {}%'
         bonuses_dict['CHA'] = 'Max Henchman: {}     Loyalty: {}     Reaction: {}'
 
         return bonuses_dict[attr_key].format(*SystemSettings.get_attribute_bonuses(attr_key, score))
 
-    def get_pdf_markup(self, class_dict, race_dict):
+    def get_pdf_markup( self, class_dict, race_dict ):
         #print self.fields['INT']
         #print self.pages['EquipmentPage'].slots_remaining
+        level = 1
         class_dict = self.fields['Class']
         class_name = class_dict['Name']
         class_font_size = '14px'
@@ -941,8 +965,8 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         ext = ''
         race_portrait_path = 'systems/OSRIC/portraits/Races/'
         valid_images = [".jpg",".gif",".png",".jpeg"]
-        for f in os.listdir(race_portrait_path):
-            f_split = os.path.splitext(f)
+        for f in os.listdir( race_portrait_path ):
+            f_split = os.path.splitext( f )
             f_root = f_split[0]
             f_ext = f_split[1]
             if race_dict['unique_id'] == f_root and f_ext.lower() in valid_images:
@@ -951,16 +975,23 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                     break
         if ext == 'jpeg':
             ext = 'jpg'
-        with open(os.path.join(race_portrait_path, filename)) as portrait_file:
-            portrait = base64.b64encode(portrait_file.read())
+        with open( os.path.join( race_portrait_path, filename ) ) as portrait_file:
+            portrait = base64.b64encode( portrait_file.read() )
 
         equipment_list = self.fields['EquipmentList']
         proficiency_list = self.fields['ProficiencyList']
+        class_abilities = {}
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                class_abilities[ cl['Name'] ] = SystemSettings.get_class_abilities( level, self.attr_cache, cl )
+        else:
+            class_abilities[ class_dict['Name'] ] = SystemSettings.get_class_abilities( level, self.attr_cache, class_dict )
+        race_abilities = SystemSettings.get_race_abilities( race_dict )
         #print equipment_list
-        saves_dict = SystemSettings.get_saves(1, self.attr_cache, class_dict, race_dict)
-        money_dict = SystemSettings.get_coinage_from_float(self.pages['EquipmentPage'].slots_remaining)
+        saves_dict = SystemSettings.get_saves( 1, self.attr_cache, class_dict, race_dict )
+        money_dict = SystemSettings.get_coinage_from_float( self.pages['EquipmentPage'].slots_remaining )
         #print money_dict
-        movement_tuple = SystemSettings.calculate_movement(race_dict, class_dict, self.attr_cache, equipment_list)
+        movement_tuple = SystemSettings.calculate_movement( race_dict, class_dict, self.attr_cache, equipment_list )
         markup_template_dict = {
             'class_font_size': class_font_size,
             'class_padding': class_padding,
@@ -971,23 +1002,23 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'race': race_dict['Name'],
             'xp': 0,
             'hp': self.hp_cache,
-            'ac': SystemSettings.calculate_ac(self.attr_cache, class_dict, race_dict, equipment_list),
+            'ac': SystemSettings.calculate_ac( self.attr_cache, class_dict, race_dict, equipment_list ),
             'level': 1,
             'age': self.age_cache,
-            'height': str(self.height_weight_cache[0][0]) + 'ft ' + str(self.height_weight_cache[0][1]) + 'in',
-            'weight': str(self.height_weight_cache[1]) + ' lbs',
+            'height': str( self.height_weight_cache[0][0] ) + 'ft ' + str( self.height_weight_cache[0][1] ) + 'in',
+            'weight': str( self.height_weight_cache[1] ) + ' lbs',
             'portrait': portrait,
             'image_type': ext,
-            'tohit_row': '<td align=center>' + '</td><td align=center>'.join(SystemSettings.get_tohit_row(1, class_dict, race_dict)) + '</td>',
+            'tohit_row': '<td align=center>' + '</td><td align=center>'.join( SystemSettings.get_tohit_row( 1, class_dict, race_dict ) ) + '</td>',
             'movement_rate': movement_tuple[0],
             'movement_desc': movement_tuple[1],
             }
-        for attr_name in list(self.attr_cache.keys()):
+        for attr_name in list( self.attr_cache.keys() ):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
-            markup_template_dict[attr_name + '_bonus'] = self.get_attr_bonuses_string(attr_name, self.attr_cache[attr_name])
-        for save in list(saves_dict.keys()):
+            markup_template_dict[attr_name + '_bonus'] = self.get_attr_bonuses_string( attr_name, self.attr_cache[attr_name] )
+        for save in list( saves_dict.keys() ):
             markup_template_dict[save] = saves_dict[save]
-        for denomination in list(money_dict.keys()):
+        for denomination in list( money_dict.keys() ):
             markup_template_dict[denomination] = money_dict[denomination]
 
         markup = '''\
@@ -1071,6 +1102,14 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 
 .equip-legend {
     font-size: 8px;
+}
+
+table.ability {
+    font-size: 12px;
+}
+
+table.ability > tr > th {
+    padding: 2px;
 }
 
 .pre {
@@ -1157,10 +1196,39 @@ p.page-break {
 <div><b>Movement Rate: </b>$movement_rate ft/round<br />
 <b>Surprise: </b>$movement_desc</div>
 
-<hr />
-
-
+<p class=page-break></p>
+<h2>Ablities</h2>
 '''
+
+        if class_abilities:
+            for cl in list( class_abilities.keys() ):
+                markup += '\n<h5>{} Abilities</h5>\n'.format( cl )
+                for i, a in enumerate( class_abilities[cl] ):
+                    if a[0]:
+                        if i > 0:
+                            markup += '<br />'
+                        markup += '<b>{}: </b>{}\n'.format( *a )
+                    else:
+                        markup += '<table class=ability align=center border=1>\n<tr>'
+                        for h in a[1][0]:
+                            markup += '<th align=center>{}</th>'.format(h)
+                        markup += '</tr>\n<tr>'
+                        for d in a[1][1]:
+                            markup += '<td align=center>{}</td>'.format(d)
+                        markup += '</tr>\n</table>\n'
+
+        if race_abilities:
+            markup += '\n<h5>{} Abilites</h5>\n'.format( race_dict['Name'] )
+            markup += '<ul>\n'
+            for a in race_abilities:
+                markup += '<li>'
+                markup += a[0]
+                if a[1]:
+                    markup += ' {}'.format( a[1] )
+                if a[2]:
+                    markup += ' {}'.format( a[2] )
+                markup += '</li>\n'
+            markup += '</ul>\n'
 
         t = Template(markup)
         return t.safe_substitute(markup_template_dict)
