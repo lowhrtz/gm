@@ -125,6 +125,13 @@ bonuses = {
             (19, '20', '+50', '+40'),],
 }
 
+def has_spells_at_level(level, single_class_dict):
+    level_dict_list = [ row for row in single_class_dict['Classes_meta'] if row['Type'] == 'xp table' ]
+    level_dict = level_dict_list[level-1]
+    if level_dict['Casting_Level'] != 0 and level_dict['Casting_Level'] != '':
+        return True
+    return False
+
 def get_attribute_bonuses(attr_key, score):
     score = float(score)
     return_bonus = ()

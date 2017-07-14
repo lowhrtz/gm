@@ -19,9 +19,9 @@ MainWindow::MainWindow(QString systemPath, QWidget *parent)
     : QMainWindow(parent)
 {
     qRegisterMetaType< QList<PyObject *> >( "QList<PyObject *>" );
-    interpreter = new PythonInterpreter(systemPath);
     //interpreter->runModule(new QString("Db"));
     db = new DatabaseHandler(systemPath);
+    interpreter = new PythonInterpreter(systemPath, db);
     interpreter->loadSettings(db);
 
     QPixmap newpix(":/images/new.png");

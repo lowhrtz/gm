@@ -127,7 +127,7 @@
 'mace_heavy','Mace, heavy','10','10 gp','1d6+1','1d6','blunt','yes',,,,,
 'mace_light','Mace, light','5','4 gp','1d4+1','1d4+1','blunt','yes',,,,,
 'morning_star','Morning star','12','5 gp','2d4','1d6+1','blunt','yes',,,,,
-'oil','Oil','1','Proficiency','2d6','2d6','burning','yes','1','10 ft',,,'Splash damage is 1d3'
+'oil','Oil','1','Proficiency oil_lamp','2d6','2d6','burning','yes','1','10 ft',,,'Splash damage is 1d3'
 'pick_heavy','Pick, heavy','10','8 gp','1d6+1','2d4','piercing','yes',,,,,
 'pick_light','Pick, light','4','5 gp','1d4+1','1d4','piercing','yes',,,,,
 'pole_arm','Pole arm','8','6 gp','1d6+1','1d10','piercing','yes',,,,,

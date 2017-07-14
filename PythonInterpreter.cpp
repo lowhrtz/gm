@@ -7,7 +7,12 @@
 #include <iostream>
 using namespace std;
 
-PythonInterpreter::PythonInterpreter(QString systemPath) {
+DatabaseHandler *db_global;
+PythonInterpreter *pi_global;
+
+PythonInterpreter::PythonInterpreter(QString systemPath, DatabaseHandler *db) {
+    db_global = db;
+    pi_global = this;
     this->systemPath = systemPath;
     Py_SetProgramName((char *) "GM");
     QString pythonPath("./pylib:");
@@ -44,7 +49,8 @@ PythonInterpreter::~PythonInterpreter() {
 void PythonInterpreter::initPython() {
     Py_DontWriteBytecodeFlag = 1;
     Py_Initialize();
-    Py_InitModule("Dice", diceMethods);
+    Py_InitModule( "Dice", diceMethods );
+    Py_InitModule( "DbQuery", dbQueryMethods );
 
 #ifdef _WIN32
     QString pyPath("/Python27/Lib;pylib;");
@@ -808,4 +814,41 @@ PyObject *dice_randomInt(PyObject *self, PyObject *args) {
         return NULL;
     }
     return Py_BuildValue("i", dice.generateArbitraryRandomInt(lower_int, upper_int));
+}
+
+PyObject *dbQuery_getTable( PyObject *self, PyObject *args ) {
+    char *table_name;
+    if ( !PyArg_ParseTuple( args, "s", &table_name ) ) {
+        return NULL;
+    }
+
+    DatabaseHandler *db = db_global;
+    PythonInterpreter *pi = pi_global;
+
+    PyObject *row_list_obj = PyList_New( 0 );
+//    qInfo( "query_string: %s", query_string );
+    QList<QSqlRecord> sql_rows = db->getColRowsAsSqlRecord( table_name );
+    QString meta_table_name = pi->getMetaTableName( table_name );
+
+    for( Py_ssize_t i = 0 ; i < sql_rows.length() ; i++ ) {
+        QSqlRecord sql_row = sql_rows.at( i );
+        PyObject *row_dict = pi->makeDictFromSqlRecord( sql_row );
+        if( meta_table_name != NULL ) {
+            int refCol = pi->getMetaReferenceCol( meta_table_name );
+            QString refColName = db->getColName(meta_table_name, refCol);
+            QString refIndexName = pi->getReferenceIndexName( meta_table_name );
+            QString refName = PyString_AsString( PyDict_GetItemString( row_dict, refIndexName.toStdString().data() ) );
+            QList<QSqlRecord> meta_rows = db->getColRowsAsSqlRecord( meta_table_name, "*", refColName, refName );
+            PyObject *meta_list = PyList_New( 0 );
+            for( Py_ssize_t j = 0 ; j < meta_rows.length() ; j++ ) {
+                QSqlRecord meta_row = meta_rows.at( j );
+                PyObject *meta_row_dict = pi->makeDictFromSqlRecord( meta_row );
+                PyList_Append( meta_list, meta_row_dict );
+            }
+            PyDict_SetItemString( row_dict, meta_table_name.toStdString().data(), meta_list );
+        }
+        PyList_Append( row_list_obj, row_dict );
+    }
+
+    return row_list_obj;
 }

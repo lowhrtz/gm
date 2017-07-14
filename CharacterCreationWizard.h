@@ -47,6 +47,7 @@ public:
     QHash<QString, QString> attributes;
     QStringList attributeList;
     QHash<QString, QWidget *> field_name_to_widget_hash;
+    QStringList pyOnlyFields;
 
 private:
     PythonInterpreter *interpreter;

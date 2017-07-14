@@ -2,6 +2,7 @@
 from string import Template
 from WizardDefs import WizardPage
 import base64
+import DbQuery
 import Dice
 import os
 import SystemSettings
@@ -9,36 +10,36 @@ import SystemSettings
 def get_pc_gender_list():
     genList = []
     for gender in SystemSettings.gender:
-        if(gender != 'NA'):
-            genList.append(gender)
+        if( gender != 'NA' ):
+            genList.append( gender )
 
     return genList
 
 def get_attribute_names():
     attrList = []
     for attribute in SystemSettings.attributes:
-        attrList.append(attribute[0])
+        attrList.append( attribute[0] )
 
     return attrList
 
-def dice_tuple(dice_string):
-    dice_split = [d.strip() for d in dice_string.split('×')]
+def dice_tuple( dice_string ):
+    dice_split = [ d.strip() for d in dice_string.split('×') ]
     dice_and_add = dice_split[0]
-    dice_and_add = dice_and_add.replace('(', '').replace(')', '')
+    dice_and_add = dice_and_add.replace( '(', '' ).replace( ')', '' )
     dice_multiplier = None
-    if len(dice_split) > 1:
-        dice_multiplier = int(dice_split[1])
-    dice_and_add_split = [daa.strip() for daa in dice_and_add.split('+')]
+    if len( dice_split ) > 1:
+        dice_multiplier = int( dice_split[1] )
+    dice_and_add_split = [ daa.strip() for daa in dice_and_add.split('+') ]
     base_dice = dice_and_add_split[0]
     add = None
-    if len(dice_and_add_split) > 1:
-        add = int(dice_and_add_split[1])
+    if len( dice_and_add_split ) > 1:
+        add = int( dice_and_add_split[1] )
     base_dice_split = base_dice.split('d')
-    dice_number = int(base_dice_split[0])
-    dice_value = int(base_dice_split[1])
-    return (dice_number, dice_value, add, dice_multiplier)
+    dice_number = int( base_dice_split[0] )
+    dice_value = int( base_dice_split[1] )
+    return ( dice_number, dice_value, add, dice_multiplier )
 
-def dice_rating(dice_string):
+def dice_rating( dice_string ):
     dice_number, dice_value, add, dice_multiplier = dice_tuple(dice_string)
     rating = dice_number * dice_value
     if add:
@@ -47,12 +48,12 @@ def dice_rating(dice_string):
         rating *= dice_multiplier
     return rating
 
-def get_best_dice(dice_string_list):
+def get_best_dice( dice_string_list ):
     best = None
     for dice_string in dice_string_list:
         if best:
-            dice_string_rating = dice_rating(dice_string)
-            best_rating = dice_rating(best)
+            dice_string_rating = dice_rating( dice_string )
+            best_rating = dice_rating( best )
             if dice_string_rating > best_rating:
                 best = dice_string
         else:
@@ -60,180 +61,143 @@ def get_best_dice(dice_string_list):
 
     return best
 
-class IntroPage(WizardPage):
+class IntroPage( WizardPage ):
     page_title = "Intro"
     page_subtitle = "Intro Subtitle"
     page_id = 0
     content = "This is the wizard for creating your character."
 
-class CharacterCreationChoicePage(WizardPage):
+class CharacterCreationChoicePage( WizardPage ):
     page_title = "You Must Choose!"
     page_subtitle = "But choose wisely..."
     page_id = 10
     template = "infoPage"
     banner = "choose_banner.jpg"
-#    banner_style = 'border: 3px inset #999999;'
     content = [
-        ('text', 'How do you want to create your character?'),
-        ('fillHook-vertical', 'get_choices', None, 'radiobutton', 'index'),
+        ( 'text', 'How do you want to create your character?' ),
+        ( 'fillHook-CreationChoice-vertical', 'get_choices', None, 'radiobutton', 'index' ),
     ]
 
-    def get_choices(self):
+    def get_choices( self ):
         choices = [
             'Roll Attributes First',
             'Choose Race, Class, etc. First',
         ]
         return choices
 
-    def get_next_page_id(self, selected_radio=0):
+    def get_next_page_id( self ):
+        selected_radio = self.fields['CreationChoice']
         if selected_radio == 0:
             return RollMethodsPage.page_id
         else:
             return ChooseRacePage.page_id
 
-class RollMethodsPage(WizardPage):
+class RollMethodsPage( WizardPage ):
     page_title = "Roll Methods"
     page_subtitle = "Choose your roll method"
     page_id = 20
     template = "rollMethodsPage"
     attribute_list = get_attribute_names()
     content = [
-        ('classic', 'Classic', '3d6'),
-        ('classic+arrange', 'Classic with Arrange', '3d6'),
-        ('droplow', 'Drop Lowest', '4d6'),
-        ('droplow+arrange', 'Drop Lowest with Arrange', '4d6'),
-        ('pool', 'Distribute from a Pool of Points', '70'),
-        ('pool-forceuse', 'Distribute from a Pool of Points', '80'),
+        ( 'classic', 'Classic', '3d6' ),
+        ( 'classic+arrange', 'Classic with Arrange', '3d6' ),
+        ( 'droplow', 'Drop Lowest', '4d6' ),
+        ( 'droplow+arrange', 'Drop Lowest with Arrange', '4d6' ),
+        ( 'pool', 'Distribute from a Pool of Points', '70' ),
+        ( 'pool-forceuse', 'Distribute from a Pool of Points', '80' ),
     ]
 
-#    def get_next_page_id(self):
-#        return InfoPage.page_id
-
-class RollAttributesPage(WizardPage):
-    enabled = False
-    page_title = "Roll"
-    page_subtitle = "Roll for you character's attributes."
-    page_id = 3
-    template = "infoPage"
-    content = [
-        ('text','Roll your attributes.'),
-        ('fillHook','get_attributes',None,'spinbox',True),
-        ('buTTon','Reroll','roll_action'),
-        ('text','Warning: clicking "Back" will reset the scores.'),
-    ]
-
-    def get_attributes(self):
-        attrList = []
-        for attribute in SystemSettings.attributes:
-            attrList.append(attribute[0])
-
-        return attrList
-
-    def roll_action(self):
-        """Returns a tuple, details TBD"""
-        return ('Dice.rollDice','3d6', self.get_attributes())
-
-class InfoPage(WizardPage):
-    enabled = False
-    page_title = "Information"
-    page_subtitle = "Please enter personal information for your character."
-    page_id = 40
-    template = "InfoPage"
-    content = [
-        ('text', 'This is the basic information that you will build your character on.'),
-        ('field', 'Name', True),
-        ('choose', 'Alignment', 'Settings', 'alignment'),
-        ('choose', 'Race', 'DB', 'Races'),
-        ('choose', 'Gender', 'Function', get_pc_gender_list),
-        ('choose', 'Class', 'DB', 'Classes'),
-#        ('checkbox-checked', 'This is a spellcaster', 'bool'),
-    ]
-
-#    def get_next_page_id(self, checked=True):
-#        if checked:
-#            return 5
-#        else:
-#            return 6
-
-class ChooseRacePage(WizardPage):
+class ChooseRacePage( WizardPage ):
     page_title = "Choose Race"
     page_subtitle = "Choose from the available races"
     page_id = 50
     layout = 'horizontal'
     template = "InfoPage"
     content = [
-        ('image-method', 'RacePortrait', 'get_portrait', 'Race', 'border: 4px inset #777777;'),
-    #    The _ tells GM to hide the field name from view; it's still acessable by that name minus the _
-        ('listbox', 'Race_', 'method', 'get_available_races', '^$ WP{attributes} DB{races}'),
+        ( 'image-method', 'RacePortrait', 'get_portrait', 'Race', 'border: 4px inset #777777;' ),
+        #The _ tells GM to hide the field name from view; it's still acessable by that name minus the _
+        ( 'listbox', 'Race_', 'method', 'get_available_races', None ),
     ]
 
-    def get_available_races(self, attribute_dict, race_dict_list):
+    def get_available_races( self ):
+        race_dict_list = DbQuery.getTable( 'Races' )
+
+        #print 'STR: ' + self.fields['STR']
+        if self.fields['STR']:
+            attribute_dict = { attr : int( self.fields[attr] ) for attr in get_attribute_names() }
+        else:
+            attribute_dict = None
+
         if attribute_dict is None:
-            return [(race['Name'], race) for race in race_dict_list]
+            return [ ( race['Name'], race ) for race in race_dict_list ]
 
         l = []
-        attribute_dict = {k.lower():int(v) for k, v in attribute_dict.items()}
         for race in race_dict_list:
             allowed = True
             for attr in get_attribute_names():
-                attr = attr.capitalize()
-                min_score = race['Minimum_' + attr]
-                max_score = race['Maximum_' + attr]
-                if not min_score <= attribute_dict[attr.lower()] <= max_score:
+                attr_cap = attr.capitalize()
+                min_score = race[ 'Minimum_' + attr_cap ]
+                max_score = race[ 'Maximum_' + attr_cap ]
+                if not min_score <= attribute_dict[attr] <= max_score:
                     allowed = False
             if allowed:
-                l.append((race['Name'], race))
+                l.append( ( race['Name'], race ) )
 
         return l
 
-    def get_portrait(self, race_dict):
+    def get_portrait( self, race_dict ):
         race_id = race_dict['unique_id']
-        return 'portraits/Races/{filename}.jpg'.format(filename=race_id)
+        return 'portraits/Races/{filename}.jpg'.format( filename=race_id )
 
-class ChooseClassPage(WizardPage):
+class ChooseClassPage( WizardPage ):
     page_title = "Choose Class"
     page_subtitle = "Choose from the available classes"
     page_id = 60
     template = "infopage"
     layout = "Horizontal"
     content = [
-        ('image-method', 'ClassPortrait', 'get_portrait', 'Class', 'border: 4px outset #777777;'),
-        ('listbox-determinesNext', 'Class_', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta} DB{classes_meta.cols(class_id, Type, Level, Casting_Level)}', '^$ F{Class} DB{classes_meta.cols(class_id, Type, Level, Casting_Level)}'),
-#        ('choose', 'Class', 'method', 'get_available_classes', '^$ WP{attributes} DB{classes} F{Race} DB{races_meta.where(class_id=Class:unique_id)}'),
+        ( 'image-method', 'ClassPortrait', 'get_portrait', 'Class', 'border: 4px outset #777777;' ),
+        ( 'listbox', 'Class_', 'method', 'get_available_classes', None ),
     ]
 
-    def get_available_classes(self, attribute_dict, class_dict_list, race, race_meta_dict_list, class_meta_dict_list):
-        all_normal_classes = [(cl['Name'], cl) for cl in class_dict_list]
+    def get_available_classes( self ):
+        if self.fields['STR']:
+            attribute_dict = { attr : self.fields[attr] for attr in get_attribute_names() }
+        else:
+            attribute_dict = None
+        class_dict_list = DbQuery.getTable( 'Classes' )
+        race = self.fields['Race']
+        all_normal_classes = [ ( cl['Name'], cl ) for cl in class_dict_list ]
         if not race and attribute_dict is None:
             return all_normal_classes
 
         class_option_list = []
-        for race_meta_dict in race_meta_dict_list:
-            if race_meta_dict['race_id'] == race['unique_id'] and race_meta_dict['Type'] == 'class' and race_meta_dict['Subtype'] == 'permitted class options':
+        for race_meta_dict in race['Races_meta']:
+            if race_meta_dict['Type'] == 'class' and race_meta_dict['Subtype'] == 'permitted class options':
                 class_options = race_meta_dict['Modified']
-                for class_option in class_options.split(','):
+                for class_option in class_options.split( ',' ):
                     class_option = class_option.strip()
                     if '/' in class_option:
                         multiclass_dict = {
-                            'unique_id':class_option.replace('/', '_'),
-                            'Name':'',
-                            'Primary_Spell_List':[],
-                            'classes':[],
+                            'unique_id' : class_option.replace( '/', '_' ),
+                            'Name' : '',
+                            'Primary_Spell_List' : [],
+                            'classes' : [],
                         }
                         name_list = []
-                        for cl in class_option.split('/'):
-                            class_record = self.find_class_record(cl, class_dict_list)
-                            name_list.append(class_record['Name'])
-                            multiclass_dict['classes'].append(class_record)
-                            if class_record['Primary_Spell_List'] != 'None' and self.has_spells_at_level(1, class_meta_dict_list, class_record['unique_id']):
-                                multiclass_dict['Primary_Spell_List'].append(class_record['Primary_Spell_List'])
-                        multiclass_dict['Name'] = '/'.join(name_list)
-                        option_tuple = (multiclass_dict['Name'], multiclass_dict)
-                        class_option_list.append(option_tuple)
+                        for cl in class_option.split( '/' ):
+                            class_record = self.find_class_record( cl, class_dict_list )
+                            name_list.append( class_record['Name'] )
+                            multiclass_dict['classes'].append( class_record )
+                            if class_record['Primary_Spell_List'] != 'None' and SystemSettings.has_spells_at_level( 1, class_record ):
+                                multiclass_dict['Primary_Spell_List'].append( class_record['Primary_Spell_List'] )
+                        multiclass_dict['Name'] = '/'.join( name_list )
+                        option_tuple = ( multiclass_dict['Name'], multiclass_dict )
+                        class_option_list.append( option_tuple )
                     else:
-                        class_record = self.find_class_record(class_option, class_dict_list)
-                        option_tuple = (class_record['Name'], class_record)
-                        class_option_list.append(option_tuple)
+                        class_record = self.find_class_record( class_option, class_dict_list )
+                        option_tuple = ( class_record['Name'], class_record )
+                        class_option_list.append( option_tuple )
 
         if not class_option_list:
             class_option_list = all_normal_classes
@@ -242,7 +206,7 @@ class ChooseClassPage(WizardPage):
         if attribute_dict is not None:
             attribute_dict = {k.lower():int(v) for k, v in attribute_dict.items()}
 
-        allowed_normal_classes = [normal_class['Name'] for normal_class in class_dict_list if self.class_allowed(normal_class, attribute_dict)]
+        allowed_normal_classes = [ normal_class['Name'] for normal_class in class_dict_list if self.class_allowed( normal_class, attribute_dict ) ]
         for class_option in class_option_list:
             class_option_allowed = True
             for class_option_item in class_option[0].split('/'):
@@ -250,30 +214,33 @@ class ChooseClassPage(WizardPage):
                 if class_option_item not in allowed_normal_classes:
                     class_option_allowed = False
             if class_option_allowed:
-                allowed_list.append(class_option)
+                allowed_list.append( class_option )
 
         return allowed_list
 
-    def find_class_record(self, unique_id, class_dict_list):
+    def find_class_record( self, unique_id, class_dict_list ):
         for cl in class_dict_list:
             if cl['unique_id'] == unique_id:
                 return cl
 
-    def class_allowed(self, cl, attribute_dict):
+    def class_allowed( self, cl, attribute_dict ):
         allowed = True
-        minimum_scores = [i.strip() for i in cl['Minimum_Scores'].split(',')]
+        minimum_scores = [ i.strip() for i in cl['Minimum_Scores'].split( ',' ) ]
         for score in minimum_scores:
             score_key = score[:3].lower()
-            score_value = int(score[3:].strip())
+            score_value = int( score[3:].strip() )
             if attribute_dict is not None and attribute_dict[score_key] < score_value:
                 allowed = False
         return allowed
 
-    def get_portrait(self, class_dict):
+    def get_portrait( self, class_dict ):
         class_id = class_dict['unique_id']
         return 'portraits/Classes/{filename}.jpg'.format(filename=class_id)
 
-    def get_next_page_id(self, class_dict={}, class_meta_dict_list=[]):
+    def get_next_page_id( self ):
+        class_dict = self.fields['Class']
+        if not class_dict:
+            return -2
         wizard = False
         self.wizard_type = None
         spellcaster = False
@@ -284,27 +251,19 @@ class ChooseClassPage(WizardPage):
                         wizard = True
                         self.wizard_type = cl['unique_id']
                     if not spellcaster:
-                        spellcaster = self.has_spells_at_level(1, class_meta_dict_list, cl['unique_id'])
+                        spellcaster = SystemSettings.has_spells_at_level( 1, cl )
         else:
             if class_dict['Primary_Spell_List'] != 'None':
                 if class_dict['Category'] == 'wizard':
                     wizard = True
                     self.wizard_type = class_dict['unique_id']
-                spellcaster = self.has_spells_at_level(1, class_meta_dict_list, class_dict['unique_id'])
+                spellcaster = SystemSettings.has_spells_at_level( 1, class_dict )
 
         if wizard and spellcaster:
             return SpellbookPage.page_id
         if spellcaster:
             return SpellsPage.page_id
         return ProficiencyPage.page_id
-
-    def has_spells_at_level(self, level, class_meta_dict_list, class_id):
-        level_dict_list = [class_meta_dict for class_meta_dict in class_meta_dict_list if class_meta_dict['class_id'] == class_id and class_meta_dict['Type'] == 'xp table']
-        level_dict = level_dict_list[level-1]
-#        print class_id + ': ' + str(level_dict['Casting_Level'])
-        if level_dict['Casting_Level'] != 0 and level_dict['Casting_Level'] != '':
-            return True
-        return False
 
 def prefill_chosen_spells( spell_type, spells_dict_list ):
     prechosen_ids = []
@@ -331,26 +290,25 @@ def prefill_chosen_spells( spell_type, spells_dict_list ):
             prechosen_spells.append((spell_dict['Name'], spell_dict, True))
     return prechosen_spells
 
-class SpellbookPage(WizardPage):
+class SpellbookPage( WizardPage ):
     page_title = 'Choose Spells'
     page_subtitle = 'Choose the spell(s) in your spell book.'
-    page_id = 68
+    page_id = 65
     layout = 'horizontal'
     template = 'DualListPage'
-    slots = ( 'simple','get_spell_slots', '^$ ' )
+    slots = ( 'simple','get_spell_slots', '' )
     content = ( 'Spellbook',
-                'fill_list', '^$ DB{Spells}', 'Description',
-                'prefill_chosen_spells', '^$ DB{Spells}' )
+                'fill_list', '', 'Description',
+                'prefill_chosen_spells', '' )
 
     def get_spell_slots( self ):
-        #class_dict = self.fields['Class']
-
         if self.wizard_type == 'magic_user':
             return ( 'Magic User Spells: ', 1 )
         else:
             return ( '{} Spells: '.format( self.wizard_type.title().replace( '_', ' ' ) ), 2 )
 
-    def fill_list( self, spells_dict_list ):
+    def fill_list( self ):
+        spells_dict_list = DbQuery.getTable( 'Spells' )
         self.wizard_type = self.pages['ChooseClassPage'].wizard_type
         spell_list = []
         for spell_dict in spells_dict_list:
@@ -359,7 +317,8 @@ class SpellbookPage(WizardPage):
                 spell_list.append( spell_tuple )
         return spell_list
 
-    def prefill_chosen_spells( self, spells_dict_list ):
+    def prefill_chosen_spells( self ):
+        spells_dict_list = DbQuery.getTable( 'Spells' )
         return prefill_chosen_spells( self.wizard_type, spells_dict_list )
 
 def get_spell_slots( class_dict, index=0 ):
@@ -385,15 +344,15 @@ class SpellsPage( WizardPage ):
     page_id = 70
     layout = 'horizontal'
     template = 'DualListPage'
-    slots = ( 'simple','get_spell_slots','^$ ' )
+    slots = ( 'simple', 'get_spell_slots', '' )
     content = ('Spells',
-               'fill_list', '^$ DB{Spells}', 'Description',
-               'prefill_chosen_spells', '^$ DB{Spells}')
+               'fill_list', '', 'Description' )
 
     multi_next_spell_type = ''
 
-    def fill_list( self, spells_dict_list):
+    def fill_list( self ):
         class_dict = self.fields['Class']
+        spells_dict_list = DbQuery.getTable( 'Spells' )
         if 'classes' in class_dict:
             self.spell_types = class_dict['Primary_Spell_List']
             if len(self.spell_types) > 1:
@@ -413,9 +372,6 @@ class SpellsPage( WizardPage ):
 
         return spell_list
 
-    def prefill_chosen_spells( self, spells_dict_list ):
-        return []
-
     def get_spell_slots( self ):
         class_dict = self.fields['Class']
         return get_spell_slots( class_dict )
@@ -425,18 +381,19 @@ class SpellsPage( WizardPage ):
             return SpellsPage2.page_id
         return ProficiencyPage.page_id
 
-class SpellsPage2(WizardPage):
+
+class SpellsPage2( WizardPage ):
     page_title = 'Choose Spells'
     page_subtitle = 'Choose the typical daily spell(s) for your character.'
     page_id = 80
     layout = 'horizontal'
     template = 'DualListPage'
-    slots = ('simple', 'get_spell_slots', '^$ ')
-    content = ('Spells2',
-               'fill_list', '^$ DB{Spells}', 'Description',
-               'prefill_chosen_spells', '^$ DB{Spells}')
+    slots = ('simple', 'get_spell_slots', '')
+    content = ( 'Spells2',
+               'fill_list', '', 'Description' )
 
-    def fill_list(self, spells_dict_list):
+    def fill_list( self ):
+        spells_dict_list = DbQuery.getTable( 'Spells' )
         spell_list = []
 
         if self.pages['SpellsPage'].multi_next_spell_type == self.pages['ChooseClassPage'].wizard_type:
@@ -450,150 +407,162 @@ class SpellsPage2(WizardPage):
                     spell_list.append( spell_tuple )
         return spell_list
 
-    def prefill_chosen_spells( self, spells_dict_list ):
-        return []
-
     def get_spell_slots( self ):
         class_dict = self.fields['Class']
         return get_spell_slots( class_dict, 1 )
 
-class ProficiencyPage(WizardPage):
+class ProficiencyPage( WizardPage ):
     page_title = 'Weapon Proficiency'
     page_subtitle = 'Choose your proficiencies'
     page_id = 85
     layout = 'horizontal'
     template = 'dualListPage'
-    slots = ('simple', 'get_slots', '^$ F{Class} F{Race}')
-    content = ('Proficiency', 'fill_proficiencies', '^$ F{Class} F{Race} DB{Items.where(Is_Proficiency=yes)}')
+    slots = ( 'simple', 'get_slots', '' )
+    content = ( 'Proficiency', 'fill_proficiencies', '' )
 
-    def get_slots(self, class_dict, race_dict):
+    def get_slots( self ):
+        class_dict = self.fields['Class']
+        race_dict = self.fields['Race']
         if 'classes' in class_dict:
             cl_slots = []
             for cl in class_dict['classes']:
-                cl_slots.append(cl['Initial_Weapon_Proficiencies'])
-            #if race_dict['unique_id'] == 'dwarf' or race_dict['unique_id'] == 'half_orc':
+                cl_slots.append( cl['Initial_Weapon_Proficiencies'] )
             if race_dict['unique_id'] in SystemSettings.restrictive_races:
-                slots = min(cl_slots)
+                slots = min( cl_slots )
             else:
-                slots = max(cl_slots)
+                slots = max( cl_slots )
         else:
             slots = class_dict['Initial_Weapon_Proficiencies']
-        return ('Proficiency Slots:', slots)
+        return ( 'Proficiency Slots:', slots )
 
-    def race_wp(self, wp_list, race_id, item_dict_list):
-        blunt_list = [blunt['Name'].lower() for blunt in item_dict_list if 'blunt' in blunt['Damage_Type'].split(',')]
+    def race_wp( self, wp_list, race_id, item_dict_list ):
+        blunt_list = [ blunt['Name'].lower() for blunt in item_dict_list if 'blunt' in blunt['Damage_Type'].split( ',' ) ]
         race_wp = []
         wp_expand = []
         for wp in wp_list:
-            wp_expand.append([w.strip().lower() for w in wp.split(',')])
-        #if race_id == 'dwarf' or race_id == 'half_orc':
+            wp_expand.append( [ w.strip().lower() for w in wp.split( ',' ) ] )
         if race_id in SystemSettings.restrictive_races:
             bucket = wp_expand[0]
             if 'blunt' in bucket:
-                bucket.remove('blunt')
-                bucket.extend(blunt_list)
-            for i in range(1, len(wp_expand)):
+                bucket.remove( 'blunt' )
+                bucket.extend( blunt_list )
+            for i in range( 1, len( wp_expand ) ):
                 if 'blunt' in wp_expand[i]:
-                    wp_expand[i].remove('blunt')
-                    wp_expand[i].extend(blunt_list)
+                    wp_expand[i].remove( 'blunt' )
+                    wp_expand[i].extend( blunt_list )
                 if 'any' in bucket:
                     bucket = wp_expand[i]
                 elif 'any' in wp_expand[i]:
                     bucket = bucket
                 else:
-                    bucket = [w for w in bucket if w in wp_expand[i]]
-                #print bucket
+                    bucket = [ w for w in bucket if w in wp_expand[i] ]
+
         else:
-            wp_flat = sum(wp_expand, [])
+            wp_flat = sum( wp_expand, [] )
             bucket = []
             for wp in wp_flat:
                 if wp not in bucket:
-                    bucket.append(wp)
+                    bucket.append( wp )
         if 'any' in bucket:
-            bucket = ['any',]
+            bucket = [ 'any', ]
         return bucket
 
-    def fill_proficiencies(self, class_dict, race_dict, item_dict_list):
+    def fill_proficiencies( self ):
+        class_dict = self.fields['Class']
+        race_dict = self.fields['Race']
+        item_dict_list = [ i for i in DbQuery.getTable( 'Items' ) if i['Is_Proficiency'] == 'yes' ]
         if 'classes' in class_dict:
-            wp_list = [cl['Weapons_Permitted'] for cl in class_dict['classes']]
-            weapons_permitted = self.race_wp(wp_list, race_dict['unique_id'], item_dict_list)
+            wp_list = [ cl['Weapons_Permitted' ] for cl in class_dict[ 'classes' ] ]
+            weapons_permitted = self.race_wp( wp_list, race_dict['unique_id'], item_dict_list )
         else:
-            weapons_permitted = [weapon.strip().lower() for weapon in class_dict['Weapons_Permitted'].split(',')]
+            weapons_permitted = [ weapon.strip().lower() for weapon in class_dict['Weapons_Permitted'].split( ',' ) ]
         item_list = []
         for item_dict in item_dict_list:
-            item_tuple = (item_dict['Name'], item_dict)
-            damage_type_list = [damage_type.strip().lower() for damage_type in item_dict['Damage_Type'].split(',')]
+            item_tuple = ( item_dict['Name'], item_dict )
+            damage_type_list = [ damage_type.strip().lower() for damage_type in item_dict['Damage_Type'].split( ',' ) ]
             if 'any' in weapons_permitted:
-                item_list.append(item_tuple)
-            elif any(weapon in item_dict['Name'].lower() for weapon in weapons_permitted):
-                item_list.append(item_tuple)
-            elif [i for i in weapons_permitted if i in damage_type_list]:
-                item_list.append(item_tuple)
+                item_list.append( item_tuple )
+            elif any( weapon in item_dict['Name'].lower() for weapon in weapons_permitted ):
+                item_list.append( item_tuple )
+            elif [ i for i in weapons_permitted if i in damage_type_list ]:
+                item_list.append( item_tuple )
             elif 'single-handed swords (except bastard swords)' in weapons_permitted:
-                if item_dict['unique_id'].startswith('sword') and \
+                if item_dict['unique_id'].startswith( 'sword' ) and \
                 'both-hand' not in damage_type_list and 'two-hand' not in damage_type_list:
-                    item_list.append(item_tuple)
+                    item_list.append( item_tuple )
         return item_list
 
-class EquipmentPage(WizardPage):
+class EquipmentPage( WizardPage ):
     page_title = 'Equipment'
     page_subtitle = 'Choose your equipment'
     page_id = 90
     layout = 'horizontal'
     template = 'dualListPage'
-    slots = ('complex',
-        'get_starting_money', '^$ F{Class}',
-        'add_remove_item', '$^ F{EquipmentAvailable}',
-        'add_remove_item', '$^ F{Equipment}',
+    slots = ( 'complex',
+        'get_starting_money', '',
+        'add_item', '',
+        'remove_item', '',
         'is_complete', None)
     content = ('Equipment',
-        'fill_list', '^$ F{Class} DB{Items}', '$display',
-        'prefill_bought_list', '^$ F{Race} F{Class} DB{Items}')
+        'fill_list', '', '$display',
+        'prefill_bought_list', '')
 
-    def fill_list(self, class_dict, items_dict_list):
+    def fill_list( self ):
+        class_dict = self.fields['Class']
+        items_dict_list = DbQuery.getTable( 'Items' )
         item_list = []
         for item_dict in items_dict_list:
-            if item_dict['Cost'].lower() != 'not sold' and item_dict['Cost'].lower() != 'proficiency':
-                item_tuple = (item_dict['Name'] + ' - ' + item_dict['Cost'], item_dict)
-                item_list.append(item_tuple)
+            if item_dict['Cost'].lower() != 'not sold' and not item_dict['Cost'].lower().startswith( 'proficiency' ):
+                item_tuple = ( item_dict['Name'] + ' - ' + item_dict['Cost'], item_dict )
+                item_list.append( item_tuple )
 
         return item_list
 
-    def prefill_bought_list(self, race_dict, class_dict, items_dict_list):
+    def prefill_bought_list( self ):
+        race_dict = self.fields['Race']
+        class_dict = self.fields['Class']
+        items_dict_list = DbQuery.getTable( 'Items' )
         item_id_list = []
-#        print class_dict['unique_id']
         if race_dict['unique_id'] == 'elf' and 'fighter' in class_dict['unique_id']:
             percent = Dice.randomInt(1, 100)
             if percent <= 5:
-                item_id_list.append('armour_elfin_chain')
+                item_id_list.append( 'armour_elfin_chain' )
         if 'magic_user' in class_dict['unique_id'] or 'illusionist' in class_dict['unique_id']:
-            item_id_list.append('spellbook')
+            item_id_list.append( 'spellbook' )
         if 'cleric' in class_dict['unique_id']:
-            item_id_list.append('holy_symbol_pewter')
+            item_id_list.append( 'holy_symbol_pewter' )
         if 'druid' in class_dict['unique_id']:
-            item_id_list.append('holy_symbol_wooden')
+            item_id_list.append( 'holy_symbol_wooden' )
         if 'thief' in class_dict['unique_id'] or 'assassin' in class_dict['unique_id']:
-            item_id_list.append('thieves_tools')
+            item_id_list.append( 'thieves_tools' )
         item_list = []
         for item_dict in items_dict_list:
             if item_dict['unique_id'] in item_id_list:
-                item_list.append((item_dict['Name'] + ' - ' + item_dict['Cost'], item_dict))
+                item_list.append( ( item_dict['Name'] + ' - ' + item_dict['Cost'], item_dict ) )
 
         return item_list
 
-    def get_starting_money(self, class_dict):
+    def get_starting_money( self ):
+        class_dict = self.fields['Class']
         if 'classes' in class_dict:
             sm_list = []
             for cl in class_dict['classes']:
-                sm_list.append(cl['Initial_Wealth_GP'])
-            starting_money_string = get_best_dice(sm_list)
+                sm_list.append( cl['Initial_Wealth_GP'] )
+            starting_money_string = get_best_dice( sm_list )
         else:
             starting_money_string = class_dict['Initial_Wealth_GP']
-        #starting_money = roll_dice(starting_money_string)
-        starting_money = Dice.rollString(starting_money_string)
-        return ('Gold:', starting_money)
+        starting_money = Dice.rollString( starting_money_string )
+        return ( 'Gold:', starting_money )
 
-    def add_remove_item(self, equipment_dict):
+    def add_item( self ):
+        equipment_dict = self.fields['EquipmentAvailable']
+        return self.add_remove_item( equipment_dict )
+
+    def remove_item( self ):
+        equipment_dict = self.fields['Equipment']
+        return self.add_remove_item( equipment_dict )
+
+    def add_remove_item( self, equipment_dict ):
         cost_string = equipment_dict['Cost']
         if cost_string.lower() == 'not sold':
             return False
@@ -611,85 +580,69 @@ class EquipmentPage(WizardPage):
         if denomination:
             try:
                 ratio = SystemSettings.economy[denomination]
-                final_cost = ratio * float(cost)
+                final_cost = ratio * float( cost )
             except KeyError:
                 final_cost = cost
         else:
             final_cost = cost
-#        print final_cost
-        return (final_cost, False)
 
-    def is_complete(self):
+        return ( final_cost, False )
+
+    def is_complete( self ):
         return True
 
-class InfoPage(WizardPage):
+class InfoPage( WizardPage ):
     page_title = "Misc Information"
     page_subtitle = "Choose name, alignment and gender."
     page_id = 100
     template = "InfoPage"
     content = [
-        ('text', 'This is the basic information that you will build your character on.'),
-        ('field', 'Name', True),
-        ('choose', 'Alignment', 'method', 'get_availale_alignments', '^$ F{Class}'),
-        ('choose', 'Gender', 'Function', get_pc_gender_list),
+        ( 'text', 'This is the basic information that you will build your character on.' ),
+        ( 'field', 'Name', True ),
+        ( 'choose', 'Alignment', 'method', 'get_availale_alignments', '' ),
+        ( 'choose', 'Gender', 'Function', get_pc_gender_list ),
     ]
 
-    def get_availale_alignments(self, class_dict):
+    def get_availale_alignments( self ):
+        class_dict = self.fields['Class']
         alignment_options = []
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
-                alignment_options.append(cl['Alignment'])
+                alignment_options.append( cl['Alignment'] )
         else:
-            alignment_options.append(class_dict['Alignment'])
+            alignment_options.append( class_dict['Alignment'] )
 
-        alignment_list = list(SystemSettings.alignment)
+        alignment_list = list( SystemSettings.alignment )
         for align_option in alignment_options:
             if align_option == 'Any Good':
                 for align in SystemSettings.alignment:
-                    if align.endswith('Neutral') or align.endswith('Evil'):
-                        alignment_list.remove(align)
+                    if align.endswith( 'Neutral' ) or align.endswith( 'Evil' ):
+                        alignment_list.remove( align )
 
             elif align_option == 'Any Evil':
                 for align in SystemSettings.alignment:
-                    if align.endswith('Neutral') or align.endswith('Good'):
-                        alignment_list.remove(align)
+                    if align.endswith( 'Neutral' ) or align.endswith( 'Good' ):
+                        alignment_list.remove( align )
 
             elif align_option == 'Any Neutral or Evil':
                 for align in SystemSettings.alignment:
-                    if align.endswith('Good'):
-                        alignment_list.remove(align)
+                    if align.endswith( 'Good' ):
+                        alignment_list.remove( align )
 
             elif align_option == 'Neutral only':
-                alignment_list = ['True Neutral',]
+                alignment_list = [ 'True Neutral', ]
 
-            elif align_option.lower().endswith('only'):
-                alignment_list = [align_option[:-5],]
+            elif align_option.lower().endswith( 'only' ):
+                alignment_list = [ align_option[:-5], ]
 
         return alignment_list
 
-class ReviewPage(WizardPage):
+class ReviewPage( WizardPage ):
     page_title = "Review"
     page_subtitle = "Review Subtitle"
     page_id = 110
     layout = 'horizontal'
     template = 'InfoPage'
-#    content = [
-#        ('text', '''\
-#<b>Name:</b> F{Name}<br />
-#<b>Gender:</b> F{Gender}<br />
-#<b>Align:</b> F{Alignment}<br />
-#<b>Race:</b> F{Race}<br />
-#<b>Class:</b> F{Class}<br />
-#<br />
-#MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
-#        #('text', 'WP{attributes.roll_attributes(F{Race}, F{Class})}', True),
-##        ('text', 'MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}', True),
-#        ('listbox-halfwidth', 'All Spells', 'method', 'fill_items', '^$ F{SpellsList}'),
-#        ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
-#        ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
-#        ('listbox-halfwidth', 'Equip', 'method', 'fill_items', '^$ F{EquipmentList}'),
-#        ('button', 'Create PDF', 'printpdf', get_pdf_markup, '^$ F{Class}'),
-#    ]
 
     attr_cache = None
     hp_cache = None
@@ -706,20 +659,20 @@ class ReviewPage(WizardPage):
 <b>Class:</b> F{Class}<br />
 <br />
 MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
-            ('listbox-halfwidth', 'All Spells', 'method', 'fill_items', '^$ F{SpellsList}'),
-            ('listbox-halfwidth', ' ', 'method', 'fill_items', '^$ F{Spells2List}'),
-            ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_items', '^$ F{ProficiencyList}'),
-            ('listbox-halfwidth', 'Equip', 'method', 'fill_items', '^$ F{EquipmentList}'),
-            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, '^$ F{Class} F{Race}'),
+            ('listbox-halfwidth', 'All Spells', 'method', 'fill_spells1', ''),
+            ('listbox-halfwidth', ' ', 'method', 'fill_spells2', ''),
+            ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_proficiencies', ''),
+            ('listbox-halfwidth', 'Equip', 'method', 'fill_equipment', ''),
+            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, ''),
         ]
 
-    def roll_hp(self, level, attr_dict, class_dict):
+    def roll_hp( self, level, attr_dict, class_dict ):
         hp = 0
         con_score = attr_dict['CON']
-        con_bonus = SystemSettings.get_attribute_bonuses('CON', con_score)[0]
-        con_bonus_list = con_bonus.replace(' for Warriors)', '').split(' (')
+        con_bonus = SystemSettings.get_attribute_bonuses( 'CON', con_score )[0]
+        con_bonus_list = con_bonus.replace( ' for Warriors)', '' ).split(' (')
         if len(con_bonus_list) == 1:
-            con_bonus_list.append(con_bonus_list[0])
+            con_bonus_list.append( con_bonus_list[0] )
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
                 hp_temp = 0
@@ -727,11 +680,11 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                     con_bonus = con_bonus_list[1]
                 else:
                     con_bonus = con_bonus_list[0]
-                hit_dice_string = 'd{}'.format(cl['Hit_Die_Type'])
-                for i in range(0, int(level)):
-                    hp_temp += Dice.rollString(hit_dice_string)
-                    hp_temp += int(con_bonus)
-                hp += hp_temp / len(class_dict['classes'])
+                hit_dice_string = 'd{}'.format( cl['Hit_Die_Type'] )
+                for i in range( 0, int(level) ):
+                    hp_temp += Dice.rollString( hit_dice_string )
+                    hp_temp += int( con_bonus )
+                hp += hp_temp / len( class_dict['classes'] )
         else:
             if class_dict['Category'].lower() == 'warrior':
                 con_bonus = con_bonus_list[1]
@@ -744,11 +697,11 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 
         return hp
 
-    def roll_age(self):
+    def roll_age( self ):
         race_dict = self.fields['Race']
         class_dict = self.fields['Class']
 
-        starting_ages = [row for row in race_dict['Races_meta'] if row['Type'] == 'class' and row['Subtype'] == 'starting age']
+        starting_ages = [ row for row in race_dict['Races_meta'] if row['Type'] == 'class' and row['Subtype'] == 'starting age' ]
 
         class_groups = {'Cleric': ['cleric', 'druid'],
                         'Fighter': ['fighter', 'ranger', 'paladin'],
@@ -763,97 +716,91 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             for cl in class_dict['classes']:
                 for row in starting_ages:
                     if cl['unique_id'] in class_groups[row['Modified']]:
-                        bucket.append(row)
+                        bucket.append( row )
             rating = 0
             best_dice = ''
             for row in bucket:
-                new_rating = eval(row['Modifier'].replace('d', '*'))
+                new_rating = eval( row['Modifier'].replace( 'd', '*' ) )
                 if new_rating > rating:
                     rating = new_rating
                     best_dice = row['Modifier']
             dice_string = best_dice
         else:
             for row in starting_ages:
-                if class_dict['unique_id'] in class_groups[row['Modified']]:
+                if class_dict['unique_id'] in class_groups[ row['Modified'] ]:
                     dice_string = row['Modifier']
 
 
-        dice_string_list = dice_string.split('+')
+        dice_string_list = dice_string.split( '+' )
         dice_string = dice_string_list[1].strip() + '+' + dice_string_list[0].strip()
-#        print dice_string
-        return Dice.rollString(dice_string)
+        return Dice.rollString( dice_string )
 
-    def roll_height_weight(self):
+    def roll_height_weight( self ):
         race_dict = self.fields['Race']
         gender = self.fields['Gender']
 
-        height_table = [row for row in race_dict['Races_meta'] if row['Type'] == 'height table' and row['Subtype'] == gender.lower()]
-        weight_table = [row for row in race_dict['Races_meta'] if row['Type'] == 'weight table' and row['Subtype'] == gender.lower()]
+        height_table = [ row for row in race_dict['Races_meta'] if row['Type'] == 'height table' and row['Subtype'].lower() == gender.lower() ]
+        weight_table = [ row for row in race_dict['Races_meta'] if row['Type'] == 'weight table' and row['Subtype'].lower() == gender.lower() ]
 
-        height_roll = Dice.randomInt(1, 100)
-        weight_roll = Dice.randomInt(1, 100)
+        height_roll = Dice.randomInt( 1, 100 )
+        weight_roll = Dice.randomInt( 1, 100 )
 
-        def lookup(roll, table):
+        def lookup( roll, table ):
             for row in table:
                 d = row['Modifier']
                 result = row['Modified']
-                bounds = [int(b) for b in d.split('-')]
+                bounds = [ int(b) for b in d.split('-') ]
                 if roll >= bounds[0] and roll <= bounds[1]:
                     return result
 
-        height_result = lookup(height_roll, height_table)
-        weight_result = lookup(weight_roll, weight_table)
+        height_result = lookup( height_roll, height_table )
+        weight_result = lookup( weight_roll, weight_table )
 
-        height_result_list = height_result.split('+')
-        weight_result_list = weight_result.split('+')
+        height_result_list = height_result.split( '+' )
+        weight_result_list = weight_result.split( '+' )
 
         height_base = height_result_list[0].split()
-        height_base_in = int(height_base[0]) * 12 + int(height_base[2])
-        height_mod = height_result_list[1].replace(' in', '')
-        weight_base = weight_result_list[0].replace(' lbs', '')
-        weight_mod = weight_result_list[1].replace(' lbs', '')
+        height_base_in = int( height_base[0] ) * 12 + int( height_base[2] )
+        height_mod = height_result_list[1].replace( ' in', '' )
+        weight_base = weight_result_list[0].replace( ' lbs', '' )
+        weight_mod = weight_result_list[1].replace( ' lbs', '' )
 
-        height = height_base_in + Dice.rollString(height_mod)
+        height = height_base_in + Dice.rollString( height_mod )
         weight = int(weight_base) + Dice.rollString(weight_mod)
 
-        last_height_roll = Dice.rollString('d6')
-        last_weight_roll = Dice.rollString('d6')
+        last_height_roll = Dice.rollString( 'd6' )
+        last_weight_roll = Dice.rollString( 'd6' )
 
         while last_height_roll == 1 or last_height_roll == 6:
             height_sign = 1
             if last_height_roll == 1:
                 height_sign = -1
-            height = height + height_sign * Dice.rollString('1d4')
-            last_height_roll = Dice.rollString('d6')
+            height = height + height_sign * Dice.rollString( '1d4' )
+            last_height_roll = Dice.rollString( 'd6' )
 
-#        print weight, last_weight_roll
         while last_weight_roll == 1 or last_weight_roll == 6:
             weight_sign = 1
             if last_weight_roll == 1:
                 weight_sign = -1
-            weight = weight + weight_sign * Dice.rollString('1d20')
-            last_weight_roll = Dice.rollString('d6')
+            weight = weight + weight_sign * Dice.rollString( '1d20' )
+            last_weight_roll = Dice.rollString( 'd6' )
 
-#        print height
-        height_tuple = (height/12, height%12)
+        height_tuple = ( height / 12, height % 12 )
 
-#        print (height_tuple, weight)
-        return (height_tuple, weight)
+        return ( height_tuple, weight )
 
 
-    def adjust_attributes(self, attr_dict, race_dict):
-        #print race_dict
+    def adjust_attributes( self, attr_dict, race_dict ):
         for meta_row in race_dict['Races_meta']:
             if meta_row['Type'] == 'ability' and meta_row['Subtype'] == 'attribute':
                 attr_to_modify = meta_row['Modified'].upper()[:3]
                 modifier = meta_row['Modifier']
                 attr_orig_score = attr_dict[attr_to_modify]
-                new_score = eval(attr_orig_score + modifier)
-                attr_dict[attr_to_modify] = str(new_score)
+                new_score = eval( attr_orig_score + modifier )
+                attr_dict[attr_to_modify] = str( new_score )
         return attr_dict
 
-    def roll_attributes(self, wiz_attr_dict, race_dict, class_dict):
-        #print wiz_attr_dict
+    def roll_attributes( self, wiz_attr_dict, race_dict, class_dict ):
         is_warrior = False
         if 'classes' in class_dict:
             for cl in class_dict['classes']:
@@ -869,56 +816,52 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             if 'classes' in class_dict:
                 for cl in class_dict['classes']:
                     min_scores_string = cl['Minimum_Scores']
-                    min_scores_list = [score.strip() for score in min_scores_string.split(',')]
+                    min_scores_list = [ score.strip() for score in min_scores_string.split( ',' ) ]
                     for min_score in min_scores_list:
                         min_score_split = min_score.split()
                         attr = min_score_split[0]
-                        min_score = int(min_score_split[1])
+                        min_score = int( min_score_split[1] )
                         if attr not in min_dict:
                             min_dict[attr] = min_score
                         else:
-                            min_dict[attr] = max(min_score, min_dict[attr])
+                            min_dict[attr] = max( min_score, min_dict[attr] )
             else:
                 min_scores_string = class_dict['Minimum_Scores']
-                min_scores_list = [score.strip() for score in min_scores_string.split(',')]
+                min_scores_list = [ score.strip() for score in min_scores_string.split( ',' ) ]
                 for min_score in min_scores_list:
                     min_score_split = min_score.split()
                     attr = min_score_split[0]
-                    min_score = int(min_score_split[1])
+                    min_score = int( min_score_split[1] )
                     min_dict[attr] = min_score
 
-            if len(min_dict) < 6:
+            if len( min_dict ) < 6:
                 for attr in get_attribute_names():
                     if attr.title() not in min_dict:
-                        min_dict[attr.title()] = 3
+                        min_dict[ attr.title() ] = 3
 
             for attr in min_dict:
-                minimum = max(min_dict[attr], race_dict['Minimum_' + attr])
-                maximum = race_dict['Maximum_' + attr]
-                score = Dice.randomInt(minimum, maximum)
-                attr_dict[attr.upper()] = str(score)
-                #attr_dict[attr.upper()] = score
+                minimum = max( min_dict[attr], race_dict['Minimum_' + attr] )
+                maximum = race_dict[ 'Maximum_' + attr ]
+                score = Dice.randomInt( minimum, maximum )
+                attr_dict[ attr.upper() ] = str( score )
         else:
-            attr_dict = self.adjust_attributes(wiz_attr_dict, race_dict)
+            attr_dict = self.adjust_attributes( wiz_attr_dict, race_dict )
 
         for attr in attr_dict:
             if attr.lower() == 'str' and attr_dict[attr] == '18' and is_warrior:
                 score = 18
-                exceptional_strength = Dice.randomInt(1, 99) / float(100)
-                attr_dict[attr] = '{0:.2f}'.format(score + exceptional_strength)
+                exceptional_strength = Dice.randomInt( 1, 99 ) / float( 100 )
+                attr_dict[attr] = '{0:.2f}'.format( score + exceptional_strength )
 
-
-        #print race_dict['Races_meta'][0]['race_id']
         self.attr_cache = attr_dict
 
         # Now that we have guaranteed attributes lets roll for hp and cache the results
-        self.hp_cache = self.roll_hp(1, attr_dict, class_dict)
+        self.hp_cache = self.roll_hp( 1, attr_dict, class_dict )
 
         # Might as well roll age, height and weight too
         self.height_weight_cache = self.roll_height_weight()
         self.age_cache = self.roll_age()
 
-        #return attr_dict
         return '''\
 <b>Str:</b> {STR}<br />
 <b>Int:</b> {INT}<br />
@@ -928,15 +871,29 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
 <b>Cha:</b> {CHA}
     '''.format(**attr_dict)
 
-    def fill_items(self, items):
-        if len(items) > 0:
-            return [(item['Name'], item) for item in items]
+    def fill_items( self, items ):
+        if len( items ) > 0:
+            return [ ( item['Name'], item ) for item in items ]
         else:
             return []
 
-    def get_attr_bonuses_string(self, attr_key, score):
-        #print attr_key, score, class_dict
-        #score = int(score)
+    def fill_spells1( self ):
+        spells_dict_list = self.fields['SpellsList']
+        return self.fill_items( spells_dict_list )
+
+    def fill_spells2( self ):
+        spells_dict_list = self.fields['Spells2List']
+        return self.fill_items( spells_dict_list )
+
+    def fill_proficiencies( self ):
+        proficiencies_dict_list = self.fields['ProficiencyList']
+        return self.fill_items( proficiencies_dict_list )
+
+    def fill_equipment( self ):
+        equip_dict_list = self.fields['EquipmentList']
+        return self.fill_items( equip_dict_list )
+
+    def get_attr_bonuses_string( self, attr_key, score ):
         bonuses_dict = {}
         bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
         bonuses_dict['INT'] = 'Additional Languages: {}'
@@ -945,26 +902,23 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         bonuses_dict['CON'] = 'HP Bonus: {}   Resurrect/Raise Dead: {}%   System Shock: {}%'
         bonuses_dict['CHA'] = 'Max Henchman: {}     Loyalty: {}     Reaction: {}'
 
-        return bonuses_dict[attr_key].format(*SystemSettings.get_attribute_bonuses(attr_key, score))
+        return bonuses_dict[attr_key].format( *SystemSettings.get_attribute_bonuses( attr_key, score ) )
 
-    def get_pdf_markup( self, class_dict, race_dict ):
-        #print self.fields['INT']
-        #print self.pages['EquipmentPage'].slots_remaining
+    def get_pdf_markup( self ):
         level = 1
         class_dict = self.fields['Class']
         class_name = class_dict['Name']
         class_font_size = '14px'
         class_padding = '0px'
-        if len(class_name) > 15:
+        if len( class_name ) > 15:
             class_font_size = '8px'
             class_padding = '4px'
-        #print class_font_size
         race_dict = self.fields['Race']
 
         filename = ''
         ext = ''
         race_portrait_path = 'systems/OSRIC/portraits/Races/'
-        valid_images = [".jpg",".gif",".png",".jpeg"]
+        valid_images = [ ".jpg", ".gif", ".png", ".jpeg" ]
         for f in os.listdir( race_portrait_path ):
             f_split = os.path.splitext( f )
             f_root = f_split[0]
@@ -987,6 +941,9 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         else:
             class_abilities[ class_dict['Name'] ] = SystemSettings.get_class_abilities( level, self.attr_cache, class_dict )
         race_abilities = SystemSettings.get_race_abilities( race_dict )
+        spellbook = self.fields['SpellbookList']
+        spells_daily = self.fields['SpellsList']
+        spells2_daily = self.fields['Spells2List']
         #print equipment_list
         saves_dict = SystemSettings.get_saves( 1, self.attr_cache, class_dict, race_dict )
         money_dict = SystemSettings.get_coinage_from_float( self.pages['EquipmentPage'].slots_remaining )
@@ -1015,7 +972,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             }
         for attr_name in list( self.attr_cache.keys() ):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
-            markup_template_dict[attr_name + '_bonus'] = self.get_attr_bonuses_string( attr_name, self.attr_cache[attr_name] )
+            markup_template_dict[ attr_name + '_bonus' ] = self.get_attr_bonuses_string( attr_name, self.attr_cache[attr_name] )
         for save in list( saves_dict.keys() ):
             markup_template_dict[save] = saves_dict[save]
         for denomination in list( money_dict.keys() ):
@@ -1230,66 +1187,45 @@ p.page-break {
                 markup += '</li>\n'
             markup += '</ul>\n'
 
+        spellcaster = False
+        if 'classes' in class_dict:
+            for cl in class_dict['classes']:
+                if SystemSettings.has_spells_at_level( level, cl ):
+                    spellcaster = True
+        else:
+            if SystemSettings.has_spells_at_level( level, class_dict ):
+                spellcaster = True
+
+        if spellcaster:
+            spell_item_string = '''
+<h3>{Name}</h3>
+<b>Reversible: </b>{Reversible}<br/>
+<b>Level: </b>{Level}<br />
+<b>Damage: </b>{Damage}<br />
+<b>Range: </b>{Range}<br />
+<b>Duration: </b>{Duration}<br />
+<b>Area of Effect: </b>{Area_of_Effect}<br />
+<b>Components: </b>{Components}<br />
+<b>Casting Time: </b>{Casting_Time}<br />
+<b>Saving Throw: </b>{Saving_Throw}<br />
+<b>Description: </b><span class=pre>{Description}</span><br /><br />
+'''
+            markup += '<p class=page-break></p>\n<h2>Spells</h2>\n'
+            if spellbook:
+                markup += '<h5>Spellbook</h5>\n<hr />'
+                for spell in spellbook:
+                    markup += spell_item_string.format( **spell )
+                markup += '<hr />\n'
+            if spells_daily:
+                markup += '<h5>{} Daily Spells</h5>\n<hr />'.format( spells_daily[0]['Type'].title().replace( '_', ' ' ) )
+                for spell in spells_daily:
+                    markup += spell_item_string.format( **spell )
+                markup += '<hr />\n'
+            if spells2_daily:
+                markup += '<h5>{} Daily Spells</h5>\n<hr />'.format( spells2_daily[0]['Type'].title().replace( '_', ' ' ) )
+                for spell in spells2_daily:
+                    markup += spell_item_string.format( **spell )
+                markup += '<hr />\n'
+
         t = Template(markup)
-        return t.safe_substitute(markup_template_dict)
-
-class ChooseLangPage(WizardPage):
-    enabled = False
-    page_title = 'Choose Language'
-    page_subtitle = 'Choose a language'
-    page_id = 120
-    template = 'DualListPage'
-    layout = 'Horizontal'
-    slots = ('simple', 'get_slots', '^$ F{Race} WP{' + str(ReviewPage.page_id)  + '.attr_cache}')
-    content = ('Languages', 'fill_langs', '')
-
-    def get_slots(self, race_dict, attr_dict):
-        int_score = int(attr_dict['INT'])
-        if int_score < 8:
-            langs = 0
-        elif int_score < 10:
-            langs = 1
-        elif int_score < 12:
-            langs = 2
-        elif int_score < 14:
-            if race_dict['unique_id'] == 'human':
-                langs = 3
-            else:
-                langs = 2
-        elif int_score < 16:
-            if race_dict['unique_id'] == 'human':
-                langs = 4
-            else:
-                langs = 2
-        elif int_score == 16:
-            if race_dict['unique_id'] == 'human':
-                langs = 5
-            else:
-                langs = 2
-        elif int_score == 17:
-            if race_dict['unique_id'] == 'human':
-                langs = 6
-            else:
-                langs = 2
-        elif int_score == 18:
-            if race_dict['unique_id'] == 'human':
-                langs = 7
-            else:
-                langs = 2
-        elif int_score == 19:
-            if race_dict['unique_id'] == 'human':
-                langs = 7
-            elif race_dict['unique_id'] == 'elf':
-                langs = 3
-            else:
-                langs = 2
-        return ('Languages', langs)
-
-    def fill_langs(self):
-        return [('Dwarfish', {}),
-                ('Gnomish', {}),
-                ('Goblin', {}),
-                ('Kobold', {}),
-                ('Orcish', {}),
-                ('Common', {}),
-               ]
+        return t.safe_substitute( markup_template_dict )

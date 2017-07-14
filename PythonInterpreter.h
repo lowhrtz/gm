@@ -21,10 +21,22 @@ static PyMethodDef diceMethods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+class PythonInterpreter;
+
+extern DatabaseHandler *db_global;
+extern PythonInterpreter *pi_global;
+
+extern "C" PyObject *dbQuery_getTable( PyObject *self, PyObject *args );
+static PyMethodDef dbQueryMethods[] = {
+    { "getTable", dbQuery_getTable, METH_VARARGS,
+        "Return python object representation of db table." },
+    {NULL, NULL, 0, NULL}
+};
+
 class PythonInterpreter
 {
 public:
-    PythonInterpreter(QString systemPath);
+    PythonInterpreter(QString systemPath, DatabaseHandler *db);
     ~PythonInterpreter();
 //    static PyObject *dice_rollString(PyObject *self, PyObject *args);
     void initPython();
