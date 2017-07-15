@@ -8,7 +8,7 @@
 
 class PDFCreator {
 public:
-    PDFCreator(QString markup);
+    PDFCreator( QString markup , QString defaultFilename );
     void save();
 
 private:

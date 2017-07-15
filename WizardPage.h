@@ -250,18 +250,12 @@ private:
 
 };
 
-//template <class T> class VPtr
-//{
-//public:
-//    static T* asPtr(QVariant v)
-//    {
-//    return  (T *) v.value<void *>();
-//    }
+class ChoosePortraitPage : public WizardPage {
 
-//    static QVariant asQVariant(T* ptr)
-//    {
-//    return qVariantFromValue((void *) ptr);
-//    }
-//};
+    Q_OBJECT
+
+public:
+    ChoosePortraitPage( PyObject *pyWizardPageInstance, QWidget *parent = 0 );
+};
 
 #endif // WIZARDPAGE_H

@@ -700,12 +700,21 @@ class InfoPage( WizardPage ):
 
         return alignment_list
 
+class ChoosePortraitPage( WizardPage ):
+    page_title = 'Choose Portrait'
+    page_subtitle = 'Choose a portrait for your character.'
+    page_id = 105
+    layout = 'vertical'
+    template = 'ChoosePortraitPage'
+    content = ( 'Portrait', 'portraits', 'border: 4px outset #777777;' )
+
 class ReviewPage( WizardPage ):
     page_title = "Review"
     page_subtitle = "Review Subtitle"
     page_id = 110
     layout = 'horizontal'
     template = 'InfoPage'
+    custom_button1 = 'Save PDF'
 
     attr_cache = None
     hp_cache = None
@@ -978,22 +987,14 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             class_padding = '4px'
         race_dict = self.fields['Race']
 
-        filename = ''
-        ext = ''
-        race_portrait_path = 'systems/OSRIC/portraits/Races/'
-        valid_images = [ ".jpg", ".gif", ".png", ".jpeg" ]
-        for f in os.listdir( race_portrait_path ):
-            f_split = os.path.splitext( f )
-            f_root = f_split[0]
-            f_ext = f_split[1]
-            if race_dict['unique_id'] == f_root and f_ext.lower() in valid_images:
-                    filename = f
-                    ext = f_ext
-                    break
+        filename = self.fields['Portrait']
+        #print filename
+        with open( filename ) as portrait_file:
+            portrait = base64.b64encode( portrait_file.read() )
+        filename_split = os.path.splitext( filename )
+        ext = filename_split[0]
         if ext == 'jpeg':
             ext = 'jpg'
-        with open( os.path.join( race_portrait_path, filename ) ) as portrait_file:
-            portrait = base64.b64encode( portrait_file.read() )
 
         equipment_list = self.fields['EquipmentList']
         proficiency_list = self.fields['ProficiencyList']
@@ -1298,4 +1299,5 @@ p.page-break {
                 markup += '<hr />\n'
 
         t = Template(markup)
-        return t.safe_substitute( markup_template_dict )
+        final_markup = t.safe_substitute( markup_template_dict )
+        return ( '{}.pdf'.format( self.fields['Name'] ), final_markup )

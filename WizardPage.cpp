@@ -8,8 +8,10 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QDirIterator>
 #include <QDrag>
 #include <QDragMoveEvent>
+#include <QFileDialog>
 #include <QGridLayout>
 #include <QIntValidator>
 #include <QLineEdit>
@@ -97,6 +99,7 @@ void WizardPage::publicRegisterField( const QString &name, QWidget *widget, cons
 }
 
 void WizardPage::cleanupPage() {
+    wizard->setOption(QWizard::HaveCustomButton1, false);
 }
 
 void WizardPage::initializePage() {
@@ -872,6 +875,7 @@ bool RollMethodsPage::validatePage(){
 }
 
 void RollMethodsPage::cleanupPage() {
+    WizardPage::cleanupPage();
     wizard->attributes.clear();
 }
 
@@ -1460,6 +1464,17 @@ InfoPage::InfoPage(PyObject *pyWizardPageInstance, QWidget *parent) :
             });
         }
     }
+
+//    PyObject *custom_button_label_obj = PyObject_GetAttrString( pyWizardPageInstance, "custom_button1" );
+//    if ( custom_button_label_obj != Py_None ) {
+//        QString custom_button_label = PyString_AsString( custom_button_label_obj );
+//        wizard->setButtonText( QWizard::CustomButton1, custom_button_label );
+//        wizard->setOption(QWizard::HaveCustomButton1, true);
+//    } else {
+//        wizard->setOption(QWizard::HaveCustomButton1, false);
+//    }
+
+
 }
 
 void InfoPage::initializePage() {
@@ -1513,9 +1528,19 @@ void InfoPage::initializePage() {
         QString parsed_string = parseTextTemplateString(lwtt.getTemplateString());
         label->setText(parsed_string);
     }
+
+    PyObject *custom_button_label_obj = PyObject_GetAttrString( pyWizardPageInstance, "custom_button1" );
+    if ( custom_button_label_obj != Py_None ) {
+        QString custom_button_label = PyString_AsString( custom_button_label_obj );
+        qInfo( "custom_button_label: %s", custom_button_label.toStdString().data() );
+        wizard->setButtonText( QWizard::CustomButton1, custom_button_label );
+        wizard->setOption(QWizard::HaveCustomButton1, true);
+    }
+
 }
 
 void InfoPage::cleanupPage() {
+    WizardPage::cleanupPage();
     foreach(QObject *child, children()) {
         if(strcmp(child->metaObject()->className(), "StackedWidget") == 0) {
             StackedWidget *stacked = (StackedWidget *) child;
@@ -1561,16 +1586,19 @@ void InfoPage::addParsableString(QLabel *label, QString templateString) {
     page_init_string_parse.append(widget_with_text_template);
 }
 
-void InfoPage::buttonPushedPDF(PyObject *callable, QString arg_template) {
-    PyObject *args = parseArgTemplateString(arg_template);
-    PyObject *callable_return = PyObject_CallObject(callable, args);
+void InfoPage::buttonPushedPDF( PyObject *callable, QString arg_template ) {
+    PyObject *args = parseArgTemplateString( arg_template );
+    PyObject *callable_return = PyObject_CallObject( callable, args );
     PyErr_Print();
-    if(!PyString_Check(callable_return)) {
-        qInfo("Callable doesn't return string.");
+    if(!PyTuple_Check( callable_return ) ) {
+        qInfo( "Callable doesn't return a tuple." );
     }
-    QString markup = PyString_AsString(callable_return);
+    PyObject *filename_obj = PyTuple_GetItem( callable_return, 0 );
+    PyObject *markup_obj = PyTuple_GetItem( callable_return, 1 );
+    QString filename = PyString_AsString( filename_obj );
+    QString markup = PyString_AsString( markup_obj );
 //    qInfo("markup: %s", markup.toStdString().data());
-    PDFCreator *pdf = new PDFCreator(parseTextTemplateString(markup));
+    PDFCreator *pdf = new PDFCreator( parseTextTemplateString( markup ), filename );
     pdf->save();
 }
 
@@ -2148,6 +2176,7 @@ void DualListSelection::initializePage() {
 }
 
 void DualListSelection::cleanupPage() {
+    WizardPage::cleanupPage();
     firstList->clear();
     secondList->clear();
     if(slotsType.toLower() == "complex") {
@@ -2217,4 +2246,95 @@ void QLabelWithTextTemplate::setLabel(QLabel *label) {
 
 void QLabelWithTextTemplate::setTemplateString(QString templateString) {
     this->templateString = templateString;
+}
+
+ChoosePortraitPage::ChoosePortraitPage(PyObject *pyWizardPageInstance, QWidget *parent) :
+    WizardPage( pyWizardPageInstance, parent ) {
+
+    PyObject *py_content;
+    Py_ssize_t py_content_size;
+    QLabel *portrait_label;
+    StackedWidget *selector;
+    QBoxLayout *layout;
+    QBoxLayout *list_and_button_layout;
+    QString field_name, relative_portrait_path;
+    QLineEdit *hidden_field;
+    QString system_path_string( wizard->getPythonInterpreter()->getSystemPath() );
+    QStringList name_filters;
+    QPushButton *open_file;
+
+    portrait_label = new QLabel(this);
+    hidden_field = new QLineEdit;
+    hidden_field->setHidden( true );
+    selector = new StackedWidget( this, "listbox", wizard->getDb(), wizard->getPythonInterpreter() );
+    int height = 213;
+
+    QPixmap image_pixmap = QPixmap(":/images/noImage.jpg").scaledToHeight( height );
+    portrait_label->setPixmap( image_pixmap );
+
+    py_content = PyObject_CallMethod(pyWizardPageInstance, (char *) "get_content", NULL);
+    py_content_size = PyTuple_Size( py_content );
+
+    // get_content should return a tuple containing the field name string and a string path for the default folder where the default portraits can be found
+    if ( !PyTuple_Check( py_content ) ) {
+        PyErr_Print();
+        qInfo( "The content attribute of a ChoosePortraitPage class should be a tuple." );
+        return;
+    }
+    PyObject *field_name_obj = PyTuple_GetItem( py_content, 0 );
+    PyObject *relative_portrait_path_obj = PyTuple_GetItem( py_content, 1 );
+    if ( py_content_size > 2 ) {
+        PyObject *style_string_obj = PyTuple_GetItem( py_content, 2 );
+        QString style_string = PyString_AsString( style_string_obj );
+        portrait_label->setStyleSheet( style_string );
+    }
+    field_name = PyString_AsString( field_name_obj );
+    relative_portrait_path = PyString_AsString( relative_portrait_path_obj );
+    QDir portrait_path( QDir( system_path_string ).filePath( relative_portrait_path ) );
+    //qInfo( "portrait_path: %s", portrait_path.absolutePath().toStdString().data() );
+    name_filters.append( "*.jpg" );
+    name_filters.append( "*.jpeg" );
+    name_filters.append( "*.png" );
+    name_filters.append( "*.gif" );
+
+    portrait_path.setNameFilters( name_filters );
+    QDirIterator it( portrait_path, QDirIterator::Subdirectories );
+    while ( it.hasNext() ) {
+        QString file_path = it.next();
+        PyObject *file_path_obj = PyString_FromString( file_path.toStdString().data() );
+        QString file_name = it.fileName();
+        //qInfo( "file: %s", file_path.toStdString().data() );
+        selector->addItem( file_name, file_path_obj );
+    }
+
+    connect( selector, &StackedWidget::currentItemChanged, [=] ( int index ) {
+        PyObject *data_obj = selector->getData( index );
+        QString data = PyString_AsString( data_obj );
+        QPixmap portrait( data );
+        portrait = portrait.scaledToHeight( height );
+        portrait_label->setPixmap( portrait );
+        hidden_field->setText( data );
+    });
+
+    open_file = new QPushButton( "Open File" );
+
+    connect( open_file, &QPushButton::clicked, [=] ( bool checked ) {
+        QString user_filename = QFileDialog::getOpenFileName( this, "Open Image", QDir::homePath() );
+        if ( !user_filename.isNull() ) {
+            portrait_label->setPixmap( QPixmap( user_filename ).scaledToHeight( height ) );
+            hidden_field->setText( user_filename );
+        }
+    });
+
+    layout = new QHBoxLayout;
+    list_and_button_layout = new QVBoxLayout;
+    layout->addWidget( portrait_label );
+    list_and_button_layout->addWidget( selector );
+    list_and_button_layout->addWidget( open_file );
+    layout->addLayout( list_and_button_layout );
+
+    this->setLayout( layout );
+
+    publicRegisterField( field_name, hidden_field );
+
 }

@@ -86,6 +86,8 @@ WizardPage *CharacterCreationWizard::getWizardPage(PyObject *pyWizardPage) {
         return new RollMethodsPage(pyWizardPageInstance, this);
     } else if(pageTemplate.toLower() == "duallistpage") {
         return new DualListSelection(pyWizardPageInstance, this);
+    } else if( pageTemplate.toLower() == "chooseportraitpage" ) {
+        return new ChoosePortraitPage( pyWizardPageInstance, this );
     }
 
     pageTitle = PyString_AsString(PyObject_CallMethod(pyWizardPageInstance, (char *) "get_page_title", NULL));
