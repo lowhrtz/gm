@@ -2044,19 +2044,44 @@ void DualListSelection::initializePage() {
                    callable_return = PyObject_CallObject(callable, NULL);
                    PyErr_Print();
                }
-               // Expects a tuple: (amount to subtract from total, boolean on whether to remove item)
-               PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
-               double subtract_amount = PyFloat_AsDouble(sub_object);
-               bool remove_item = PyTuple_GetItem(callable_return, 1) == Py_True;
-               if((slotsTotalFloat - subtract_amount) >= 0) {
-                   secondList->addItem(firstList->getCurrentItemText(), firstList->getData(current_index), firstList->getCurrentToolTip());
-                   slotsTotalFloat = slotsTotalFloat - subtract_amount;
-                   slotsTotalLabel->setText(QString::number(slotsTotalFloat));
-                   if(remove_item) {
-                       secondListIndices.append(firstListIndices.takeAt(current_index));
-                       firstList->takeItem(current_index);
+               if ( callable_return != Py_False ) {
+                   // Expects a tuple: (amount to subtract from total, boolean on whether to remove item, (optional) new display string, (optional) bool on wether to replace if it exists in the new list already)
+                   PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
+                   double subtract_amount = PyFloat_AsDouble(sub_object);
+                   bool remove_item = PyTuple_GetItem(callable_return, 1) == Py_True;
+                   int tuple_size = PyTuple_Size( callable_return );
+                   QString new_display = firstList->getCurrentItemText();
+                   if ( tuple_size > 2 ) {
+                       PyObject *new_display_obj = PyTuple_GetItem(callable_return, 2);
+                       new_display = PyString_AsString( new_display_obj);
                    }
-                   emit completeChanged();
+
+                   if((slotsTotalFloat - subtract_amount) >= 0) {
+                       slotsTotalFloat = slotsTotalFloat - subtract_amount;
+                       slotsTotalLabel->setText(QString::number(slotsTotalFloat));
+                       if(remove_item) {
+                           secondListIndices.append(firstListIndices.takeAt(current_index));
+                           firstList->takeItem(current_index);
+                       }
+                       if ( tuple_size > 3 ) {
+                           bool replace = PyTuple_GetItem( callable_return, 3 ) == Py_True;
+                           if ( replace ) {
+                               PyObject *current_data = firstList->getData( firstList->getCurrentItemIndex() );
+                               //qInfo( "current index: %i", firstList->getCurrentItemIndex() );
+                               if ( secondList->getDataList().contains( current_data ) ) {
+                                   int second_list_item_index = secondList->getDataList().indexOf( current_data );
+                                   ( ( QListWidget * ) secondList->currentWidget() )->item( second_list_item_index )->setText( new_display );
+                               } else {
+                                   secondList->addItem( new_display, firstList->getData(current_index), firstList->getCurrentToolTip() );
+                               }
+                           } else {
+                               secondList->addItem( new_display, firstList->getData(current_index), firstList->getCurrentToolTip() );
+                           }
+                       } else {
+                           secondList->addItem( new_display, firstList->getData(current_index), firstList->getCurrentToolTip() );
+                       }
+                       emit completeChanged();
+                   }
                }
             });
 
@@ -2082,12 +2107,22 @@ void DualListSelection::initializePage() {
                        PyErr_Print();
                    }
                    if(callable_return != Py_False) {
+                       // Expects a tuple: (amount to add back to total, boolean on whether to replace item back in the first list, (optional) string to change item text instead of removing it)
+                       int tuple_size = PyTuple_Size( callable_return );
                        PyObject *sub_object = PyTuple_GetItem(callable_return, 0);
                        double add_amount = PyFloat_AsDouble(sub_object);
                        bool replace_item = PyTuple_GetItem(callable_return, 1) == Py_True;
                        int current_index = secondList->getCurrentItemIndex();
                        PyObject *data = secondList->getData(current_index);
-                       QListWidgetItem *current_item = secondList->takeItem(current_index);
+                       QListWidgetItem *current_item;
+                       if ( tuple_size > 2 && PyTuple_GetItem( callable_return, 2 ) != Py_None ) {
+                           PyObject *new_display_obj = PyTuple_GetItem( callable_return, 2 );
+                           QString new_display = PyString_AsString( new_display_obj );
+                           current_item = ( ( QListWidget * ) secondList->currentWidget() )->currentItem();
+                           current_item->setText( new_display );
+                       } else {
+                           current_item = secondList->takeItem(current_index);
+                       }
                        QString current_text = current_item->text();
                        slotsTotalFloat = slotsTotalFloat + add_amount;
                        slotsTotalLabel->setText(QString::number(slotsTotalFloat));

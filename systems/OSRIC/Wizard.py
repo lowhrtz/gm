@@ -413,11 +413,15 @@ class SpellsPage2( WizardPage ):
 
 class ProficiencyPage( WizardPage ):
     page_title = 'Weapon Proficiency'
-    page_subtitle = 'Choose your proficiencies'
+    page_subtitle = 'Choose your proficiencies.<br />Fighters can choose the same weapon again to specialise.'
     page_id = 85
     layout = 'horizontal'
     template = 'dualListPage'
-    slots = ( 'simple', 'get_slots', '' )
+    slots = ( 'complex',
+              'get_slots', '',
+              'add_proficiency', '',
+              'remove_proficiency', '',
+              'is_complete', None )
     content = ( 'Proficiency', 'fill_proficiencies', '' )
 
     def get_slots( self ):
@@ -433,7 +437,64 @@ class ProficiencyPage( WizardPage ):
                 slots = max( cl_slots )
         else:
             slots = class_dict['Initial_Weapon_Proficiencies']
+        self.slots_left = slots
         return ( 'Proficiency Slots:', slots )
+
+    def add_proficiency( self ):
+        proficiency_dict = self.fields['ProficiencyAvailable']
+        class_dict = self.fields['Class']
+
+        #print proficiency_dict
+        slot_cost = 1
+        new_display = proficiency_dict['Name']
+        proficiency_list = self.fields['ProficiencyList']
+        if proficiency_list and proficiency_dict in proficiency_list:
+            if 'fighter' in class_dict['unique_id']:
+                new_display = '{} - S'.format( proficiency_dict['Name'] )
+                damage_types = [ t.strip() for t in proficiency_dict['Damage_Type'].split( ',' ) ]
+                if 'missile' in damage_types and not 'crossbow' in proficiency_dict['Name']:
+                    slot_cost = 2
+                if proficiency_dict in self.specialised_list and proficiency_dict not in self.double_specialised_list:
+                    if 'missle' in damage_types \
+                    or 'both-hand' in damage_types or 'two-hand' in damage_types \
+                    or proficiency_dict['unique_id'] == 'pole_arm':
+                        return False
+                    else:
+                        self.double_specialised_list.append( proficiency_dict )
+                        new_display = '{} - 2XS'.format( proficiency_dict['Name'] )
+                elif proficiency_dict in self.double_specialised_list:
+                    return False
+                else:
+                    self.specialised_list.append( proficiency_dict )
+            else:
+                return False
+
+        self.slots_left -= slot_cost
+        return ( slot_cost, False, new_display, True )
+
+    def remove_proficiency( self ):
+        proficiency_dict = self.fields['Proficiency']
+
+        if proficiency_dict in self.double_specialised_list:
+            self.double_specialised_list.remove( proficiency_dict )
+            self.slots_left += 1
+            return ( 1, False, '{} - S'.format( proficiency_dict['Name'] ) )
+        elif proficiency_dict in self.specialised_list:
+            slot_cost = 1
+            damage_types = [ t.strip() for t in proficiency_dict['Damage_Type'].split( ',' ) ]
+            if 'missile' in damage_types and not 'crossbow' in proficiency_dict['Name']:
+                slot_cost = 2
+            self.specialised_list.remove( proficiency_dict )
+            self.slots_left += slot_cost
+            return ( slot_cost, False, '{}'.format( proficiency_dict['Name'] ) )
+
+        self.slots_left += 1
+        return ( 1, False )
+
+    def is_complete( self ):
+        if self.slots_left > 0:
+            return False
+        return True
 
     def race_wp( self, wp_list, race_id, item_dict_list ):
         blunt_list = [ blunt['Name'].lower() for blunt in item_dict_list if 'blunt' in blunt['Damage_Type'].split( ',' ) ]
@@ -468,6 +529,8 @@ class ProficiencyPage( WizardPage ):
         return bucket
 
     def fill_proficiencies( self ):
+        self.specialised_list = []
+        self.double_specialised_list = []
         class_dict = self.fields['Class']
         race_dict = self.fields['Race']
         item_dict_list = [ i for i in DbQuery.getTable( 'Items' ) if i['Is_Proficiency'] == 'yes' ]
@@ -502,10 +565,10 @@ class EquipmentPage( WizardPage ):
         'get_starting_money', '',
         'add_item', '',
         'remove_item', '',
-        'is_complete', None)
-    content = ('Equipment',
+        'is_complete', None )
+    content = ( 'Equipment',
         'fill_list', '', '$display',
-        'prefill_bought_list', '')
+        'prefill_bought_list', '' )
 
     def fill_list( self ):
         class_dict = self.fields['Class']
@@ -1139,9 +1202,16 @@ p.page-break {
 <tr><th>Name</th><th>Damage Vs S or M</th><th>Damage Vs L</th><th>Damage Type</th><th>RoF</th><th>Range</th><th>Max Move</th><th>AC Effect</th><th>Notes</th></tr>
 '''
 
+        proficiency_page = self.pages['ProficiencyPage']
+        specialised_list = proficiency_page.specialised_list
+        double_specialised_list = proficiency_page.double_specialised_list
         for equip in equipment_list:
             equip_name = equip['Name']
-            if equip in proficiency_list:
+            if equip in double_specialised_list:
+                equip_name = equip_name + '<sup>&Dagger;</sup>'
+            elif equip in specialised_list:
+                equip_name = equip_name + '<sup>&dagger;</sup>'
+            elif equip in proficiency_list:
                 equip_name = equip_name + '*'
             equip_list = [equip_name, equip['Damage_Vs_S_or_M'], equip['Damage_Vs_L'], equip['Damage_Type'],
                            equip['Rate_of_Fire'], equip['Range'], equip['Max_Move_Rate'], str(equip['AC_Effect']), equip['Notes']]
@@ -1149,7 +1219,7 @@ p.page-break {
 
         markup += '''
 </table></td></tr></table>
-<div align=center class=equip-legend>*=Proficient</div>
+<div align=center class="equip-legend pre">*=Proficient     &dagger;=Specialised     &Dagger;=Double Specialised</div>
 <div><b>Movement Rate: </b>$movement_rate ft/round<br />
 <b>Surprise: </b>$movement_desc</div>
 
