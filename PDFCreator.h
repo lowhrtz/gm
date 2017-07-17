@@ -12,6 +12,7 @@ public:
     void save();
 
 private:
+    QString filename;
     QPrinter *printer;
     QTextDocument document;
 

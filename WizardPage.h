@@ -49,6 +49,9 @@ signals:
     
 public slots:
 
+private slots:
+   void buttonPushedPDF(QString markup, QString filename);
+
 };
 
 class DragLabel : public QLabel {

@@ -454,8 +454,10 @@ class ProficiencyPage( WizardPage ):
                 damage_types = [ t.strip() for t in proficiency_dict['Damage_Type'].split( ',' ) ]
                 if 'missile' in damage_types and not 'crossbow' in proficiency_dict['Name']:
                     slot_cost = 2
+                if self.slots_left - slot_cost < 0:
+                    return False
                 if proficiency_dict in self.specialised_list and proficiency_dict not in self.double_specialised_list:
-                    if 'missle' in damage_types \
+                    if 'missile' in damage_types \
                     or 'both-hand' in damage_types or 'two-hand' in damage_types \
                     or proficiency_dict['unique_id'] == 'pole_arm':
                         return False
@@ -714,7 +716,7 @@ class ReviewPage( WizardPage ):
     page_id = 110
     layout = 'horizontal'
     template = 'InfoPage'
-    custom_button1 = 'Save PDF'
+    custom_button1 = ( 'Save PDF', 'pdf', 'get_pdf_markup')
 
     attr_cache = None
     hp_cache = None
@@ -735,7 +737,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             ('listbox-halfwidth', ' ', 'method', 'fill_spells2', ''),
             ('listbox-halfwidth', 'Proficiencies', 'method', 'fill_proficiencies', ''),
             ('listbox-halfwidth', 'Equip', 'method', 'fill_equipment', ''),
-            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, ''),
+#            ('button', 'Create PDF', 'printpdf', self.get_pdf_markup, ''),
         ]
 
     def roll_hp( self, level, attr_dict, class_dict ):
@@ -992,9 +994,10 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         with open( filename ) as portrait_file:
             portrait = base64.b64encode( portrait_file.read() )
         filename_split = os.path.splitext( filename )
-        ext = filename_split[0]
+        ext = filename_split[1].replace( '.', '' )
         if ext == 'jpeg':
             ext = 'jpg'
+        #print ext
 
         equipment_list = self.fields['EquipmentList']
         proficiency_list = self.fields['ProficiencyList']
@@ -1033,6 +1036,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'tohit_row': '<td align=center>' + '</td><td align=center>'.join( SystemSettings.get_tohit_row( 1, class_dict, race_dict ) ) + '</td>',
             'movement_rate': movement_tuple[0],
             'movement_desc': movement_tuple[1],
+            'nonproficiency_penalty': class_dict['Non-Proficiency_Penalty'],
             }
         for attr_name in list( self.attr_cache.keys() ):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
@@ -1222,7 +1226,8 @@ p.page-break {
 </table></td></tr></table>
 <div align=center class="equip-legend pre">*=Proficient     &dagger;=Specialised     &Dagger;=Double Specialised</div>
 <div><b>Movement Rate: </b>$movement_rate ft/round<br />
-<b>Surprise: </b>$movement_desc</div>
+<b>Surprise: </b>$movement_desc<br />
+<b>Non-Proficiency Penalty: </b>$nonproficiency_penalty</div>
 
 <p class=page-break></p>
 <h2>Ablities</h2>

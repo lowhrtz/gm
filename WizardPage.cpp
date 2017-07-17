@@ -99,6 +99,7 @@ void WizardPage::publicRegisterField( const QString &name, QWidget *widget, cons
 }
 
 void WizardPage::cleanupPage() {
+    disconnect( wizard, &CharacterCreationWizard::customButtonClicked, 0, 0 );
     wizard->setOption(QWizard::HaveCustomButton1, false);
 }
 
@@ -162,6 +163,43 @@ void WizardPage::initializePage() {
             }
         }
     }
+
+    // Custom Button
+    PyObject *custom_button1_tuple = PyObject_GetAttrString( pyWizardPageInstance, "custom_button1" );
+    if ( custom_button1_tuple != Py_None ) {
+        PyObject *button_text_obj = PyTuple_GetItem( custom_button1_tuple, 0 );
+        PyObject *action_type_obj = PyTuple_GetItem( custom_button1_tuple, 1 );
+        PyObject *callable = PyTuple_GetItem( custom_button1_tuple, 2 );
+        QString custom_button_text = PyString_AsString( button_text_obj );
+        //qInfo( "custom_button_text: %s", custom_button_text.toStdString().data() );
+        QString action_type = PyString_AsString( action_type_obj );
+        PyObject *callable_obj;
+        if ( PyString_Check( callable ) ) {
+            char *callable_name = PyString_AsString( callable );
+            callable_obj = PyObject_GetAttrString( pyWizardPageInstance, callable_name );
+        } else {
+            callable_obj = callable;
+        }
+
+        if ( action_type.toLower() == "pdf" ) {
+            //qInfo( "Set up PDF function" );
+            connect( wizard, &CharacterCreationWizard::customButtonClicked, [=] ( int which ) {
+                if ( which == QWizard::CustomButton1 ) {
+                    PyObject *callable_return = PyObject_CallObject( callable_obj, NULL );
+                    PyErr_Print();
+                    PyObject *filename_obj = PyTuple_GetItem( callable_return, 0 );
+                    PyObject *markup_obj = PyTuple_GetItem( callable_return, 1 );
+                    QString filename = PyString_AsString( filename_obj );
+                    QString markup = PyString_AsString( markup_obj );
+                    buttonPushedPDF( markup, filename );
+                }
+            });
+        }
+
+        wizard->setButtonText( QWizard::CustomButton1, custom_button_text );
+        wizard->setOption( QWizard::HaveCustomButton1, true );
+    }
+
 }
 
 int WizardPage::nextId() const {
@@ -623,6 +661,11 @@ void WizardPage::setBanner(QString bannerFilePath) {
 
     setPixmap(QWizard::WatermarkPixmap, bannerPixmap);
     setPixmap(QWizard::BackgroundPixmap, bannerPixmap);
+}
+
+void WizardPage::buttonPushedPDF(QString markup, QString filename) {
+    PDFCreator *pdf = new PDFCreator( parseTextTemplateString( markup ), filename );
+    pdf->save();
 }
 
 RollMethodsPage::RollMethodsPage(PyObject *pyWizardPageInstance, QWidget *parent) :
@@ -1529,14 +1572,6 @@ void InfoPage::initializePage() {
         label->setText(parsed_string);
     }
 
-    PyObject *custom_button_label_obj = PyObject_GetAttrString( pyWizardPageInstance, "custom_button1" );
-    if ( custom_button_label_obj != Py_None ) {
-        QString custom_button_label = PyString_AsString( custom_button_label_obj );
-        qInfo( "custom_button_label: %s", custom_button_label.toStdString().data() );
-        wizard->setButtonText( QWizard::CustomButton1, custom_button_label );
-        wizard->setOption(QWizard::HaveCustomButton1, true);
-    }
-
 }
 
 void InfoPage::cleanupPage() {
@@ -2316,7 +2351,7 @@ ChoosePortraitPage::ChoosePortraitPage(PyObject *pyWizardPageInstance, QWidget *
         hidden_field->setText( data );
     });
 
-    open_file = new QPushButton( "Open File" );
+    open_file = new QPushButton( "Browse File" );
 
     connect( open_file, &QPushButton::clicked, [=] ( bool checked ) {
         QString user_filename = QFileDialog::getOpenFileName( this, "Open Image", QDir::homePath() );
