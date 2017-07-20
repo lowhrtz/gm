@@ -1,6 +1,24 @@
 # -*- coding: utf-8 -*-
 from DbDefs import Table
 
+class characters(Table):
+    table_name = 'Characters'
+    cols = ['unique_id','Name','Level','XP','Gender','Alignment','Classes','Race','HP','Age','Height','Weight','Portrait','Portrait_Image_Type','STR','INT','WIS','DEX','CON','CHA']
+    colDefs = ['VARCHAR(20) UNIQUE','VARCHAR(50)','VARCHAR(20)','INTEGER','VARCHAR(20)','VARCHAR(20)','VARCHAR(50)','VARCHAR(50)','INTEGER','INTEGER','VARCHAR(20)','VARCHAR(20)','CLOB','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)']
+    display_col = 1
+    base64_image_col = 12
+    image_type_col = 13
+    data = [
+        ]
+
+class characters_meta(Table):
+    table_name = 'Characters_meta'
+    cols = ['character_id','Type','Entry_ID','Data','Notes']
+    colDefs = ['VARCHAR(20) REFERENCES Characters(unique_id) ON UPDATE CASCADE ON DELETE CASCADE','VARCHAR(20)','VARCHAR(20)','VARCHAR(20)','TEXT']
+    display_col = 0
+    data = [
+        ]
+
 class classes(Table):
     table_name = 'Classes'
     cols = ['unique_id','Name','Minimum_Scores','Hit_Die_Type','Hit_Die_Max','Alignment','Experience_Bonus','Armour_Permitted','Shield_Permitted','Weapons_Permitted','Initial_Wealth_GP','Initial_Weapon_Proficiencies','Weapon_Proficiency_Advancement','Non-Proficiency_Penalty','Primary_Spell_List','Secondary_Spell_List','Category']

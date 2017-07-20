@@ -42,8 +42,14 @@ CharacterCreationWizard::CharacterCreationWizard(QWidget *parent, DatabaseHandle
 }
 
 void CharacterCreationWizard::accept() {
-    qInfo("Wizard Accepted");
-//    PDFCreator pdf = PDFCreator();
+    //qInfo("Wizard Accepted");
+    PyObject *wiz_accept, *wiz_accept_args, *wiz_accept_return;
+
+    wiz_accept = interpreter->getWizardAccept();
+    wiz_accept_args = Py_BuildValue( "(O, O)", fieldsDict, pyWizardPageList );
+    wiz_accept_return = PyObject_CallObject( wiz_accept, wiz_accept_args );
+    PyErr_Print();
+
     QDialog::accept();
 }
 

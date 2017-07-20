@@ -126,6 +126,7 @@ bonuses = {
 }
 
 def has_spells_at_level(level, single_class_dict):
+    level = int(level)
     level_dict_list = [ row for row in single_class_dict['Classes_meta'] if row['Type'] == 'xp table' ]
     level_dict = level_dict_list[level-1]
     if level_dict['Casting_Level'] != 0 and level_dict['Casting_Level'] != '':
@@ -271,9 +272,10 @@ def get_saves(level, attr_dict, class_dict, race_dict):
                   'Petrifaction_Polymorph': [],
                   'Spells': [],}
     if 'classes' in class_dict:
-        for cl in class_dict['classes']:
+        level_list = [ int(l) for l in level.split('/') ]
+        for i, cl in enumerate( class_dict['classes'] ):
             for meta_row in cl['Classes_meta']:
-                if meta_row['Type'] == 'xp table' and meta_row['Level'] != 'each' and int(meta_row['Level']) == level:
+                if meta_row['Type'] == 'xp table' and meta_row['Level'] != 'each' and int(meta_row['Level']) == level_list[i]:
                     for save in list(saves_dict.keys()):
                         saves_dict[save].append(meta_row[save])
         if race_dict['unique_id'] in restrictive_races:
@@ -283,6 +285,7 @@ def get_saves(level, attr_dict, class_dict, race_dict):
             for save in list(saves_dict.keys()):
                 saves_dict[save] = min(*tuple(int(l) for l in saves_dict[save]))
     else:
+        level = int(level)
         for meta_row in class_dict['Classes_meta']:
             if meta_row['Type'] == 'xp table' and meta_row['Level'] != 'each' and int(meta_row['Level']) == level:
                 for save in list(saves_dict.keys()):
@@ -314,10 +317,11 @@ def get_saves(level, attr_dict, class_dict, race_dict):
 def get_tohit_row(level, class_dict, race_dict):
     tohit_list = []
     if 'classes' in class_dict:
+        level_list = [ int(l) for l in level.split('/') ]
         bucket = []
-        for cl in class_dict['classes']:
+        for i, cl in enumerate( class_dict['classes'] ):
             for row in cl['Classes_meta']:
-                if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level:
+                if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level_list[i]:
                     tohit_tuple = (row['To_Hit_-10'],
                                    row['To_Hit_-9'],
                                    row['To_Hit_-8'],
@@ -349,6 +353,7 @@ def get_tohit_row(level, class_dict, race_dict):
                 tohit_list.append(str(min(*items)))
 
     else:
+        level = int(level)
         for row in class_dict['Classes_meta']:
             if row['Type'] == 'xp table' and row['Level'].isdigit() and int(row['Level']) == level:
                 tohit_list = [str(row['To_Hit_-10']),
@@ -434,6 +439,7 @@ def calculate_movement(race_dict, class_dict, attr_dict, equipment_list):
     return movement
 
 def get_spells_by_level(level, attr_dict, single_class_dict):
+    level = int(level)
     primary_spell_string = 'Level_{}_Spells'
     secondary_spell_string = 'Level_{}_Spells_Secondary'
     primary = ''
@@ -460,6 +466,7 @@ def get_spells_by_level(level, attr_dict, single_class_dict):
     return ( primary, secondary )
 
 def get_turn_undead_row( level, single_class_dict ):
+    level = int(level)
     tu_list = []
     col_string = 'Turn_Undead_Type_{}'
     for row in single_class_dict['Classes_meta']:
@@ -472,6 +479,7 @@ def get_turn_undead_row( level, single_class_dict ):
 ta_col_list = ['Climb_Walls', 'Find_Traps', 'Hear_Noise', 'Hide_in_Shadows',
                'Move_Quietly', 'Open_Locks', 'Pick_Pockets', 'Read_Languages']
 def get_thief_abilities_row( level, single_class_dict ):
+    level = int(level)
     ta_list = []
     for row in single_class_dict['Classes_meta']:
         if row['Type'] == 'xp table' and row['Level'].isdigit() and int( row['Level'] ) == level:
@@ -480,6 +488,7 @@ def get_thief_abilities_row( level, single_class_dict ):
     return ta_list
 
 def get_class_abilities( level, attr_dict, single_class_dict ):
+    level = int(level)
     spells_by_level = get_spells_by_level( level, attr_dict, single_class_dict )
     cl_ab = []
     if spells_by_level[0]:
@@ -520,3 +529,16 @@ def get_spell_book( spell_list ):
     output_string = ''
     for spell in spell_list:
         spell['Name']
+
+def get_non_proficiency_penalty( class_dict, race_dict ):
+    race_id = race_dict['unique_id']
+    if 'classes' in class_dict:
+        bucket = []
+        for cl in class_dict['classes']:
+            bucket.append( cl['Non-Proficiency_Penalty'] )
+        if race_id in restrictive_races:
+            return min( bucket )
+        else:
+            return max( bucket )
+
+    return class_dict['Non-Proficiency_Penalty']

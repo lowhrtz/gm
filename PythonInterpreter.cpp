@@ -463,13 +463,68 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
 //    return 0;
 //}
 
+std::pair< int, int > PythonInterpreter::getBase64ImageAndTypeCols( QString tableName ) {
+    PyObject *dbModule, *dbDict, *tableType, *key, *value,
+            *tableInstance, *base_64_image_col_obj, *image_type_col_obj;
+    Py_ssize_t pos, base_64_image_col, image_type_col;
+    std::pair< int, int > cols( -1, -1 );
+
+    dbModule = PyImport_ImportModule( "Db" );
+    if(!dbModule) {
+        PyErr_Print();
+        qInfo( "Db module import failed!\n" );
+        return cols;
+    }
+    dbDict = PyModule_GetDict( dbModule );
+    if( !dbDict ) {
+        PyErr_Print();
+        qInfo( "Error getting Db module dict.\n" );
+        return cols;
+    }
+    tableType = PyObject_GetAttrString( dbModule, "Table" );
+    if( !tableType ) {
+        PyErr_Print();
+        qInfo( "Table class is missing!" );
+        return cols;
+    }
+
+    pos = 0;
+    while( PyDict_Next( dbDict, &pos, &key, &value ) ) {
+        if( PyType_Check( value ) &&
+                PyType_IsSubtype( (PyTypeObject*) value, (PyTypeObject*) tableType ) &&
+                PyObject_GetAttrString( value, "__name__" ) != PyObject_GetAttrString( tableType, "__name__" ) &&
+                strcmp( PyString_AsString( PyObject_GetAttrString( value, "table_name" ) ), tableName.toStdString().data() ) == 0 ) {
+            tableInstance = PyObject_CallObject( value, NULL );
+            base_64_image_col_obj = PyObject_CallMethod( tableInstance, (char *)"get_base64_image_col", NULL );
+            PyErr_Print();
+            if ( base_64_image_col_obj == Py_None ) {
+                base_64_image_col = -1;
+            } else {
+                base_64_image_col = PyInt_AsSsize_t( base_64_image_col_obj );
+            }
+            image_type_col_obj = PyObject_CallMethod( tableInstance, (char *)"get_image_type_col", NULL );
+            PyErr_Print();
+            if ( image_type_col_obj == Py_None ) {
+                image_type_col == -1;
+            } else {
+                image_type_col = PyInt_AsSsize_t( image_type_col_obj );
+            }
+            cols.first = base_64_image_col;
+            cols.second = image_type_col;
+            return cols;
+        }
+    }
+
+    return cols;
+}
+
 QString PythonInterpreter::getSystemPath() {
     return systemPath;
 }
 
 QList<PyObject *> PythonInterpreter::getWizardPages() {
     QList<PyObject *> pageList;
-    PyObject *wizModule, *wizardPageType, *wizModuleDict, *key, *value, *wizardPageList,
+    PyObject *wizardPageType, *wizModuleDict, *key, *value, *wizardPageList,
             *wizPageListItem;
     Py_ssize_t pos = 0, wizPageListSize;
     QString keyString;
@@ -524,6 +579,10 @@ QList<PyObject *> PythonInterpreter::getWizardPages() {
 //    }
 
     return pageList;
+}
+
+PyObject *PythonInterpreter::getWizardAccept() {
+    return PyObject_GetAttrString( wizModule, "wizard_accept");
 }
 
 QList<QString> PythonInterpreter::settingAsStringList(QString settingName) {
@@ -762,6 +821,26 @@ QList<QString> PythonInterpreter::getColDefString(PyObject *cols, PyObject *colD
     return colDefStringList;
 }
 
+QList<QVariant> *PythonInterpreter::getDataRow( PyObject *row_obj ) {
+    QList<QVariant> *row = new QList<QVariant>();
+    for ( int i = 0 ; i < PyList_Size( row_obj ) ; i++ ) {
+        PyObject *datumPy = PyList_GetItem(row_obj, i);
+        if(PyInt_Check(datumPy)) {
+            QVariant datum = QVariant((int) PyInt_AsSsize_t(datumPy));
+            row->append(datum);
+        }
+        else if (PyString_Check(datumPy)) {
+            QVariant datum = QVariant(QObject::trUtf8(PyString_AsString(datumPy)));
+            row->append(datum);
+        }
+        else if (PyBool_Check(datumPy)) {
+            QVariant datum = QVariant(datumPy == Py_True);
+            row->append(datum);
+        }
+    }
+    return row;
+}
+
 QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
     QList<QList<QVariant> *> dataList = QList<QList<QVariant> *>();
     for(int i = 0 ; i < PyList_Size(data) ; i++) {
@@ -770,22 +849,23 @@ QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
             printf("The data attibute contains items other than lists!\n");
             return dataList;
         }
-        QList<QVariant> *record = new QList<QVariant>();
-        for(int j = 0 ; j < PyList_Size(recordPy) ; j++) {
-            PyObject *datumPy = PyList_GetItem(recordPy, j);
-            if(PyInt_Check(datumPy)) {
-                QVariant datum = QVariant((int) PyInt_AsSsize_t(datumPy));
-                record->append(datum);
-            }
-            else if (PyString_Check(datumPy)) {
-                QVariant datum = QVariant(QObject::trUtf8(PyString_AsString(datumPy)));
-                record->append(datum);
-            }
-            else if (PyBool_Check(datumPy)) {
-                QVariant datum = QVariant(datumPy == Py_True);
-                record->append(datum);
-            }
-        }
+//        QList<QVariant> *record = new QList<QVariant>();
+//        for(int j = 0 ; j < PyList_Size(recordPy) ; j++) {
+//            PyObject *datumPy = PyList_GetItem(recordPy, j);
+//            if(PyInt_Check(datumPy)) {
+//                QVariant datum = QVariant((int) PyInt_AsSsize_t(datumPy));
+//                record->append(datum);
+//            }
+//            else if (PyString_Check(datumPy)) {
+//                QVariant datum = QVariant(QObject::trUtf8(PyString_AsString(datumPy)));
+//                record->append(datum);
+//            }
+//            else if (PyBool_Check(datumPy)) {
+//                QVariant datum = QVariant(datumPy == Py_True);
+//                record->append(datum);
+//            }
+//        }
+        QList<QVariant> *record = getDataRow( recordPy );
         dataList.append(record);
     }
     return dataList;
@@ -851,4 +931,21 @@ PyObject *dbQuery_getTable( PyObject *self, PyObject *args ) {
     }
 
     return row_list_obj;
+}
+
+PyObject *dbQuery_insertRow( PyObject *self, PyObject *args ) {
+    char *table_name;
+    PyObject *row;
+    if ( !PyArg_ParseTuple( args, "sO", &table_name, &row ) ) {
+        PyErr_Print();
+        return NULL;
+    }
+
+    DatabaseHandler *db = db_global;
+    PythonInterpreter *pi = pi_global;
+
+    QList<QVariant> *data_row = pi->getDataRow( row );
+    int row_id = db->insertRow( table_name, data_row );
+
+    return Py_BuildValue( "i", row_id );
 }

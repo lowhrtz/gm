@@ -1,4 +1,5 @@
 #include "DBWindow.h"
+//#include <QByteArray>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QDir>
@@ -147,29 +148,37 @@ QPixmap DBWindow::getPortrait(QString name)
     return imagePixmap;
 }
 
-void DBWindow::selectRecord(QListWidgetItem *recordWidgetItem, QListWidgetItem *previousRecord)
-{
-    if(previousRecord==recordWidgetItem) return;
-    QList<QVariant> *row = ((DBListWidgetItem*)recordWidgetItem)->getRow();
-//    cout << "Item: " << row->at(0).toString().toStdString() << endl;
-//    cout << "Len Item: " << row->size() << " Len entryList: " << entryList.size() << endl;
-    //int uniqueCol = 0;
-    QList<QString> colDefsList = interpreter->getColDefsList(tableName);
-    for(int i = 0 ; i < row->size() ; i++)
-    {
-        if(colDefsList.at(i).contains("UNIQUE", Qt::CaseInsensitive)) uniqueCol = i;
-        if(colDefsList.at(i).compare("TEXT") == 0) {
-            QTextEdit *entryBox = (QTextEdit *) entryList.at(i);
-            entryBox->setText(row->at(i).toString());
-            //entryBox->setCursorPosition(0);
+void DBWindow::selectRecord( QListWidgetItem *recordWidgetItem, QListWidgetItem *previousRecord ) {
+    if( previousRecord == recordWidgetItem ) return;
+    QList< QVariant > *row = ( (DBListWidgetItem*) recordWidgetItem )->getRow();
+    QList< QString > colDefsList = interpreter->getColDefsList( tableName );
+    for( int i = 0 ; i < row->size() ; i++ )     {
+        if( colDefsList.at( i ).contains( "UNIQUE", Qt::CaseInsensitive ) ) uniqueCol = i;
+        if( colDefsList.at( i ).compare( "TEXT" ) == 0 ) {
+            QTextEdit *entryBox = (QTextEdit *) entryList.at( i );
+            entryBox->setText( row->at( i ).toString() );
         } else {
-            QLineEdit *entryBox = (QLineEdit *) entryList.at(i);
-            entryBox->setText(row->at(i).toString());
-            entryBox->setCursorPosition(0);
+            QLineEdit *entryBox = (QLineEdit *) entryList.at( i );
+            entryBox->setText( row->at( i ).toString() );
+            entryBox->setCursorPosition( 0 );
         }
     }
-//    cout << row->at(0).toString().toStdString() << endl;
-    iconLabel->setPixmap(getPortrait(row->at(uniqueCol).toString()));
+    std::pair<int, int> base_64_and_type = interpreter->getBase64ImageAndTypeCols( tableName );
+    int base_64_col = base_64_and_type.first;
+    int image_type_col = base_64_and_type.second;
+    if ( base_64_col < 0 || image_type_col < 0 ) {
+        iconLabel->setPixmap( getPortrait( row->at( uniqueCol ).toString() ) );
+    } else {
+        QString base_64_string = row->at( base_64_col ).toString();
+        QString image_type = row->at( image_type_col ).toString();
+        QByteArray ba = QByteArray::fromBase64( base_64_string.toStdString().data() );
+        QImage portrait_image = QImage::fromData( ba, image_type.toStdString().data() );
+        QPixmap portrait_pixmap = QPixmap( QPixmap::fromImage( portrait_image ) );
+        if( portrait_pixmap.height() > 200 ) {
+            portrait_pixmap = portrait_pixmap.scaledToHeight( 200 );
+        }
+        iconLabel->setPixmap( portrait_pixmap );
+    }
 }
 
 void DBWindow::openMetaDBWindow(QString metaTableName, QString record_id) {

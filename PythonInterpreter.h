@@ -27,9 +27,12 @@ extern DatabaseHandler *db_global;
 extern PythonInterpreter *pi_global;
 
 extern "C" PyObject *dbQuery_getTable( PyObject *self, PyObject *args );
+extern "C" PyObject *dbQuery_insertRow( PyObject *self, PyObject *args );
 static PyMethodDef dbQueryMethods[] = {
     { "getTable", dbQuery_getTable, METH_VARARGS,
         "Return python object representation of db table." },
+    { "insertRow", dbQuery_insertRow, METH_VARARGS,
+        "Insert a row in the specified table. Returns last row id or -1 on error." },
     {NULL, NULL, 0, NULL}
 };
 
@@ -49,8 +52,10 @@ public:
     QList<QString> getColDefsList(QString tableName);
     int getDisplayCol(QString tableName);
 //    int getDisplayColWithoutInit(QString tableName);
+    std::pair<int, int> getBase64ImageAndTypeCols(QString tableName);
     QString getSystemPath();
     QList<PyObject *> getWizardPages();
+    PyObject *getWizardAccept();
     QList<QString> settingAsStringList(QString settingName);
     QList<QString> getMenuOrderedTableNames();
     QString getMetaTableName(QString tableName);
@@ -59,6 +64,7 @@ public:
     PyObject *makeDictFromRow(QList<QVariant> *row, QString tableName, DatabaseHandler *db);
     PyObject *makeDictListFromRows(QList<QList<QVariant> *> rows, QString tableName, DatabaseHandler *db);
     PyObject *makeDictFromSqlRecord(QSqlRecord row);
+    QList<QVariant> *getDataRow(PyObject *row_obj);
 
 private:
     QList<QString> getStringList(PyObject *pyListObject);
@@ -68,6 +74,7 @@ private:
 
 private:
     QString systemPath;
+    PyObject *wizModule;
 };
 
 #endif // PYTHONINTERPRETER_H

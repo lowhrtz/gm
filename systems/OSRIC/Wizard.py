@@ -979,8 +979,11 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         return bonuses_dict[attr_key].format( *SystemSettings.get_attribute_bonuses( attr_key, score ) )
 
     def get_pdf_markup( self ):
-        level = 1
         class_dict = self.fields['Class']
+        if 'classes' in class_dict:
+            level = '/'.join( [ '1' for cl in class_dict['classes'] ] )
+        else:
+            level = '1'
         class_name = class_dict['Name']
         class_font_size = '14px'
         class_padding = '0px'
@@ -990,7 +993,6 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         race_dict = self.fields['Race']
 
         filename = self.fields['Portrait']
-        #print filename
         with open( filename ) as portrait_file:
             portrait = base64.b64encode( portrait_file.read() )
         filename_split = os.path.splitext( filename )
@@ -998,13 +1000,13 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         if ext == 'jpeg':
             ext = 'jpg'
         #print ext
-
         equipment_list = self.fields['EquipmentList']
         proficiency_list = self.fields['ProficiencyList']
         class_abilities = {}
         if 'classes' in class_dict:
-            for cl in class_dict['classes']:
-                class_abilities[ cl['Name'] ] = SystemSettings.get_class_abilities( level, self.attr_cache, cl )
+            level_list = [ int(l) for l in level.split('/') ]
+            for i, cl in enumerate( class_dict['classes'] ):
+                class_abilities[ cl['Name'] ] = SystemSettings.get_class_abilities( level_list[i], self.attr_cache, cl )
         else:
             class_abilities[ class_dict['Name'] ] = SystemSettings.get_class_abilities( level, self.attr_cache, class_dict )
         race_abilities = SystemSettings.get_race_abilities( race_dict )
@@ -1012,7 +1014,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         spells_daily = self.fields['SpellsList']
         spells2_daily = self.fields['Spells2List']
         #print equipment_list
-        saves_dict = SystemSettings.get_saves( 1, self.attr_cache, class_dict, race_dict )
+        saves_dict = SystemSettings.get_saves( level, self.attr_cache, class_dict, race_dict )
         money_dict = SystemSettings.get_coinage_from_float( self.pages['EquipmentPage'].slots_remaining )
         #print money_dict
         movement_tuple = SystemSettings.calculate_movement( race_dict, class_dict, self.attr_cache, equipment_list )
@@ -1027,16 +1029,16 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'xp': 0,
             'hp': self.hp_cache,
             'ac': SystemSettings.calculate_ac( self.attr_cache, class_dict, race_dict, equipment_list ),
-            'level': 1,
+            'level': level,
             'age': self.age_cache,
             'height': str( self.height_weight_cache[0][0] ) + 'ft ' + str( self.height_weight_cache[0][1] ) + 'in',
             'weight': str( self.height_weight_cache[1] ) + ' lbs',
             'portrait': portrait,
             'image_type': ext,
-            'tohit_row': '<td align=center>' + '</td><td align=center>'.join( SystemSettings.get_tohit_row( 1, class_dict, race_dict ) ) + '</td>',
+            'tohit_row': '<td align=center>' + '</td><td align=center>'.join( SystemSettings.get_tohit_row( level, class_dict, race_dict ) ) + '</td>',
             'movement_rate': movement_tuple[0],
             'movement_desc': movement_tuple[1],
-            'nonproficiency_penalty': class_dict['Non-Proficiency_Penalty'],
+            'nonproficiency_penalty': SystemSettings.get_non_proficiency_penalty( class_dict, race_dict ),
             }
         for attr_name in list( self.attr_cache.keys() ):
             markup_template_dict[attr_name] = self.attr_cache[attr_name]
@@ -1265,8 +1267,9 @@ p.page-break {
 
         spellcaster = False
         if 'classes' in class_dict:
-            for cl in class_dict['classes']:
-                if SystemSettings.has_spells_at_level( level, cl ):
+            level_list = [ int(l) for l in level.split( '/' ) ]
+            for i, cl in enumerate( class_dict['classes'] ):
+                if SystemSettings.has_spells_at_level( level_list[i], cl ):
                     spellcaster = True
         else:
             if SystemSettings.has_spells_at_level( level, class_dict ):
@@ -1306,3 +1309,121 @@ p.page-break {
         t = Template(markup)
         final_markup = t.safe_substitute( markup_template_dict )
         return ( '{}.pdf'.format( self.fields['Name'] ), final_markup )
+
+
+def wizard_accept( fields, pages ):
+    if 'classes' in fields['Class']:
+        level = '/'.join( '1' for cl in fields['Class']['classes'] )
+        classes = '/'.join( cl['unique_id'] for cl in fields['Class']['classes'] )
+    else:
+        level = '1'
+        classes = fields['Class']['unique_id']
+
+    filename = fields['Portrait']
+    with open( filename ) as portrait_file:
+        portrait = base64.b64encode( portrait_file.read() )
+    filename_split = os.path.splitext( filename )
+    ext = filename_split[1].replace( '.', '' )
+    if ext == 'jpeg':
+        ext = 'jpg'
+
+    unique_id = '{}-{}'.format( fields['Name'].lower().replace( ' ', '_' ), fields['Class']['unique_id'] )
+
+    data_list = [
+        unique_id,
+        fields['Name'],
+        level,
+        0,
+        fields['Gender'],
+        fields['Alignment'],
+        classes,
+        fields['Race']['unique_id'],
+        pages['ReviewPage'].hp_cache,
+        pages['ReviewPage'].age_cache,
+        str( pages['ReviewPage'].height_weight_cache[0][0] ) + 'ft ' + str( pages['ReviewPage'].height_weight_cache[0][1] ) + 'in',
+        str( pages['ReviewPage'].height_weight_cache[1] ) + ' lbs',
+        portrait,
+        ext,
+        pages['ReviewPage'].attr_cache['STR'],
+        pages['ReviewPage'].attr_cache['INT'],
+        pages['ReviewPage'].attr_cache['WIS'],
+        pages['ReviewPage'].attr_cache['DEX'],
+        pages['ReviewPage'].attr_cache['CON'],
+        pages['ReviewPage'].attr_cache['CHA'],
+    ]
+
+    row_id = DbQuery.insertRow( 'Characters', data_list )
+    if row_id >= 0:
+        for e in fields['EquipmentList']:
+            equip_data = [
+                unique_id,
+                'Equipment',
+                e['unique_id'],
+                '',
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', equip_data )
+
+        for p in fields['ProficiencyList']:
+            if p not in pages['ProficiencyPage'].specialised_list:
+                p_data = [
+                    unique_id,
+                    'Proficiency',
+                    p['unique_id'],
+                    'P',
+                    '',
+                ]
+                DbQuery.insertRow( 'Characters_meta', p_data )
+
+        for s in pages['ProficiencyPage'].specialised_list:
+            if s not in pages['ProficiencyPage'].double_specialised_list:
+                s_data = [
+                    unique_id,
+                    'Proficiency',
+                    s['unique_id'],
+                    'S',
+                    '',
+                ]
+                DbQuery.insertRow( 'Characters_meta', s_data )
+
+        for ds in pages['ProficiencyPage'].double_specialised_list:
+            ds_data = [
+                unique_id,
+                'Proficiency',
+                ds['unique_id'],
+                'DS',
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', ds_data )
+
+        for s in fields['SpellbookList']:
+            s_data = [
+                unique_id,
+                'Spellbook',
+                s['spell_id'],
+                '',
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', s_data )
+
+        for s in fields['SpellsList']:
+            s_data = [
+                unique_id,
+                'DailySpells',
+                s['spell_id'],
+                '',
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', s_data )
+
+        for s in fields['Spells2List']:
+            s_data = [
+                unique_id,
+                'DailySpells2',
+                s['spell_id'],
+                '',
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', s_data )
+
+    return row_id
