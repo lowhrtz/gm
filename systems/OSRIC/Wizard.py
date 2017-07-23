@@ -1364,6 +1364,17 @@ def wizard_accept( fields, pages ):
             ]
             DbQuery.insertRow( 'Characters_meta', equip_data )
 
+        money_dict = SystemSettings.get_coinage_from_float( pages['EquipmentPage'].slots_remaining )
+        for denomination in list( money_dict.keys() ):
+            money_data = [
+                unique_id,
+                'Treasure',
+                denomination,
+                money_dict[denomination],
+                '',
+            ]
+            DbQuery.insertRow( 'Characters_meta', money_data )
+
         for p in fields['ProficiencyList']:
             if p not in pages['ProficiencyPage'].specialised_list:
                 p_data = [
