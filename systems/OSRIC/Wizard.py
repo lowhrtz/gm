@@ -1352,6 +1352,7 @@ def wizard_accept( fields, pages ):
         pages['ReviewPage'].attr_cache['CHA'],
     ]
 
+    DbQuery.begin()
     row_id = DbQuery.insertRow( 'Characters', data_list )
     if row_id >= 0:
         for e in fields['EquipmentList']:
@@ -1436,5 +1437,7 @@ def wizard_accept( fields, pages ):
                 '',
             ]
             DbQuery.insertRow( 'Characters_meta', s_data )
+
+    DbQuery.commit()
 
     return row_id

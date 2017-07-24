@@ -170,30 +170,20 @@ bool DatabaseHandler::createPersistentTable(const char *tableName, QList<QString
 
     QSqlQuery createTableQuery = db.exec(createTableString);
     bool createReturn = createTableQuery.isActive();
-    db.commit();
+//    db.commit();
 
     return createReturn;
 }
 
-int DatabaseHandler::fillPersistentTable(const char *tableName, QList<QList<QVariant> *> dataList)
-{
+int DatabaseHandler::fillPersistentTable( const char *tableName, QList<QList<QVariant> *> dataList ) {
     int rowCount = 0;
-//    cout << "Table Name: " << tableName << endl;
-    for(int i = 0 ; i < dataList.size() ; i++)
-    {
-        QList<QVariant> *record = dataList.at(i);
-//        if (record->size() >= 7) {
-//            cout << "Data: " << record->at(7).toString().toStdString() << endl;
-//        }
-        int rowID = insertRow(tableName, record);
-//        cout << "Insert ID: " << rowID << endl;
-        if(rowID > 0)
-        {
+    for( int i = 0 ; i < dataList.size() ; i++ )     {
+        QList<QVariant> *record = dataList.at( i );
+        int rowID = insertRow( tableName, record );
+        if( rowID > 0 ) {
             rowCount++;
         }
     }
-
-//    cout << "Row Count: " << rowCount << endl;
 
     return rowCount;
 }
@@ -224,8 +214,16 @@ int DatabaseHandler::insertRow(const char *tableName, QList<QVariant> *row)
         cout << "Error Inserting Row: " << insertQuery.lastError().text().toStdString() << endl;
         cout << "First Column Data: " << row->at(0).toString().toStdString() << endl;
     }
-    db.commit();
+//    db.commit();
     return lastInsertID;
+}
+
+void DatabaseHandler::begin() {
+    db.transaction();
+}
+
+bool DatabaseHandler::commit() {
+    return db.commit();
 }
 
 QList<QList<QVariant> *> DatabaseHandler::getRows(const char *tableName, const char *column, const char *value)

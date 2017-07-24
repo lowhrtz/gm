@@ -27,10 +27,16 @@ extern DatabaseHandler *db_global;
 extern PythonInterpreter *pi_global;
 
 extern "C" PyObject *dbQuery_getTable( PyObject *self, PyObject *args );
+extern "C" PyObject *dbQuery_begin( PyObject *self, PyObject *args );
+extern "C" PyObject *dbQuery_commit( PyObject *self, PyObject *args );
 extern "C" PyObject *dbQuery_insertRow( PyObject *self, PyObject *args );
 static PyMethodDef dbQueryMethods[] = {
     { "getTable", dbQuery_getTable, METH_VARARGS,
         "Return python object representation of db table." },
+    { "begin", dbQuery_begin, METH_VARARGS,
+        "Begins database transaction." },
+    { "commit", dbQuery_commit, METH_VARARGS,
+        "Commits database transaction." },
     { "insertRow", dbQuery_insertRow, METH_VARARGS,
         "Insert a row in the specified table. Returns last row id or -1 on error." },
     {NULL, NULL, 0, NULL}

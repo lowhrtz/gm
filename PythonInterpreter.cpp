@@ -139,6 +139,8 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
         return;
     }
 
+    db->activateForeignKeys(false);
+    db->begin();
     pos = 0;
     while(PyDict_Next(dbDict, &pos, &key, &value)) {
         keyString = PyString_AsString(key);
@@ -178,14 +180,13 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
             }
             colDefsList = getColDefString(getCols, getColDefs);
             dataList = getDataList(getData);
-            db->activateForeignKeys(false);
             db->createPersistentTable(PyString_AsString(tableName), colDefsList);
 //            printf("Table, %s, created? %d\n",PyString_AsString(tableName), db->createPersistentTable(PyString_AsString(tableName), colDefsList));
             db->fillPersistentTable(PyString_AsString(tableName), dataList);
-            db->activateForeignKeys(true);
         }
     }
-
+    db->activateForeignKeys(true);
+    db->commit();
 //    Py_Finalize();
 }
 
@@ -948,4 +949,18 @@ PyObject *dbQuery_insertRow( PyObject *self, PyObject *args ) {
     int row_id = db->insertRow( table_name, data_row );
 
     return Py_BuildValue( "i", row_id );
+}
+
+PyObject *dbQuery_begin( PyObject *self, PyObject *args ) {
+    DatabaseHandler *db = db_global;
+    db->begin();
+    return Py_None;
+}
+
+PyObject *dbQuery_commit( PyObject *self, PyObject *args ) {
+    DatabaseHandler *db = db_global;
+
+    bool commited = db->commit();
+//    qInfo( "Commited: %s", commited ? "True" : "False" );
+    return PyBool_FromLong( commited );
 }

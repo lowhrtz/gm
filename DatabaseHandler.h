@@ -19,6 +19,8 @@ public:
     bool createPersistentTable(const char *tableName, QList<QString> colDefList);
     int fillPersistentTable(const char *tableName, QList<QList<QVariant> *> dataList);
     int insertRow(const char *tableName, QList<QVariant> *row);
+    void begin();
+    bool commit();
     QList<QList<QVariant> *> getRows(const char *tableName, const char *column, const char *value);
     QList<QList<QVariant> *> getRows(QString tableName, QString column, QString value);
     QList<QList<QVariant> *> getRows(const char *tableName);
