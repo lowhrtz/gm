@@ -1320,7 +1320,7 @@ def wizard_accept( fields, pages ):
         classes = fields['Class']['unique_id']
 
     filename = fields['Portrait']
-    with open( filename ) as portrait_file:
+    with open( filename, 'rb' ) as portrait_file:
         portrait = base64.b64encode( portrait_file.read() )
     filename_split = os.path.splitext( filename )
     ext = filename_split[1].replace( '.', '' )
