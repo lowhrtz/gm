@@ -6,6 +6,7 @@ import DbQuery
 import Dice
 import os
 import SystemSettings
+import time
 
 def get_pc_gender_list():
     genList = []
@@ -1327,7 +1328,7 @@ def wizard_accept( fields, pages ):
     if ext == 'jpeg':
         ext = 'jpg'
 
-    unique_id = '{}-{}'.format( fields['Name'].lower().replace( ' ', '_' ), fields['Class']['unique_id'] )
+    unique_id = '{}-{}-{}'.format( fields['Name'].lower().replace( ' ', '_' ), fields['Class']['unique_id'], time.time() )
 
     data_list = [
         unique_id,
