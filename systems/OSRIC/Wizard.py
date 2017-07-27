@@ -1403,7 +1403,7 @@ def wizard_accept( fields, pages ):
                 unique_id,
                 'Proficiency',
                 ds['unique_id'],
-                'DS',
+                '2XS',
                 '',
             ]
             DbQuery.insertRow( 'Characters_meta', ds_data )
