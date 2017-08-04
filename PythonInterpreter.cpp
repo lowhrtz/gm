@@ -970,6 +970,8 @@ PyObject *dbQuery_getTable( PyObject *self, PyObject *args ) {
             }
             PyDict_SetItemString( row_dict, meta_table_name.toStdString().data(), meta_list );
         }
+        PyDict_SetItemString( row_dict, "TableName", PyString_FromString( table_name ) );
+//        PyDict_SetItemString( row_dict, "DisplayCol", pi_global->getColList( pi_global->getDisplayCol( table_name ) ) );
         PyList_Append( row_list_obj, row_dict );
     }
 

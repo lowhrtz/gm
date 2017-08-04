@@ -2,11 +2,15 @@
 
 class Manage( object ):
     enabled = True
+    action_list = []
     connect_list = []
     widget_matrix = []
 
     def __str__( self ):
         return 'Manage'
+
+    def add_action( self, action ):
+        self.action_list.append( action )
 
     def connect( self, trigger_widget, triggered_widget, callback ):
         self.connect_list.append( ( trigger_widget, triggered_widget, callback ) )
@@ -67,3 +71,11 @@ class Widget( object ):
 
     def get_data( self ):
         return self.data
+
+
+class Action( object ):
+    def __init__( self, action_type, widget1=None, widget2=None, callback=None ):
+        self.action_type = action_type
+        self.widget1 = widget1
+        self.widget2 = widget2
+        self.callback = callback

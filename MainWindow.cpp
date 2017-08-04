@@ -73,6 +73,7 @@ MainWindow::MainWindow(QString systemPath, QWidget *parent)
                 manage_window->show();
                 manage_window->hide(); // This line and the previous line are on purpose to force the window to recalculate its size
                 manage_window->move( x() + ( width() - manage_window->geometry().width() ) / 2, y() + ( height() - manage_window->geometry().height() ) / 2 );
+                emit manage_window->onShow();
                 manage_window->show();
             } );
         }

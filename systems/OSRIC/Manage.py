@@ -1,4 +1,5 @@
 from ManageDefs import *
+import DbQuery
 import SystemSettings
 
 class Characters( Manage ):
@@ -8,7 +9,7 @@ class Characters( Manage ):
         intro = Widget( 'Intro', 'TextLabel', col_span=5, data='This is where you manage characters.' )
         self.add_row( [ intro, ] )
 
-        character_list = Widget( 'Character List_', 'ListBox', row_span=4 )
+        character_list = Widget( 'Character List_', 'ListBox', row_span=4, data=DbQuery.getTable( 'Characters' ) )
         #name = Widget( 'Name', 'LineEdit', data='Lance the Impressive' )
         name = Widget( 'Name', 'LineEdit' )
         xp = Widget( 'XP', 'SpinBox' )
@@ -74,6 +75,62 @@ class Characters( Manage ):
         self.add_row( [ equipment, spellbook, daily_spells, daily_spells2 ] )
 
 #        self.connect( button, name, self.change_name )
+        self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
+        self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
+
+    def get_character_table( self ):
+        return DbQuery.getTable( 'Characters' )
+
+    def fill_page( self, character_dict ):
+        class_table = DbQuery.getTable( 'Classes' )
+        class_id_list = character_dict['Classes'].split( '/' )
+        class_list = []
+        for cl in class_table:
+            if cl['unique_id'] in class_id_list:
+                class_list.append(cl)
+        if len( class_list ) == 1:
+            class_dict = class_list[0]
+        else:
+            class_dict = {
+                'classes': class_list,
+            }
+
+        race_table = DbQuery.getTable( 'Races' )
+        for race in race_table:
+            if race['unique_id'] == character_dict['Race']:
+                race_dict = race
+                break
+
+#        items_table = DbQuery( 'Items' )
+#        for meta_row in character_dict['Characters_meta']:
+#            if meta_row['Type'] == 'Equipment':
+#                equipment_list.append( meta_row )
+
+        ac = SystemSettings.calculate_ac( character_dict, class_dict, race_dict, )
+
+
+        fill_dict = {
+            'Name': character_dict['Name'],
+            'Class': character_dict['Class'],
+            'Alignment': character_dict['Alignment'],
+            'Race': race_dict['Name'],
+            'XP': character_dict['XP'],
+            'HP': character_dict['HP'],
+            'AC': character_dict['AC'],
+            'Level': character_dict['Level'],
+            'Age': character_dict['Age'],
+            'Height': character_dict['Height'],
+            'Weight': character_dict['Weight'],
+            'Gender': character_dict['Gender'],
+            'STR': character_dict['STR'],
+            'INT': character_dict['INT'],
+            'WIS': character_dict['WIS'],
+            'DEX': character_dict['DEX'],
+            'CON': character_dict['CON'],
+            'CHA': character_dict['CHA'],
+        }
+
+        return fill_dict
 
     def change_name( self ):
         return 'Larry the Dubious'

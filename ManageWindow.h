@@ -31,6 +31,7 @@ private:
     QHash<QString, std::pair<QWidget *, QString> > widget_registry;
 
 signals:
+    void onShow();
 
 public slots:
 };

@@ -1,4 +1,5 @@
 #include "ManageWindow.h"
+#include "PythonInterpreter.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -146,7 +147,17 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 widget = new QListWidget( this );
                 if ( widget_data_obj != Py_None ) {
                     for ( Py_ssize_t i = 0 ; i < PyList_Size( widget_data_obj ) ; i++ ) {
-                        ( (QListWidget *) widget )->addItem( PyString_AsString( PyList_GetItem( widget_data_obj, i ) ) );
+                        list_item_obj = PyList_GetItem( widget_data_obj, i );
+                        if ( PyString_Check( list_item_obj ) ) {
+                            ( (QListWidget *) widget )->addItem( PyString_AsString( list_item_obj ) );
+                        } else if ( PyDict_Check( list_item_obj ) ) {
+                            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
+                            QString table_name = PyString_AsString( table_name_obj );
+                            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
+                            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
+                            QString display_name = PyString_AsString( display_name_obj );
+                            ( (QListWidget *) widget )->addItem( new ManageListWidgetItem( display_name, list_item_obj, (QListWidget *) widget ));
+                        }
                     }
                 }
                 if ( !hide_field_name ) {
@@ -254,6 +265,6 @@ void ManageWindow::registerWidget(QString field_name, QString widget_type , QWid
 
 
 ManageListWidgetItem::ManageListWidgetItem(QString display_text, PyObject *data, QListWidget *parent)
-    : QListWidgetItem( display_text, parent, QListWidgetItem::UserType) {
+    : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
     this->data = data;
 }
