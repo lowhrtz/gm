@@ -3,6 +3,7 @@
 
 #include "PythonInterpreter.h"
 
+#include <QLabel>
 #include <QListWidget>
 #include <QMainWindow>
 
@@ -14,6 +15,18 @@ public:
 
 private:
     PyObject *data;
+
+};
+
+class ImageWidget : public QLabel {
+
+public:
+    ImageWidget( QString base64_data, QWidget *parent = 0 );
+    QString getData();
+    void setData( QString base64_data );
+
+private:
+    QString data;
 
 };
 
@@ -34,6 +47,11 @@ signals:
     void onShow();
 
 public slots:
+
+public:
+    static void fillListWidget( QListWidget *list_widget, PyObject *list_obj );
+    static void setImageWithBase64( QLabel *image_widget, QString base64_string );
+
 };
 
 #endif // MANAGEWINDOW_H

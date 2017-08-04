@@ -5,11 +5,13 @@ import SystemSettings
 class Characters( Manage ):
     def __init__( self ):
         empty_widget = Widget( '', 'Empty' )
+        hr = Widget( 'hr', 'hr', col_span=4 )
 
         intro = Widget( 'Intro', 'TextLabel', col_span=5, data='This is where you manage characters.' )
         self.add_row( [ intro, ] )
 
-        character_list = Widget( 'Character List_', 'ListBox', row_span=4, data=DbQuery.getTable( 'Characters' ) )
+        #character_list = Widget( 'Character List_', 'ListBox', row_span=4, data=DbQuery.getTable( 'Characters' ) )
+        character_list = Widget( 'Character List_', 'ListBox', row_span=4 )
         #name = Widget( 'Name', 'LineEdit', data='Lance the Impressive' )
         name = Widget( 'Name', 'LineEdit' )
         xp = Widget( 'XP', 'SpinBox' )
@@ -31,40 +33,32 @@ class Characters( Manage ):
         level = Widget( 'Level', 'LineEdit' )
         gender = Widget( 'Gender', 'ComboBox', data=SystemSettings.gender )
         self.add_row( [ empty_widget, race, level, gender ] )
-#        checkbox = Widget( 'PC', 'CheckBox', data='Is a PC?' )
-#        button = Widget( 'Trigger', 'PushButton' )
-#        self.add_row( [ checkbox, empty_widget, empty_widget,  button ] )
-        hr = Widget( 'hr', 'hr', col_span=4 )
         self.add_row( [ hr, ] )
 
-        str = Widget( 'STR', 'LineEdit' )
-        ami = Widget( 'Aimed Magic Items', 'LineEdit' )
         portrait = Widget( 'Portrait_', 'Image', row_span=6, align='Center', data=image_data )
+        str = Widget( 'STR', 'LineEdit' )
         gp = Widget( 'GP', 'SpinBox', align='Center' )
-        self.add_row( [ str, ami, portrait, gp ] )
+        proficiencies = Widget( 'Proficiencies', 'ListBox', row_span=6 )
+        self.add_row( [ portrait, str, gp, proficiencies ] )
 
         intel = Widget( 'INT', 'LineEdit' )
-        bw = Widget( 'Breath Weapon', 'LineEdit' )
         pp = Widget( 'PP', 'SpinBox', align='Center' )
-        self.add_row( [ intel, bw, empty_widget, pp ] )
+        self.add_row( [ empty_widget, intel, pp ] )
 
         wis = Widget( 'WIS', 'LineEdit' )
-        dpp = Widget( 'Death, Paralysis, Poison', 'LineEdit' )
         ep = Widget( 'EP', 'SpinBox', align='Center' )
-        self.add_row( [ wis, dpp, empty_widget, ep ] )
+        self.add_row( [ empty_widget, wis, ep ] )
 
         dex = Widget( 'DEX', 'LineEdit' )
-        petpoly = Widget( 'Petrifaction, Polymorph', 'LineEdit' )
         sp = Widget( 'SP', 'SpinBox', align='Center' )
-        self.add_row( [ dex, petpoly, empty_widget, sp ] )
+        self.add_row( [ empty_widget, dex, sp ] )
 
         con = Widget( 'CON', 'LineEdit' )
-        spells = Widget( 'Spells', 'LineEdit' )
         cp = Widget( 'CP', 'SpinBox', align='Center' )
-        self.add_row( [ con, spells, empty_widget, cp ] )
+        self.add_row( [ empty_widget, con, cp ] )
 
         cha = Widget( 'CHA', 'LineEdit' )
-        self.add_row( [ cha, ] )
+        self.add_row( [ empty_widget, cha, ] )
 
         self.add_row( [ hr, ] )
 
@@ -74,7 +68,6 @@ class Characters( Manage ):
         daily_spells2 = Widget( 'Daily Spells 2_', 'ListBox' )
         self.add_row( [ equipment, spellbook, daily_spells, daily_spells2 ] )
 
-#        self.connect( button, name, self.change_name )
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
 
@@ -83,6 +76,10 @@ class Characters( Manage ):
 
     def fill_page( self, character_dict ):
         class_table = DbQuery.getTable( 'Classes' )
+        race_table = DbQuery.getTable( 'Races' )
+        items_table = DbQuery.getTable( 'Items' )
+        spells_table = DbQuery.getTable( 'Spells' )
+
         class_id_list = character_dict['Classes'].split( '/' )
         class_list = []
         for cl in class_table:
@@ -90,44 +87,111 @@ class Characters( Manage ):
                 class_list.append(cl)
         if len( class_list ) == 1:
             class_dict = class_list[0]
+            class_string = class_dict['Name']
         else:
             class_dict = {
                 'classes': class_list,
             }
+            class_string = '/'.join( [ cl['Name'] for cl in class_dict['classes'] ] )
 
-        race_table = DbQuery.getTable( 'Races' )
         for race in race_table:
             if race['unique_id'] == character_dict['Race']:
                 race_dict = race
                 break
 
-#        items_table = DbQuery( 'Items' )
-#        for meta_row in character_dict['Characters_meta']:
-#            if meta_row['Type'] == 'Equipment':
-#                equipment_list.append( meta_row )
+        equip_id_list = []
+        spellbook_id_list = []
+        daily_spells_id_list = []
+        daily_spells2_id_list = []
+        proficiency_id_dict = {}
+        for meta_row in character_dict['Characters_meta']:
+            if meta_row['Type'] == 'Equipment':
+                equip_id_list.append( meta_row['Entry_ID'] )
+            elif meta_row['Type'] == 'Treasure':
+                if meta_row['Entry_ID'] == 'gp':
+                    gp = meta_row['Data']
 
-        ac = SystemSettings.calculate_ac( character_dict, class_dict, race_dict, )
+                elif meta_row['Entry_ID'] == 'pp':
+                    pp = meta_row['Data']
 
+                elif meta_row['Entry_ID'] == 'ep':
+                    ep = meta_row['Data']
+
+                elif meta_row['Entry_ID'] == 'sp':
+                    sp = meta_row['Data']
+
+                elif meta_row['Entry_ID'] == 'cp':
+                    cp = meta_row['Data']
+            elif meta_row['Type'] == 'Spellbook':
+                spellbook_id_list.append( meta_row['Entry_ID'] )
+            elif meta_row['Type'] == 'DailySpells':
+                daily_spells_id_list.append( meta_row['Entry_ID'] )
+            elif meta_row['Type'] == 'DailySpells2':
+                daily_spells2_id_list.append( meta_row['Entry_ID'] )
+            elif meta_row['Type'] == 'Proficiency':
+                proficiency_id_dict[ meta_row['Entry_ID'] ] = meta_row['Data']
+
+        proficiency_list = []
+        for prof in items_table:
+            if prof['Is_Proficiency'].lower() == 'yes' and prof['unique_id'] in list( proficiency_id_dict.keys() ):
+                prof_name = prof['Name']
+                prof_level = proficiency_id_dict[  prof['unique_id'] ]
+                prof_add = ''
+                if prof_level == 'S':
+                    prof_add = ' (Specialised)'
+                elif prof_level == '2XS':
+                    prof_add = ' (Double Specialised)'
+                prof_display = prof_name + prof_add
+                proficiency_list.append( ( prof_display, prof ) )
+
+        equipment_list = []
+        for equip in items_table:
+            if equip['unique_id'] in equip_id_list:
+                equipment_list.append( equip )
+
+        ac = SystemSettings.calculate_ac( character_dict, class_dict, race_dict, equipment_list )
+
+        spellbook_list = []
+        daily_spells_list = []
+        daily_spells2_list = []
+        for spell in spells_table:
+            if spell['spell_id'] in spellbook_id_list:
+                spellbook_list.append( spell )
+            if spell['spell_id'] in daily_spells_id_list:
+                daily_spells_list.append( spell )
+            if spell['spell_id'] in daily_spells2_id_list:
+                daily_spells2_list.append( spell )
 
         fill_dict = {
-            'Name': character_dict['Name'],
-            'Class': character_dict['Class'],
-            'Alignment': character_dict['Alignment'],
-            'Race': race_dict['Name'],
-            'XP': character_dict['XP'],
-            'HP': character_dict['HP'],
-            'AC': character_dict['AC'],
-            'Level': character_dict['Level'],
-            'Age': character_dict['Age'],
-            'Height': character_dict['Height'],
-            'Weight': character_dict['Weight'],
-            'Gender': character_dict['Gender'],
-            'STR': character_dict['STR'],
-            'INT': character_dict['INT'],
-            'WIS': character_dict['WIS'],
-            'DEX': character_dict['DEX'],
-            'CON': character_dict['CON'],
-            'CHA': character_dict['CHA'],
+            'Name' : character_dict['Name'],
+            'Class' : class_string,
+            'Alignment' : character_dict['Alignment'],
+            'Race' : race_dict['Name'],
+            'XP' : int( character_dict['XP'] ),
+            'HP' : int( character_dict['HP'] ),
+            'AC' : int( ac ),
+            'Level' : character_dict['Level'],
+            'Age' : int( character_dict['Age'] ),
+            'Height' : character_dict['Height'],
+            'Weight' : character_dict['Weight'],
+            'Gender' : character_dict['Gender'],
+            'STR' : character_dict['STR'],
+            'INT' : character_dict['INT'],
+            'WIS' : character_dict['WIS'],
+            'DEX' : character_dict['DEX'],
+            'CON' : character_dict['CON'],
+            'CHA' : character_dict['CHA'],
+            'Portrait' : character_dict['Portrait'],
+            'GP' : int( gp ),
+            'PP' : int( pp ),
+            'EP' : int( ep ),
+            'SP' : int( sp ),
+            'CP' : int( cp ),
+            'Proficiencies' : proficiency_list,
+            'Equipment' : equipment_list,
+            'Spellbook' : spellbook_list,
+            'Daily Spells' : daily_spells_list,
+            'Daily Spells 2' : daily_spells2_list,
         }
 
         return fill_dict

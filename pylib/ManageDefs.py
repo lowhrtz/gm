@@ -18,6 +18,9 @@ class Manage( object ):
     def add_row( self, widget_list ):
         self.widget_matrix.append( widget_list )
 
+    def get_action_list( self ):
+        return self.action_list
+
     def get_connect_list( self ):
         return self.connect_list
 

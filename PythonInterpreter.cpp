@@ -496,14 +496,14 @@ std::pair< int, int > PythonInterpreter::getBase64ImageAndTypeCols( QString tabl
                 PyObject_GetAttrString( value, "__name__" ) != PyObject_GetAttrString( tableType, "__name__" ) &&
                 strcmp( PyString_AsString( PyObject_GetAttrString( value, "table_name" ) ), tableName.toStdString().data() ) == 0 ) {
             tableInstance = PyObject_CallObject( value, NULL );
-            base_64_image_col_obj = PyObject_CallMethod( tableInstance, (char *)"get_base64_image_col", NULL );
+            base_64_image_col_obj = PyObject_CallMethod( tableInstance, (char *) "get_base64_image_col", NULL );
             PyErr_Print();
             if ( base_64_image_col_obj == Py_None ) {
                 base_64_image_col = -1;
             } else {
                 base_64_image_col = PyInt_AsSsize_t( base_64_image_col_obj );
             }
-            image_type_col_obj = PyObject_CallMethod( tableInstance, (char *)"get_image_type_col", NULL );
+            image_type_col_obj = PyObject_CallMethod( tableInstance, (char *) "get_image_type_col", NULL );
             PyErr_Print();
             if ( image_type_col_obj == Py_None ) {
                 image_type_col == -1;

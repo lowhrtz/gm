@@ -5,7 +5,6 @@
 #include <QComboBox>
 #include <QGridLayout>
 #include <QGroupBox>
-#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
@@ -145,20 +144,8 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             } else if ( widget_type.toLower() == "listbox" ) {
                 widget_layout = new QVBoxLayout;
                 widget = new QListWidget( this );
-                if ( widget_data_obj != Py_None ) {
-                    for ( Py_ssize_t i = 0 ; i < PyList_Size( widget_data_obj ) ; i++ ) {
-                        list_item_obj = PyList_GetItem( widget_data_obj, i );
-                        if ( PyString_Check( list_item_obj ) ) {
-                            ( (QListWidget *) widget )->addItem( PyString_AsString( list_item_obj ) );
-                        } else if ( PyDict_Check( list_item_obj ) ) {
-                            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
-                            QString table_name = PyString_AsString( table_name_obj );
-                            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
-                            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
-                            QString display_name = PyString_AsString( display_name_obj );
-                            ( (QListWidget *) widget )->addItem( new ManageListWidgetItem( display_name, list_item_obj, (QListWidget *) widget ));
-                        }
-                    }
+                if ( PyList_Check( widget_data_obj ) ) {
+                    ManageWindow::fillListWidget( (QListWidget *) widget, widget_data_obj );
                 }
                 if ( !hide_field_name ) {
                     widget_layout->addWidget( new QLabel( field_name ) );
@@ -173,21 +160,12 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
 
             } else if ( widget_type.toLower() == "image" ) {
                 widget_layout = new QVBoxLayout;
-                widget = new QLabel;
+                widget_data = "";
                 if ( widget_data_obj != Py_None ) {
                     widget_data = PyString_AsString( widget_data_obj );
-                    QByteArray ba = QByteArray::fromBase64( widget_data.toStdString().data() );
-                    //QImage image = QImage::fromData( ba, image_type.toStdString().data() );
-                    QImage image = QImage::fromData( ba );
-                    QPixmap pixmap = QPixmap( QPixmap::fromImage( image ) );
-                    if( pixmap.height() > 200 ) {
-                        pixmap = pixmap.scaledToHeight( 200 );
-                    }
-                    ( (QLabel *)widget )->setPixmap( pixmap );
+//                    ManageWindow::setImageWithBase64( (QLabel *) widget, widget_data);
                 }
-                if ( !hide_field_name ) {
-                    widget_layout->addWidget( new QLabel( field_name, this ) );
-                }
+                widget = new ImageWidget( widget_data );
                 widget_layout->addWidget( widget );
 
             } else if ( widget_type.toLower() == "hr" ) {
@@ -251,6 +229,90 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
         }
     }
 
+    PyObject *action_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_action_list", NULL  );
+    PyErr_Print();
+    for( Py_ssize_t i = 0 ; i < PyList_Size( action_list_obj ) ; i++ ) {
+        PyObject *action_obj = PyList_GetItem( action_list_obj, i );
+        PyObject *action_type_obj = PyObject_GetAttrString( action_obj, (char *) "action_type" );
+        PyObject *widget1_obj = PyObject_GetAttrString( action_obj, (char *) "widget1" );
+        PyObject *widget2_obj = PyObject_GetAttrString( action_obj, (char *) "widget2" );
+        PyObject *callback_obj = PyObject_GetAttrString( action_obj, (char *) "callback" );
+
+        PyObject *widget1_field_name_obj = PyObject_CallMethod( widget1_obj, (char *) "get_field_name", NULL );
+        PyErr_Print();
+        PyObject *widget1_type_obj = PyObject_CallMethod( widget1_obj, (char *) "get_widget_type", NULL );
+        PyErr_Print();
+
+        QString action_type = PyString_AsString( action_type_obj );
+        QString widget1_type = PyString_AsString( widget1_type_obj );
+        QString widget1_field_name = PyString_AsString( widget1_field_name_obj );
+        if ( widget1_field_name.endsWith( "_" ) ) {
+            widget1_field_name.chop( 1 );
+        }
+
+        if ( action_type.toLower() == "onshow" ) {
+            PyObject *callback_return_obj = Py_None;
+            if ( callback_obj != Py_None ) {
+                callback_return_obj = PyObject_CallObject( callback_obj, NULL );
+                PyErr_Print();
+            }
+            connect( this, &ManageWindow::onShow, [=] () {
+                if ( widget1_type.toLower() == "lineedit" ) {
+                    QLineEdit *widget1 = (QLineEdit *) widget_registry[widget1_field_name].first;
+                    widget1->setText( PyString_AsString( callback_return_obj ) );
+
+                } else if ( widget1_type.toLower() == "listbox" ) {
+                    QListWidget *widget1 = (QListWidget *) widget_registry[widget1_field_name].first;
+                    ManageWindow::fillListWidget( widget1, callback_return_obj );
+
+                }
+            });
+
+        } else if ( action_type.toLower() == "fillpage" ) {
+            QListWidget *widget1 = (QListWidget *) widget_registry[widget1_field_name].first;
+            connect( widget1, &QListWidget::currentItemChanged, [=] ( QListWidgetItem *current, QListWidgetItem *previous ) {
+                PyObject *data = ( (ManageListWidgetItem *) current )->getData();
+                PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", data ) );
+                PyErr_Print();
+                Py_ssize_t pos = 0;
+                PyObject *key, *value;
+                while( PyDict_Next( callback_return_obj, &pos, &key, &value ) ) {
+                    QString field_name = PyString_AsString( key );
+//                    qInfo( "field_name: %s", field_name.toStdString().data() );
+                    QString widget_type = widget_registry[field_name].second;
+
+                    if ( widget_type.toLower() == "lineedit" ) {
+                        QLineEdit *line_edit_widget = (QLineEdit *) widget_registry[field_name].first;
+                        line_edit_widget->setText( PyString_AsString( value ) );
+
+                    } else if ( widget_type.toLower() == "textedit" ) {
+                        QTextEdit *text_edit_widget = (QTextEdit *) widget_registry[field_name].first;
+                        text_edit_widget->setText( PyString_AsString( value ) );
+
+                    } else if ( widget_type.toLower() == "listbox" ) {
+                        QListWidget *list_widget = (QListWidget *) widget_registry[field_name].first;
+                        ManageWindow::fillListWidget( list_widget, value );
+
+                    } else if ( widget_type.toLower() == "spinbox" ) {
+                        QSpinBox *spin_box_widget = (QSpinBox *) widget_registry[field_name].first;
+                        spin_box_widget->setValue( PyInt_AsSsize_t( value ) );
+
+                    } else if ( widget_type.toLower() == "combobox" ) {
+                        QComboBox *combo_box_widget = (QComboBox *) widget_registry[field_name].first;
+                        int new_index = combo_box_widget->findText( PyString_AsString( value ) );
+                        combo_box_widget->setCurrentIndex( new_index );
+
+                    } else if ( widget_type.toLower() == "image" ) {
+                        ImageWidget *image_widget = (ImageWidget *) widget_registry[field_name].first;
+                        image_widget->setData( PyString_AsString( value ) );
+
+                    }
+                }
+            });
+
+        }
+    }
+
     QString title( class_name );
     title.prepend( "Manage " );
     setWindowTitle( title.toUtf8() );
@@ -263,8 +325,61 @@ void ManageWindow::registerWidget(QString field_name, QString widget_type , QWid
     widget_registry[field_name] = widget_and_type;
 }
 
+void ManageWindow::fillListWidget( QListWidget *list_widget, PyObject *list_obj ) {
+    list_widget->clear();
+    for ( Py_ssize_t i = 0 ; i < PyList_Size( list_obj ) ; i++ ) {
+        PyObject *list_item_obj = PyList_GetItem( list_obj, i );
+
+        if ( PyString_Check( list_item_obj ) ) {
+            list_widget->addItem( PyString_AsString( list_item_obj ) );
+
+        } else if ( PyDict_Check( list_item_obj ) ) {
+            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
+            QString table_name = PyString_AsString( table_name_obj );
+            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
+            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
+            QString display_name = PyString_AsString( display_name_obj );
+            list_widget->addItem( new ManageListWidgetItem( display_name, list_item_obj, list_widget ));
+
+        } else if ( PyTuple_Check( list_item_obj ) ) {
+            PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
+            PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
+            QString display_name = PyString_AsString( display_obj );
+            list_widget->addItem( new ManageListWidgetItem( display_name, dict_obj, list_widget ));
+        }
+    }
+}
+
+void ManageWindow::setImageWithBase64(QLabel *image_widget, QString base64_string) {
+    QByteArray ba = QByteArray::fromBase64( base64_string.toStdString().data() );
+    QImage image = QImage::fromData( ba );
+    QPixmap pixmap = QPixmap( QPixmap::fromImage( image ) );
+    if( pixmap.height() > 200 ) {
+        pixmap = pixmap.scaledToHeight( 200 );
+    }
+    image_widget->setPixmap( pixmap );
+}
+
 
 ManageListWidgetItem::ManageListWidgetItem(QString display_text, PyObject *data, QListWidget *parent)
     : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
     this->data = data;
+}
+
+PyObject *ManageListWidgetItem::getData() {
+    return data;
+}
+
+ImageWidget::ImageWidget( QString base64_data, QWidget *parent )
+    : QLabel( parent ) {
+    setData( base64_data );
+}
+
+QString ImageWidget::getData() {
+    return data;
+}
+
+void ImageWidget::setData( QString base64_data ) {
+    ManageWindow::setImageWithBase64( this, base64_data );
+    this->data = base64_data;
 }
