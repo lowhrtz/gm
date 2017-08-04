@@ -842,6 +842,48 @@ QList<QVariant> *PythonInterpreter::getDataRow( PyObject *row_obj ) {
     return row;
 }
 
+QList<PyObject *> PythonInterpreter::getManageWindows() {
+    QList<PyObject *> manage_list;
+    PyObject *manage_module, *manage_type, *manage_module_dict, *key, *value, *instance;
+    Py_ssize_t pos = 0;
+//    QString key_string;
+
+    manage_module = PyImport_ImportModule( "Manage" );
+    if( !manage_module ) {
+        PyErr_Print();
+        qInfo( "Manage module import failed!" );
+        return manage_list;
+    }
+
+    manage_type = PyObject_GetAttrString( manage_module, "Manage" );
+    if ( !manage_type ) {
+        PyErr_Print();
+        qInfo( "Manage class is missing!" );
+        return manage_list;
+    }
+
+    manage_module_dict = PyModule_GetDict( manage_module );
+    if( !manage_module_dict ) {
+        PyErr_Print();
+        qInfo( "Error getting Manage module dict.");
+        return manage_list;
+    }
+
+    while( PyDict_Next( manage_module_dict, &pos, &key, &value ) ) {
+//        key_string = PyString_AsString( key );
+        if( PyType_Check( value ) &&
+                PyType_IsSubtype( (PyTypeObject*)value, (PyTypeObject*)manage_type ) &&
+                PyObject_GetAttrString( value, "__name__" ) != PyObject_GetAttrString( manage_type, "__name__" ) &&
+                PyObject_IsTrue( PyObject_GetAttrString( value, "enabled" ) ) ) {
+            instance = PyObject_CallObject( value, NULL );
+            PyErr_Print();
+            manage_list.append( instance );
+        }
+    }
+
+    return manage_list;
+}
+
 QList<QList<QVariant> *> PythonInterpreter::getDataList(PyObject *data) {
     QList<QList<QVariant> *> dataList = QList<QList<QVariant> *>();
     for(int i = 0 ; i < PyList_Size(data) ; i++) {

@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "CharacterCreationWizard.h"
 #include "DBWindow.h"
+#include "ManageWindow.h"
 #include <QToolBar>
 #include <QIcon>
 #include <QAction>
@@ -58,6 +59,24 @@ MainWindow::MainWindow(QString systemPath, QWidget *parent)
     database->addSeparator();
     QAction *dbReset = new QAction("Reset Databases", this);
     database->addAction(dbReset);
+
+    QList<PyObject *> manage_windows = interpreter->getManageWindows();
+    if ( manage_windows.length() > 0 ) {
+        QMenu *manage = menuBar()->addMenu( "&Manage" );
+        foreach( PyObject *manage_window_instance, manage_windows ) {
+            PyObject *manage_window_name_obj = PyObject_GetAttrString( PyObject_Type( manage_window_instance ), "__name__" );
+            QString manage_window_name = PyString_AsString( manage_window_name_obj );
+            QAction *manage_action = new QAction( manage_window_name, this );
+            manage->addAction( manage_action );
+            connect( manage_action, &QAction::triggered, this, [=] () {
+                ManageWindow *manage_window = new ManageWindow( manage_window_instance, this );
+                manage_window->show();
+                manage_window->hide(); // This line and the previous line are on purpose to force the window to recalculate its size
+                manage_window->move( x() + ( width() - manage_window->geometry().width() ) / 2, y() + ( height() - manage_window->geometry().height() ) / 2 );
+                manage_window->show();
+            } );
+        }
+    }
 
     QToolBar *toolbar = addToolBar("main toolbar");
     toolbar->addAction(QIcon(newpix), "New File");

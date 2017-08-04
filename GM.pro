@@ -31,7 +31,8 @@ HEADERS += MainWindow.h \
     PyToolButton.h \
     WizardPage.h \
     Dialogs.h \
-    PDFCreator.h
+    PDFCreator.h \
+    ManageWindow.h
 SOURCES += main.cpp MainWindow.cpp \
     PythonInterpreter.cpp \
     ListObject.cpp \
@@ -43,7 +44,8 @@ SOURCES += main.cpp MainWindow.cpp \
     PyToolButton.cpp \
     WizardPage.cpp \
     Dialogs.cpp \
-    PDFCreator.cpp
+    PDFCreator.cpp \
+    ManageWindow.cpp
 
 RESOURCES += \
     resources.qrc

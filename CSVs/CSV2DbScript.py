@@ -5,7 +5,7 @@ This creates a Db.py file from a series of csv files in this specific format:
 row 1: first cell holds the table name - all others are empty
 row 2: a column name for each cell
 row 3: a column definition for each cell
-row 4: column metadata - primarily used to denote which column holds the display string
+row 4: column metadata - primarily used to denote which column holds the display string and which colums hold image info
 row 5 and up: actual table data
 
 Note about line breaks:

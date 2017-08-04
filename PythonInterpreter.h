@@ -71,6 +71,7 @@ public:
     PyObject *makeDictListFromRows(QList<QList<QVariant> *> rows, QString tableName, DatabaseHandler *db);
     PyObject *makeDictFromSqlRecord(QSqlRecord row);
     QList<QVariant> *getDataRow(PyObject *row_obj);
+    QList<PyObject *> getManageWindows();
 
 private:
     QList<QString> getStringList(PyObject *pyListObject);
