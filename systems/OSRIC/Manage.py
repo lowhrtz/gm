@@ -4,6 +4,7 @@ import SystemSettings
 
 class Characters( Manage ):
     def __init__( self ):
+
         empty_widget = Widget( '', 'Empty' )
         hr = Widget( 'hr', 'hr', col_span=4 )
 
@@ -68,8 +69,16 @@ class Characters( Manage ):
         daily_spells2 = Widget( 'Daily Spells 2_', 'ListBox' )
         self.add_row( [ equipment, spellbook, daily_spells, daily_spells2 ] )
 
+        #pdf_button = Widget( 'Save PDF', 'PushButton' )
+        #self.add_row( [ pdf_button, ] )
+        #self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=SystemSettings.get_character_pdf_markup ) )
+
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
+
+        character_menu = Menu( '&Character' )
+        character_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        self.add_menu( character_menu )
 
     def get_character_table( self ):
         return DbQuery.getTable( 'Characters' )

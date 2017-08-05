@@ -1,11 +1,15 @@
 #include "ManageWindow.h"
+#include "PDFCreator.h"
 #include "PythonInterpreter.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLineEdit>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTextEdit>
@@ -71,7 +75,6 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             }
             //qInfo( "widget_type: %s", widget_type.toStdString().data() );
 
-//            QHBoxLayout *widget_layout = new QHBoxLayout;
             if ( widget_type.toLower() == "checkbox" ) {
                 widget_layout = new QHBoxLayout;
                 if ( widget_data_obj != Py_None ) {
@@ -195,39 +198,39 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
 //    qInfo( "rect.height(): %i", geometry().height() );
 //    move( parent_rect.x() + ( parent_rect.width() - geometry().width() ) / 2, parent_rect.y() + ( parent_rect.height() - geometry().height() ) / 2 );
 
-    connect_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_connect_list", NULL );
-    PyErr_Print();
-    for( Py_ssize_t i = 0 ; i < PyList_Size( connect_list_obj ) ; i++ ) {
-        connect_tuple = PyList_GetItem( connect_list_obj, i );
-        trigger_widget_obj = PyTuple_GetItem( connect_tuple, 0 );
-        triggered_widget_obj = PyTuple_GetItem( connect_tuple, 1 );
-        callback_obj = PyTuple_GetItem( connect_tuple, 2 );
+//    connect_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_connect_list", NULL );
+//    PyErr_Print();
+//    for( Py_ssize_t i = 0 ; i < PyList_Size( connect_list_obj ) ; i++ ) {
+//        connect_tuple = PyList_GetItem( connect_list_obj, i );
+//        trigger_widget_obj = PyTuple_GetItem( connect_tuple, 0 );
+//        triggered_widget_obj = PyTuple_GetItem( connect_tuple, 1 );
+//        callback_obj = PyTuple_GetItem( connect_tuple, 2 );
 
-        trigger_field_name_obj = PyObject_CallMethod( trigger_widget_obj, (char *) "get_field_name", NULL);
-        PyErr_Print();
-        triggered_field_name_obj = PyObject_CallMethod( triggered_widget_obj, (char *) "get_field_name", NULL);
-        PyErr_Print();
-        trigger_field_name = PyString_AsString( trigger_field_name_obj );
-        triggered_field_name = PyString_AsString( triggered_field_name_obj );
+//        trigger_field_name_obj = PyObject_CallMethod( trigger_widget_obj, (char *) "get_field_name", NULL);
+//        PyErr_Print();
+//        triggered_field_name_obj = PyObject_CallMethod( triggered_widget_obj, (char *) "get_field_name", NULL);
+//        PyErr_Print();
+//        trigger_field_name = PyString_AsString( trigger_field_name_obj );
+//        triggered_field_name = PyString_AsString( triggered_field_name_obj );
 
-        trigger_widget = widget_registry[trigger_field_name].first;
-        trigger_widget_type = widget_registry[trigger_field_name].second;
-        triggered_widget = widget_registry[triggered_field_name].first;
-        triggered_widget_type = widget_registry[triggered_field_name].second;
+//        trigger_widget = widget_registry[trigger_field_name].first;
+//        trigger_widget_type = widget_registry[trigger_field_name].second;
+//        triggered_widget = widget_registry[triggered_field_name].first;
+//        triggered_widget_type = widget_registry[triggered_field_name].second;
 
-        if ( trigger_widget_type.toLower() == "pushbutton" ) {
-            connect( (QPushButton *) trigger_widget, &QPushButton::clicked, [=] ( bool checked ) {
-                if ( callback_obj != Py_None ) {
-                    PyObject *callback_return_obj = PyObject_CallObject( callback_obj, NULL );
-                    PyErr_Print();
+//        if ( trigger_widget_type.toLower() == "pushbutton" ) {
+//            connect( (QPushButton *) trigger_widget, &QPushButton::clicked, [=] ( bool checked ) {
+//                if ( callback_obj != Py_None ) {
+//                    PyObject *callback_return_obj = PyObject_CallObject( callback_obj, NULL );
+//                    PyErr_Print();
 
-                    if ( triggered_widget_type.toLower() == "lineedit" ) {
-                        ( (QLineEdit *) triggered_widget )->setText( PyString_AsString( callback_return_obj ) );
-                    }
-                }
-            } );
-        }
-    }
+//                    if ( triggered_widget_type.toLower() == "lineedit" ) {
+//                        ( (QLineEdit *) triggered_widget )->setText( PyString_AsString( callback_return_obj ) );
+//                    }
+//                }
+//            } );
+//        }
+//    }
 
     PyObject *action_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_action_list", NULL  );
     PyErr_Print();
@@ -248,6 +251,20 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
         QString widget1_field_name = PyString_AsString( widget1_field_name_obj );
         if ( widget1_field_name.endsWith( "_" ) ) {
             widget1_field_name.chop( 1 );
+        }
+
+        QString widget2_type;
+        QString widget2_field_name;
+        if ( widget2_obj != Py_None ) {
+            PyObject *widget2_field_name_obj = PyObject_CallMethod( widget2_obj, (char *) "get_field_name", NULL );
+            PyErr_Print();
+            PyObject *widget2_type_obj = PyObject_CallMethod( widget2_obj, (char *) "get_widget_type", NULL );
+            PyErr_Print();
+            widget2_type = PyString_AsString( widget2_type_obj );
+            widget2_field_name = PyString_AsString( widget2_field_name_obj );
+            if ( widget2_field_name.endsWith( "_" ) ) {
+                widget2_field_name.chop( 1 );
+            }
         }
 
         if ( action_type.toLower() == "onshow" ) {
@@ -310,6 +327,93 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 }
             });
 
+        } else if ( action_type.toLower() == "savepdf" ) {
+            if ( widget1_type.toLower() == "pushbutton" ) {
+                QPushButton *widget1 = (QPushButton *) widget_registry[widget1_field_name].first;
+                connect( widget1, &QPushButton::clicked, [=] ( bool checked ) {
+                    if ( callback_obj != Py_None ) {
+                        PyObject *arg = NULL;
+                        if ( widget2_type.toLower() == "listbox" ) {
+                            QListWidget *widget2 = (QListWidget *) widget_registry[widget2_field_name].first;
+                            arg = Py_BuildValue( "(O)", ( (ManageListWidgetItem *) widget2->currentItem() )->getData() );
+                        }
+                        PyObject *callback_return_obj = PyObject_CallObject( callback_obj, arg );
+                        PyErr_Print();
+                        PyObject *default_filename_obj = PyTuple_GetItem( callback_return_obj, 0 );
+                        PyObject *pdf_markup_obj = PyTuple_GetItem( callback_return_obj, 1 );
+                        QString default_filename = PyString_AsString( default_filename_obj );
+                        QString pdf_markup = PyString_AsString( pdf_markup_obj );
+                        PDFCreator pdf_creator( pdf_markup, default_filename );
+                        pdf_creator.save();
+
+                    }
+                } );
+
+            }
+
+        }
+    }
+
+    PyObject *menu_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_menu_list", NULL );
+    PyErr_Print();
+
+    for( Py_ssize_t i = 0 ; i < PyList_Size( menu_list_obj ) ; i++ ) {
+        PyObject *menu_obj = PyList_GetItem( menu_list_obj, i );
+        PyObject *menu_name_obj = PyObject_CallMethod( menu_obj, (char *) "get_menu_name", NULL );
+        PyErr_Print();
+        QString menu_name = PyString_AsString( menu_name_obj );
+        QMenu *menu = menuBar()->addMenu( menu_name );
+        PyObject *menu_action_list_obj = PyObject_CallMethod( menu_obj, (char *) "get_action_list", NULL );
+        PyErr_Print();
+        for( Py_ssize_t j = 0 ; j < PyList_Size( menu_action_list_obj ) ; j++ ) {
+            PyObject *menu_action_obj = PyList_GetItem( menu_action_list_obj, j );
+            PyObject *menu_action_type_obj = PyObject_GetAttrString( menu_action_obj, (char *) "action_type" );
+            PyObject *menu_widget1_obj = PyObject_GetAttrString( menu_action_obj, (char *) "widget1" );
+            PyObject *menu_widget2_obj = PyObject_GetAttrString( menu_action_obj, (char *) "widget2" );
+            PyObject *menu_callback_obj = PyObject_GetAttrString( menu_action_obj, (char *) "callback" );
+            PyObject *menu_widget1_field_name_obj = PyObject_CallMethod( menu_widget1_obj, (char *) "get_field_name", NULL );
+            PyErr_Print();
+            PyObject *menu_widget2_field_name_obj = PyObject_CallMethod( menu_widget2_obj, (char *) "get_field_name", NULL );
+            PyErr_Print();
+            PyObject *menu_widget2_widget_type_obj = PyObject_CallMethod( menu_widget2_obj, (char *) "get_widget_type", NULL );
+            PyErr_Print();
+
+            QString menu_action_type = PyString_AsString( menu_action_type_obj );
+            QString menu_widget1_field_name = PyString_AsString( menu_widget1_field_name_obj );
+            if ( menu_widget1_field_name.endsWith( "_" ) ) {
+                menu_widget1_field_name.chop( 1 );
+            }
+            QString menu_widget2_field_name = PyString_AsString( menu_widget2_field_name_obj );
+            if ( menu_widget2_field_name.endsWith( "_" ) ) {
+                menu_widget2_field_name.chop( 1 );
+            }
+            QString menu_widget2_widget_type = PyString_AsString( menu_widget2_widget_type_obj );
+            QAction *menu_action = new QAction( menu_widget1_field_name, this );
+            menu->addAction( menu_action );
+            connect( menu_action, &QAction::triggered, [=] (bool checked ) {
+                if ( menu_action_type.toLower() == "savepdf" ) {
+                    PyObject *data = Py_None;
+
+                    if ( menu_widget2_widget_type.toLower() == "listbox" ) {
+                        QListWidget *list_widget = (QListWidget *) widget_registry[menu_widget2_field_name].first;
+                        ManageListWidgetItem *list_widget_item = (ManageListWidgetItem *) list_widget->currentItem();
+                        data = list_widget_item->getData();
+
+                    }
+
+                    if ( menu_callback_obj != Py_None && data != Py_None ) {
+                        PyObject *menu_callback_return_obj = PyObject_CallObject( menu_callback_obj, Py_BuildValue( "(O)", data ) );
+                        PyErr_Print();
+                        PyObject *default_filename_obj = PyTuple_GetItem( menu_callback_return_obj, 0 );
+                        PyObject *pdf_markup_obj = PyTuple_GetItem( menu_callback_return_obj, 1 );
+
+                        QString default_filename = PyString_AsString( default_filename_obj );
+                        QString pdf_markup = PyString_AsString( pdf_markup_obj );
+                        PDFCreator pdf_creator( pdf_markup, default_filename );
+                        pdf_creator.save();
+                    }
+                }
+            });
         }
     }
 

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from string import Template
+import DbQuery
+
 systemName = 'Osric'
 subSystemName = 'OSRIC'
 hasSeparateRacesAndClasses = True
@@ -142,6 +145,17 @@ def get_attribute_bonuses(attr_key, score):
         return_bonus = row
         break
     return tuple(bonus for bonus in return_bonus[1:])
+
+def get_attribute_bonus_string( attr_key, score ):
+    bonuses_dict = {}
+    bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
+    bonuses_dict['INT'] = 'Additional Languages: {}'
+    bonuses_dict['WIS'] = 'Mental Save: {}     Bonus Cleric Spells: {}     Cleric Spell Failure: {}%'
+    bonuses_dict['DEX'] = 'Surprise: {}     Missile To Hit: {}     AC Adjustment: {}'
+    bonuses_dict['CON'] = 'HP Bonus: {}   Resurrect/Raise Dead: {}%   System Shock: {}%'
+    bonuses_dict['CHA'] = 'Max Henchman: {}     Loyalty: {}     Reaction: {}'
+
+    return bonuses_dict[attr_key].format( *get_attribute_bonuses( attr_key, score ) )
 
 def calculate_ac(attr_dict, class_dict, race_dict, equipment_list):
     base_ac = 10
@@ -542,3 +556,417 @@ def get_non_proficiency_penalty( class_dict, race_dict ):
             return max( bucket )
 
     return class_dict['Non-Proficiency_Penalty']
+
+def get_character_pdf_markup( character_dict ):
+    class_table = DbQuery.getTable( 'Classes' )
+    race_table = DbQuery.getTable( 'Races' )
+    items_table = DbQuery.getTable( 'Items' )
+    spells_table = DbQuery.getTable( 'Spells' )
+
+    class_dict = { 'Name' : '', 'classes' : [] }
+    classes_list = character_dict['Classes'].split( '/' )
+    for class_id in classes_list:
+        for cl in class_table:
+            if class_id == cl['unique_id']:
+                if class_dict['Name'] == '':
+                    if len( classes_list ) == 1:
+                        class_dict = cl
+                        break
+                    class_dict['Name'] = cl['Name']
+                else:
+                    class_dict['Name'] += '/{}'.format( cl['Name'] )
+                class_dict['classes'].append(cl)
+
+    level = character_dict['Level']
+    class_name = class_dict['Name']
+    class_font_size = '14px'
+    class_padding = '0px'
+    if len( class_name ) > 15:
+        class_font_size = '8px'
+        class_padding = '4px'
+
+    for race in race_table:
+        if race['unique_id'] == character_dict['Race']:
+            race_dict = race
+
+    portrait = character_dict['Portrait']
+    ext = character_dict['Portrait_Image_Type']
+
+    attr_dict = {
+        'STR' : character_dict['STR'],
+        'INT' : character_dict['INT'],
+        'WIS' : character_dict['WIS'],
+        'DEX' : character_dict['DEX'],
+        'CON' : character_dict['CON'],
+        'CHA' : character_dict['CHA'],
+    }
+
+    equip_id_list = []
+    spellbook_id_list = []
+    daily_spells_id_list = []
+    daily_spells2_id_list = []
+    proficiency_id_dict = {}
+    for meta_row in character_dict['Characters_meta']:
+        if meta_row['Type'] == 'Equipment':
+            equip_id_list.append( meta_row['Entry_ID'] )
+        elif meta_row['Type'] == 'Treasure':
+            if meta_row['Entry_ID'] == 'gp':
+                gp = meta_row['Data']
+
+            elif meta_row['Entry_ID'] == 'pp':
+                pp = meta_row['Data']
+
+            elif meta_row['Entry_ID'] == 'ep':
+                ep = meta_row['Data']
+
+            elif meta_row['Entry_ID'] == 'sp':
+                sp = meta_row['Data']
+
+            elif meta_row['Entry_ID'] == 'cp':
+                cp = meta_row['Data']
+        elif meta_row['Type'] == 'Spellbook':
+            spellbook_id_list.append( meta_row['Entry_ID'] )
+        elif meta_row['Type'] == 'DailySpells':
+            daily_spells_id_list.append( meta_row['Entry_ID'] )
+        elif meta_row['Type'] == 'DailySpells2':
+            daily_spells2_id_list.append( meta_row['Entry_ID'] )
+        elif meta_row['Type'] == 'Proficiency':
+            proficiency_id_dict[ meta_row['Entry_ID'] ] = meta_row['Data']
+
+    proficiency_list = []
+    specialised_list = []
+    double_specialised_list = []
+    for prof in items_table:
+        if prof['Is_Proficiency'].lower() == 'yes' and prof['unique_id'] in list( proficiency_id_dict.keys() ):
+            prof_name = prof['Name']
+            prof_level = proficiency_id_dict[  prof['unique_id'] ]
+            if prof_level == 'P':
+                proficiency_list.append( prof )
+            elif prof_level == 'S':
+                specialised_list.append( prof )
+            elif prof_level == '2XS':
+                double_specialised_list.append( prof )
+
+    equipment_list = []
+    for equip in items_table:
+        if equip['unique_id'] in equip_id_list:
+            equipment_list.append( equip )
+
+    class_abilities = {}
+    if 'classes' in class_dict:
+        level_list = [ int(l) for l in level.split('/') ]
+        for i, cl in enumerate( class_dict['classes'] ):
+            class_abilities[ cl['Name'] ] = get_class_abilities( level_list[i], attr_dict, cl )
+    else:
+        class_abilities[ class_dict['Name'] ] = get_class_abilities( level, attr_dict, class_dict )
+    race_abilities = get_race_abilities( race_dict )
+
+    spellbook = []
+    daily_spells = []
+    daily_spells2 = []
+    for spell in spells_table:
+        if spell['spell_id'] in spellbook_id_list:
+            spellbook.append( spell )
+        if spell['spell_id'] in daily_spells_id_list:
+            daily_spells.append( spell )
+        if spell['spell_id'] in daily_spells2_id_list:
+            daily_spells2.append( spell )
+
+    #print equipment_list
+    saves_dict = get_saves( level, attr_dict, class_dict, race_dict )
+    movement_tuple = calculate_movement( race_dict, class_dict, attr_dict, equipment_list )
+    markup_template_dict = {
+        'class_font_size' : class_font_size,
+        'class_padding' : class_padding,
+        'name' : character_dict['Name'],
+        'gender' : character_dict['Gender'],
+        'class' : class_dict['Name'],
+        'alignment' : character_dict['Alignment'],
+        'race' : race_dict['Name'],
+        'xp' : 0,
+        'hp' : character_dict['HP'],
+        'ac' : calculate_ac( attr_dict, class_dict, race_dict, equipment_list ),
+        'level' : level,
+        'age' : character_dict['Age'],
+        'height': character_dict['Height'],
+        'weight': character_dict['Weight'],
+        'portrait': portrait,
+        'image_type': ext,
+        'tohit_row': '<td align=center>' + '</td><td align=center>'.join( get_tohit_row( level, class_dict, race_dict ) ) + '</td>',
+        'gp' : gp,
+        'pp' : pp,
+        'ep' : ep,
+        'sp' : sp,
+        'cp' : cp,
+        'movement_rate' : movement_tuple[0],
+        'movement_desc' : movement_tuple[1],
+        'nonproficiency_penalty' : get_non_proficiency_penalty( class_dict, race_dict ),
+        }
+    for attr_name in list( attr_dict.keys() ):
+        markup_template_dict[attr_name] = attr_dict[attr_name]
+        markup_template_dict[ attr_name + '_bonus' ] = get_attribute_bonus_string( attr_name, attr_dict[attr_name] )
+    for save in list( saves_dict.keys() ):
+        markup_template_dict[save] = saves_dict[save]
+
+    markup = '''\
+<style type=text/css>
+.border {
+color: red;
+border-style: solid;
+border-color: purple;
+margin-right: 5px;
+}
+
+.bigger-font {
+font-size: 15px;
+}
+
+.smaller-font {
+font-size: 10px;
+}
+
+.pad-cell {
+padding-left: 5px;
+padding-right: 5px;
+}
+
+.pad-bottom {
+padding-bottom: 5px;
+}
+
+.pad-all {
+padding: 5px;
+}
+
+.no-pad {
+padding: 0px;
+}
+
+.lpad {
+padding-left: 15px;
+}
+
+.float-right {
+float: right;
+}
+
+.class-font {
+font-size: $class_font_size;
+padding-top: $class_padding;
+}
+
+.alignment-font {
+font-size: 10px;
+padding-top: 3px;
+}
+
+.attr-bonuses {
+font-size: 8px;
+vertical-align: middle;
+white-space: pre;
+}
+
+.tohit-table {
+border-style: solid;
+}
+
+.tohit-table > tr > td {
+padding: 2px;
+vertical-align: middle;
+}
+
+.equipment-table > tr > th {
+padding: 4px;
+align: center;
+font-size: 10px;
+}
+
+.equipment-table > tr > td {
+padding: 4px;
+align: center;
+font-size: 10px;
+}
+
+.equip-legend {
+font-size: 8px;
+}
+
+table.ability {
+font-size: 12px;
+}
+
+table.ability > tr > th {
+padding: 2px;
+}
+
+.pre {
+white-space: pre;
+}
+
+p.page-break {
+page-break-after:always;
+}
+</style>
+<h1 align=center>$name</h1>
+<img class=float-right align=right height=140 src=data:image/$image_type;base64,$portrait</img>
+
+<table>
+<tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td align=right><td align=right>$age</td></tr>
+<tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td align=right>$height</td></tr>
+<tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td align=right>$weight</td></tr>
+<tr><td class=pad-bottom><b>Race: </b></td><td align=right>$race</td><td class=lpad><b>Level: </b></td><td align=right>$level</td><td class=lpad><b>Gender: </b></td><td align=right>$gender</td></tr>
+</table>
+
+<hr />
+
+<table align=center><tr>
+
+<td>
+<table class='border bigger-font' border=2 ><tr><td>
+<table class=pad-cell>
+<tr><td align=right class=pad-cell>Str:</td><td align=right class=pad-cell>$STR</td><td class=attr-bonuses> $STR_bonus </td></tr>
+<tr><td align=right class=pad-cell>Int:</td><td align=right class=pad-cell>$INT</td><td class=attr-bonuses> $INT_bonus </td></tr>
+<tr><td align=right class=pad-cell>Wis:</td><td align=right class=pad-cell>$WIS</td><td class=attr-bonuses> $WIS_bonus </td></tr>
+<tr><td align=right class=pad-cell>Dex:</td><td align=right class=pad-cell>$DEX</td><td class=attr-bonuses> $DEX_bonus </td></tr>
+<tr><td align=right class=pad-cell>Con:</td><td align=right class=pad-cell>$CON</td><td class=attr-bonuses> $CON_bonus  </td></tr>
+<tr><td align=right class=pad-cell>Cha:</td><td align=right class=pad-cell>$CHA</td><td class=attr-bonuses> $CHA_bonus </td></tr>
+</table>
+</td></tr></table>
+</td>
+
+<td>
+<table class=smaller-font align=center border=1>
+<tr><td colspan=2><h3 align=center>Saving Throws</h3></td></tr>
+<tr><td class=pad-cell>Aimed Magic Items</td><td class=pad-cell align=right>$Aimed_Magic_Items </td></tr>
+<tr><td class=pad-cell>Breath Weapon</td><td class=pad-cell align=right>$Breath_Weapons </td></tr>
+<tr><td class=pad-cell>Death, Paralysis, Poison</td><td class=pad-cell align=right>$Death_Paralysis_Poison </td></tr>
+<tr><td class=pad-cell>Petrifaction, Polymorph</td><td class=pad-cell align=right>$Petrifaction_Polymorph </td></tr>
+<tr><td class=pad-cell>Spells</td><td class=pad-cell align=right>$Spells </td></tr>
+</tr></table>
+</td>
+
+</tr></table>
+
+<hr />
+
+<table class=tohit-table border=1 align=center>
+<tr><td><b>Enemy AC</b></td><td align=center> -10 </td><td align=center> -9 </td><td align=center> -8 </td><td align=center> -7 </td><td align=center> -6 </td><td align=center> -5 </td>
+<td align=center> -4 </td><td align=center> -3 </td><td align=center> -2 </td><td align=center> -1 </td><td align=center> 0 </td><td align=center> 1 </td>
+<td align=center> 2 </td><td align=center> 3 </td><td align=center> 4 </td><td align=center> 5 </td><td align=center> 6 </td><td align=center> 7 </td>
+<td align=center> 8 </td><td align=center> 9 </td><td align=center> 10 </td></tr>
+<tr><td><b>To Hit</b></td>$tohit_row</tr>
+</table>
+
+<hr />
+
+<div class=pre align=center>GP: $gp     PP: $pp     EP: $ep     SP: $sp     CP: $cp</div>
+
+<hr />
+
+<table align=center>
+<tr><th><h4>Equipment</h4></th></tr>
+<tr><td><table border=1 class=equipment-table>
+<tr><th>Name</th><th>Damage Vs S or M</th><th>Damage Vs L</th><th>Damage Type</th><th>RoF</th><th>Range</th><th>Max Move</th><th>AC Effect</th><th>Notes</th></tr>
+'''
+
+#    proficiency_page = self.pages['ProficiencyPage']
+#    specialised_list = proficiency_page.specialised_list
+#    double_specialised_list = proficiency_page.double_specialised_list
+    for equip in equipment_list:
+        equip_name = equip['Name']
+        if equip in double_specialised_list:
+            equip_name = equip_name + '<sup>&Dagger;</sup>'
+        elif equip in specialised_list:
+            equip_name = equip_name + '<sup>&dagger;</sup>'
+        elif equip in proficiency_list:
+            equip_name = equip_name + '*'
+        equip_list = [ equip_name, equip['Damage_Vs_S_or_M'], equip['Damage_Vs_L'], equip['Damage_Type'],
+                       equip['Rate_of_Fire'], equip['Range'], equip['Max_Move_Rate'], str( equip['AC_Effect'] ), equip['Notes'] ]
+        markup += '<tr><td align=center>' + '</td><td align=center>'.join( equip_list ) + '</td></tr>'
+
+    markup += '''
+</table></td></tr></table>
+<div align=center class="equip-legend pre">*=Proficient     &dagger;=Specialised     &Dagger;=Double Specialised</div>
+<div><b>Movement Rate: </b>$movement_rate ft/round<br />
+<b>Surprise: </b>$movement_desc<br />
+<b>Non-Proficiency Penalty: </b>$nonproficiency_penalty</div>
+
+<p class=page-break></p>
+<h2>Ablities</h2>
+'''
+
+    if class_abilities:
+        for cl in list( class_abilities.keys() ):
+            markup += '\n<h5>{} Abilities</h5>\n'.format( cl )
+            for i, a in enumerate( class_abilities[cl] ):
+                if a[0]:
+                    if i > 0:
+                        markup += '<br />'
+                    markup += '<b>{}: </b>{}\n'.format( *a )
+                else:
+                    markup += '<table class=ability align=center border=1>\n<tr>'
+                    for h in a[1][0]:
+                        markup += '<th align=center>{}</th>'.format(h)
+                    markup += '</tr>\n<tr>'
+                    for d in a[1][1]:
+                        markup += '<td align=center>{}</td>'.format(d)
+                    markup += '</tr>\n</table>\n'
+
+    if race_abilities:
+        markup += '\n<h5>{} Abilites</h5>\n'.format( race_dict['Name'] )
+        markup += '<ul>\n'
+        for a in race_abilities:
+            markup += '<li>'
+            markup += a[0]
+            if a[1]:
+                markup += ' {}'.format( a[1] )
+            if a[2]:
+                markup += ' {}'.format( a[2] )
+            markup += '</li>\n'
+        markup += '</ul>\n'
+
+    spellcaster = False
+    if 'classes' in class_dict:
+        level_list = [ int(l) for l in level.split( '/' ) ]
+        for i, cl in enumerate( class_dict['classes'] ):
+            if has_spells_at_level( level_list[i], cl ):
+                spellcaster = True
+    else:
+        if has_spells_at_level( level, class_dict ):
+            spellcaster = True
+
+    if spellcaster:
+        spell_item_string = '''
+<h3>{Name}</h3>
+<b>Reversible: </b>{Reversible}<br/>
+<b>Level: </b>{Level}<br />
+<b>Damage: </b>{Damage}<br />
+<b>Range: </b>{Range}<br />
+<b>Duration: </b>{Duration}<br />
+<b>Area of Effect: </b>{Area_of_Effect}<br />
+<b>Components: </b>{Components}<br />
+<b>Casting Time: </b>{Casting_Time}<br />
+<b>Saving Throw: </b>{Saving_Throw}<br />
+<b>Description: </b><span class=pre>{Description}</span><br /><br />
+'''
+        markup += '<p class=page-break></p>\n<h2>Spells</h2>\n'
+        if spellbook:
+            markup += '<h5>Spellbook</h5>\n<hr />'
+            for spell in spellbook:
+                markup += spell_item_string.format( **spell )
+            markup += '<hr />\n'
+        if daily_spells:
+            markup += '<h5>{} Daily Spells</h5>\n<hr />'.format( daily_spells[0]['Type'].title().replace( '_', ' ' ) )
+            for spell in daily_spells:
+                markup += spell_item_string.format( **spell )
+            markup += '<hr />\n'
+        if daily_spells2:
+            markup += '<h5>{} Daily Spells</h5>\n<hr />'.format( daily_spells2[0]['Type'].title().replace( '_', ' ' ) )
+            for spell in daily_spells2:
+                markup += spell_item_string.format( **spell )
+            markup += '<hr />\n'
+
+    t = Template(markup)
+    final_markup = t.safe_substitute( markup_template_dict )
+
+    return ( '{}.pdf'.format( character_dict['Name'] ), final_markup )

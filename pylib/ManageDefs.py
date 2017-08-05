@@ -2,6 +2,7 @@
 
 class Manage( object ):
     enabled = True
+    menu_list = []
     action_list = []
     connect_list = []
     widget_matrix = []
@@ -9,14 +10,20 @@ class Manage( object ):
     def __str__( self ):
         return 'Manage'
 
+    def add_menu( self, menu ):
+        self.menu_list.append( menu )
+
     def add_action( self, action ):
         self.action_list.append( action )
 
-    def connect( self, trigger_widget, triggered_widget, callback ):
-        self.connect_list.append( ( trigger_widget, triggered_widget, callback ) )
+#    def connect( self, trigger_widget, triggered_widget, callback ):
+#        self.connect_list.append( ( trigger_widget, triggered_widget, callback ) )
 
     def add_row( self, widget_list ):
         self.widget_matrix.append( widget_list )
+
+    def get_menu_list( self ):
+        return self.menu_list
 
     def get_action_list( self ):
         return self.action_list
@@ -82,3 +89,18 @@ class Action( object ):
         self.widget1 = widget1
         self.widget2 = widget2
         self.callback = callback
+
+
+class Menu( object ):
+    def __init__( self, menu_name ):
+        self.menu_name = menu_name
+        self.action_list = []
+
+    def get_menu_name( self ):
+        return self.menu_name
+
+    def add_action( self, action ):
+        self.action_list.append( action )
+
+    def get_action_list( self ):
+        return self.action_list
