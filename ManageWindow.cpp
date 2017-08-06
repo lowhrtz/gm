@@ -16,13 +16,13 @@
 
 ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
     : QMainWindow( parent ) {
-    PyObject *class_name_obj, *widget_matrix, *matrix_row, *widget_obj, *field_name_obj, *widget_type_obj,
+    PyObject *class_name_obj, *widget_matrix, *matrix_row, *widget_obj, *field_name_obj, *widget_type_obj, *widget_edit_enabled_obj,
              *col_span_obj, *row_span_obj, *widget_align_obj, *widget_data_obj, *list_item_obj, *connect_list_obj, *connect_tuple,
              *trigger_widget_obj, *triggered_widget_obj, *callback_obj, *trigger_field_name_obj, *triggered_field_name_obj;
     Py_ssize_t number_of_rows, number_of_cols, col_span, row_span;
     QString class_name, field_name, widget_align, widget_data, widget_type, trigger_field_name, trigger_widget_type, triggered_field_name, triggered_widget_type;
     QWidget *widget, *trigger_widget, *triggered_widget;
-    bool hide_field_name;
+    bool hide_field_name, is_edit_enabled;
     Qt::Alignment align_flag;
 
     QGroupBox *grid_groupbox = new QGroupBox;
@@ -46,6 +46,8 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             PyErr_Print();
             widget_type_obj = PyObject_CallMethod( widget_obj, (char *) "get_widget_type", NULL );
             PyErr_Print();
+            widget_edit_enabled_obj = PyObject_CallMethod( widget_obj, (char *) "is_edit_enabled", NULL );
+            PyErr_Print();
             col_span_obj = PyObject_CallMethod( widget_obj, (char *) "get_col_span", NULL );
             PyErr_Print();
             row_span_obj = PyObject_CallMethod( widget_obj, (char *) "get_row_span", NULL );
@@ -60,6 +62,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 field_name.chop( 1 );
             }
             widget_type = PyString_AsString( widget_type_obj );
+            is_edit_enabled =  widget_edit_enabled_obj == Py_True;
             col_span = PyInt_AsSsize_t( col_span_obj );
             row_span = PyInt_AsSsize_t( row_span_obj );
             align_flag = 0;
@@ -85,11 +88,13 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                     widget_data = field_name;
                 }
                 widget = new QCheckBox( widget_data );
+                widget->setEnabled( is_edit_enabled );
                 widget_layout->addWidget( widget );
 
             } else if ( widget_type.toLower() == "textedit" ) {
                 widget_layout = new QVBoxLayout;
-                widget = new QTextEdit( "QTextEdit" );
+                widget = new QTextEdit( this );
+                widget->setEnabled( is_edit_enabled );
                 if ( !hide_field_name ) {
                     widget_layout->addWidget( new QLabel( field_name, this ) );
                 }
@@ -103,6 +108,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                     widget_data = "";
                 }
                 widget = new QLineEdit( widget_data, this );
+                widget->setEnabled( is_edit_enabled );
                 if ( !hide_field_name ) {
                     widget_layout->addWidget( new QLabel( field_name, this ) );
                 }
@@ -111,6 +117,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             } else if ( widget_type.toLower() == "spinbox" ) {
                 widget_layout = new QHBoxLayout;
                 widget = new QSpinBox( this );
+                widget->setEnabled( is_edit_enabled );
                 ( (QSpinBox *) widget )->setRange( -1000, 1000 );
                 if ( !hide_field_name ) {
                     widget_layout->addWidget( new QLabel( field_name, this ) );
@@ -120,11 +127,13 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             }else if ( widget_type.toLower() == "pushbutton" ) {
                 widget_layout = new QHBoxLayout;
                 widget = new QPushButton( field_name, this );
+                widget->setEnabled( is_edit_enabled );
                 widget_layout->addWidget( widget );
 
             } else if (  widget_type.toLower() == "combobox" ) {
                 widget_layout = new QHBoxLayout;
                 widget = new QComboBox( this );
+                widget->setEnabled( is_edit_enabled );
                 QStringList cb_contents;
                 if ( PyList_Check( widget_data_obj ) ) {
                     for( int i = 0 ; i < PyList_Size( widget_data_obj ) ; i++ ) {
@@ -147,6 +156,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             } else if ( widget_type.toLower() == "listbox" ) {
                 widget_layout = new QVBoxLayout;
                 widget = new QListWidget( this );
+                widget->setEnabled( is_edit_enabled );
                 if ( PyList_Check( widget_data_obj ) ) {
                     ManageWindow::fillListWidget( (QListWidget *) widget, widget_data_obj );
                 }
@@ -159,6 +169,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 widget_layout = new QHBoxLayout;
                 widget_data = PyString_AsString( widget_data_obj );
                 widget = new QLabel( widget_data, this );
+                widget->setEnabled( is_edit_enabled );
                 widget_layout->addWidget( widget );
 
             } else if ( widget_type.toLower() == "image" ) {
@@ -169,6 +180,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
 //                    ManageWindow::setImageWithBase64( (QLabel *) widget, widget_data);
                 }
                 widget = new ImageWidget( widget_data );
+                widget->setEnabled( is_edit_enabled );
                 widget_layout->addWidget( widget );
 
             } else if ( widget_type.toLower() == "hr" ) {
@@ -335,6 +347,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                         PyObject *arg = NULL;
                         if ( widget2_type.toLower() == "listbox" ) {
                             QListWidget *widget2 = (QListWidget *) widget_registry[widget2_field_name].first;
+                            if ( widget2->count() <= 0 ) return;
                             arg = Py_BuildValue( "(O)", ( (ManageListWidgetItem *) widget2->currentItem() )->getData() );
                         }
                         PyObject *callback_return_obj = PyObject_CallObject( callback_obj, arg );
@@ -391,11 +404,12 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             QAction *menu_action = new QAction( menu_widget1_field_name, this );
             menu->addAction( menu_action );
             connect( menu_action, &QAction::triggered, [=] (bool checked ) {
-                if ( menu_action_type.toLower() == "savepdf" ) {
+                if ( menu_action_type.toLower() == "savepdf" || menu_action_type.toLower() == "printpreview" ) {
                     PyObject *data = Py_None;
 
                     if ( menu_widget2_widget_type.toLower() == "listbox" ) {
                         QListWidget *list_widget = (QListWidget *) widget_registry[menu_widget2_field_name].first;
+                        if ( list_widget->count() <= 0 ) return;
                         ManageListWidgetItem *list_widget_item = (ManageListWidgetItem *) list_widget->currentItem();
                         data = list_widget_item->getData();
 
@@ -410,7 +424,11 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                         QString default_filename = PyString_AsString( default_filename_obj );
                         QString pdf_markup = PyString_AsString( pdf_markup_obj );
                         PDFCreator pdf_creator( pdf_markup, default_filename );
+                        if ( menu_action_type.toLower() == "savepdf" ) {
                         pdf_creator.save();
+                        } else {
+                            pdf_creator.preview();
+                        }
                     }
                 }
             });

@@ -15,7 +15,7 @@ class Characters( Manage ):
         character_list = Widget( 'Character List_', 'ListBox', row_span=4 )
         #name = Widget( 'Name', 'LineEdit', data='Lance the Impressive' )
         name = Widget( 'Name', 'LineEdit' )
-        xp = Widget( 'XP', 'SpinBox' )
+        xp = Widget( 'XP', 'SpinBox', enable_edit=False )
         age = Widget( 'Age', 'SpinBox' )
         self.add_row( [ character_list, name, xp, age ] )
 
@@ -76,8 +76,9 @@ class Characters( Manage ):
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
 
-        character_menu = Menu( '&Character' )
+        character_menu = Menu( '&Print' )
         character_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        character_menu.add_action( Action( 'PrintPreview', Widget( '&Print Preview', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
         self.add_menu( character_menu )
 
     def get_character_table( self ):

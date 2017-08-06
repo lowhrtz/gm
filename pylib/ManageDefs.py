@@ -28,8 +28,8 @@ class Manage( object ):
     def get_action_list( self ):
         return self.action_list
 
-    def get_connect_list( self ):
-        return self.connect_list
+#    def get_connect_list( self ):
+#        return self.connect_list
 
     def get_widget_matrix( self ):
         return self.widget_matrix
@@ -38,6 +38,7 @@ class Manage( object ):
 class Widget( object ):
     field_name = None
     widget_type = None
+    enable_edit = True
     height = None
     width = None
     col_span = 1
@@ -45,9 +46,10 @@ class Widget( object ):
     align = None
     data = None
 
-    def __init__( self, field_name, widget_type, height=None, width=None, col_span=1, row_span=1, align=None, data=None ):
+    def __init__( self, field_name, widget_type, enable_edit=True, height=None, width=None, col_span=1, row_span=1, align=None, data=None ):
         self.field_name = field_name
         self.widget_type = widget_type
+        self.enable_edit = enable_edit
         self.height = height
         self.width = width
         self.col_span = col_span
@@ -63,6 +65,9 @@ class Widget( object ):
 
     def get_widget_type( self ):
         return self.widget_type
+
+    def is_edit_enabled( self ):
+        return self.enable_edit
 
     def get_height( self ):
         return self.height
