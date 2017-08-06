@@ -10,9 +10,10 @@ class PDFCreator {
 public:
     PDFCreator( QString markup , QString defaultFilename );
     void save();
+    void preview();
 
 private:
-    QString filename;
+    QString defaultFilename;
     QPrinter *printer;
     QTextDocument document;
 
