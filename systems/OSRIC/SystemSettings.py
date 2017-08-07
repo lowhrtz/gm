@@ -734,6 +734,10 @@ padding-right: 5px;
 padding-bottom: 5px;
 }
 
+.pad-top-large {
+padding-top: 10px;
+}
+
 .pad-all {
 padding: 5px;
 }
@@ -808,9 +812,9 @@ page-break-after:always;
 }
 </style>
 <h1 align=center>$name</h1>
-<img class=float-right align=right height=140 src=data:image/$image_type;base64,$portrait</img>
 
-<table>
+<table width=100%>
+<tr><td></td><td></td><td></td><td></td><td></td><td></td><td class=lpad align=center rowspan=5><img height=140 src=data:image/$image_type;base64,$portrait /></td></tr>
 <tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td align=right><td align=right>$age</td></tr>
 <tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td align=right>$height</td></tr>
 <tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td align=right>$weight</td></tr>
