@@ -39,6 +39,7 @@ public:
 
 private:
     void registerWidget( QString field_name, QString widget_type, QWidget *widget );
+    void processAction( PyObject *action_obj, PyObject *data = Py_None );
 
 private:
     QHash<QString, std::pair<QWidget *, QString> > widget_registry;

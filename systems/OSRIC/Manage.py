@@ -2,14 +2,22 @@ from ManageDefs import *
 import DbQuery
 import SystemSettings
 
+def add_numbers( number1, number2 ):
+    number1 = int( number1 )
+    number2 = int( number2 )
+    return number1 + number2
+
 class Characters( Manage ):
     def __init__( self ):
 
         empty_widget = Widget( '', 'Empty' )
         hr = Widget( 'hr', 'hr', col_span=4 )
 
-        intro = Widget( 'Intro', 'TextLabel', col_span=5, data='This is where you manage characters.' )
-        self.add_row( [ intro, ] )
+        intro = Widget( 'Intro', 'TextLabel', col_span=2, data='This is where you manage characters.' )
+        add_xp_button = Widget( 'Add XP', 'PushButton' )
+#        self.add_row( [ intro, empty_widget, add_xp_button ] )
+#        test_field = Widget( 'Test Field', 'LineEdit' )
+#        self.add_row( [ test_field ] )
 
         #character_list = Widget( 'Character List_', 'ListBox', row_span=4, data=DbQuery.getTable( 'Characters' ) )
         character_list = Widget( 'Character List_', 'ListBox', row_span=4 )
@@ -69,17 +77,24 @@ class Characters( Manage ):
         daily_spells2 = Widget( 'Daily Spells 2_', 'ListBox' )
         self.add_row( [ equipment, spellbook, daily_spells, daily_spells2 ] )
 
-        #pdf_button = Widget( 'Save PDF', 'PushButton' )
-        #self.add_row( [ pdf_button, ] )
-        #self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=SystemSettings.get_character_pdf_markup ) )
+#        pdf_button = Widget( 'Save PDF', 'PushButton' )
+#        self.add_row( [ pdf_button, ] )
+#        self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=SystemSettings.get_character_pdf_markup ) )
 
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
+#        self.add_action( Action( 'EntryDialog', add_xp_button, xp, callback=add_numbers ) )
 
-        character_menu = Menu( '&Print' )
-        character_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
-        character_menu.add_action( Action( 'PrintPreview', Widget( '&Print Preview', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        print_menu = Menu( '&Print' )
+        print_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        print_menu.add_action( Action( 'PrintPreview', Widget( '&Print Preview', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        self.add_menu( print_menu )
+
+        character_menu = Menu( '&Character' )
+        character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), xp, callback=add_numbers ) )
         self.add_menu( character_menu )
+
+
 
     def get_character_table( self ):
         return DbQuery.getTable( 'Characters' )

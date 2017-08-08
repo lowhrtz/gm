@@ -1,7 +1,10 @@
 #include "Dialogs.h"
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
+#include <QSpinBox>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 YesNoDialog::YesNoDialog(QString title, QString message, QWidget *parent) :
@@ -37,4 +40,64 @@ PopupDialog::PopupDialog(QString title, QString message, QWidget *parent) :
     layout->addWidget(button_box);
     layout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
+}
+
+EntryDialog::EntryDialog( QString title, EntryWidgetType type, QVariant *value, QWidget *parent )
+    : QDialog( parent ) {
+    QVBoxLayout *layout;
+    QDialogButtonBox *button_frame;
+    QPushButton *ok_button, *cancel_button;
+
+    this->value = value;
+    setWindowTitle( title );
+
+    layout = new QVBoxLayout;
+
+    if ( type == LINE_EDIT ) {
+        entryWidget = new QLineEdit( this );
+
+
+    } else if ( type == TEXT_EDIT ) {
+        entryWidget = new QTextEdit( this );
+
+    } else if ( type == SPIN_BOX ) {
+        entryWidget = new QSpinBox( this );
+        ( (QSpinBox *) entryWidget )->setRange( -1000000000, 1000000000 );
+
+    }
+
+    layout->addWidget( entryWidget );
+
+    button_frame = new QDialogButtonBox( this );
+    ok_button = new QPushButton( "OK", this );
+    cancel_button = new QPushButton( "Cancel", this );
+    ok_button->setDefault( true );
+    button_frame->addButton( ok_button, QDialogButtonBox::AcceptRole );
+    button_frame->addButton( cancel_button, QDialogButtonBox::RejectRole );
+    connect( button_frame, &QDialogButtonBox::accepted, [=] () {
+
+        if ( type == LINE_EDIT ) {
+            this->value->setValue( ( (QLineEdit *) entryWidget )->text() );
+
+
+        } else if ( type == TEXT_EDIT ) {
+            this->value->setValue( ( (QTextEdit *) entryWidget )->toPlainText() );
+
+        } else if ( type == SPIN_BOX ) {
+            this->value->setValue( ( (QSpinBox *) entryWidget )->value() );
+
+        }
+
+        accept();
+
+    });
+
+    connect( button_frame, &QDialogButtonBox::rejected, [=] () {
+        value->clear();
+        reject();
+    });
+
+    layout->addWidget( button_frame );
+    layout->setSizeConstraint(QLayout::SetFixedSize);
+    setLayout( layout );
 }
