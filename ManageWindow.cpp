@@ -287,9 +287,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             PyObject *menu_widget1_field_name_obj = PyObject_CallMethod( menu_widget1_obj, (char *) "get_field_name", NULL );
             PyErr_Print();
             QString menu_widget1_field_name = PyString_AsString( menu_widget1_field_name_obj );
-//            if ( menu_widget1_field_name.endsWith( "_" ) ) {
-//                menu_widget1_field_name.chop( 1 );
-//            }
+
             QAction *menu_action = new QAction( menu_widget1_field_name, this );
             menu->addAction( menu_action );
             connect( menu_action, &QAction::triggered, [=] (bool checked ) {
@@ -418,18 +416,23 @@ void ManageWindow::processAction( PyObject *action_obj, PyObject *data ) {
         EntryDialog *dialog;
         bool accepted;
 
+        QString title = widget1_field_name;
+        if ( title.startsWith( "&" ) ) {
+            title.remove( 0, 1 );
+        }
+
         if ( widget2_widget_type.toLower() == "lineedit" ) {
-            dialog = new EntryDialog( widget1_field_name, EntryDialog::LINE_EDIT, value, this );
+            dialog = new EntryDialog( title, EntryDialog::LINE_EDIT, value, this );
             widget2 = (QLineEdit *) widget_registry[widget2_field_name].first;
             widget2_original_entry_obj = PyString_FromString( ( (QLineEdit *) widget2 )->text().toStdString().data() );
 
         } else if ( widget2_widget_type.toLower() == "textedit" ) {
-            dialog = new EntryDialog( widget1_field_name, EntryDialog::TEXT_EDIT, value, this );
+            dialog = new EntryDialog( title, EntryDialog::TEXT_EDIT, value, this );
             widget2 = (QTextEdit *) widget_registry[widget2_field_name].first;
             widget2_original_entry_obj = PyString_FromString( ( (QTextEdit *) widget2 )->toPlainText().toStdString().data() );
 
         } else if ( widget2_widget_type.toLower() == "spinbox" ) {
-            dialog = new EntryDialog( widget1_field_name, EntryDialog::SPIN_BOX, value, this );
+            dialog = new EntryDialog( title, EntryDialog::SPIN_BOX, value, this );
             widget2 = (QSpinBox *) widget_registry[widget2_field_name].first;
             widget2_original_entry_obj = PyInt_FromSsize_t( ( (QSpinBox *) widget2 )->value() );
 

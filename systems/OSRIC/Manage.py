@@ -92,6 +92,7 @@ class Characters( Manage ):
 
         character_menu = Menu( '&Character' )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), xp, callback=add_numbers ) )
+        character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
         self.add_menu( character_menu )
 
 
