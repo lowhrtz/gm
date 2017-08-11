@@ -18,17 +18,6 @@ private:
 
 };
 
-//class ImageWidget : public QLabel {
-
-//public:
-//    ImageWidget( QString base64_data, QWidget *parent = 0 );
-//    QString getData();
-//    void setData( QString base64_data );
-
-//private:
-//    QString data;
-
-//};
 
 class ManageWindow : public QMainWindow {
 

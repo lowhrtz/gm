@@ -401,9 +401,6 @@ void ManageWindow::processAction( PyObject *action_obj ) {
 
     } else if ( action_type.toLower().startsWith( "entrydialog" ) ) {
         QVariant *value = new QVariant;
-//        QVariant new_value;
-//        QWidget *widget2;
-//        PyObject *widget2_original_entry_obj;
         EntryDialog *dialog;
         bool accepted;
 
@@ -412,7 +409,7 @@ void ManageWindow::processAction( PyObject *action_obj ) {
             title.remove( 0, 1 );
         }
 
-        if ( action_type.toLower() == "lineedit" ) {
+        if ( widget2_widget_type.toLower() == "lineedit" ) {
             dialog = new EntryDialog( title, EntryDialog::LINE_EDIT, value, this );
 
         } else if ( widget2_widget_type.toLower() == "textedit" ) {
@@ -434,26 +431,7 @@ void ManageWindow::processAction( PyObject *action_obj ) {
                 PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", value_obj, fields_dict_obj ) );
                 PyErr_Print();
                 fillFields( callback_return_obj );
-//                if ( PyInt_Check( callback_return_obj ) ) {
-//                    new_value.setValue( PyInt_AsLong( callback_return_obj ) );
-
-//                } else if ( PyString_Check( callback_return_obj ) ) {
-//                    new_value = PyString_AsString( callback_return_obj );
-
-//                }
-            } /*else {
-                new_value.setValue( QVariant::fromValue( *value ) );
-            }*/
-
-//            if ( widget2_widget_type.toLower() == "lineedit" ) {
-//                ( (QLineEdit *)widget2 )->setText( new_value.toString() );
-
-//            } else if ( widget2_widget_type.toLower() == "textedit" ) {
-//                ( (QTextEdit *)widget2 )->setText( new_value.toString() );
-
-//            } else if ( widget2_widget_type.toLower() == "spinbox" ) {
-//                ( (QSpinBox *)widget2 )->setValue( new_value.toInt() );
-//            }
+            }
         }
     }
 }
@@ -577,17 +555,6 @@ void ManageWindow::fillListWidget( QListWidget *list_widget, PyObject *list_obj 
 //    }
 }
 
-//void ManageWindow::setImageWithBase64(QLabel *image_widget, QString base64_string) {
-//    QByteArray ba = QByteArray::fromBase64( base64_string.toStdString().data() );
-//    QImage image = QImage::fromData( ba );
-//    QPixmap pixmap = QPixmap( QPixmap::fromImage( image ) );
-//    if( pixmap.height() > 200 ) {
-//        pixmap = pixmap.scaledToHeight( 200 );
-//    }
-//    image_widget->setPixmap( pixmap );
-//}
-
-
 ManageListWidgetItem::ManageListWidgetItem(QString display_text, PyObject *data, QListWidget *parent)
     : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
     this->data = data;
@@ -596,17 +563,3 @@ ManageListWidgetItem::ManageListWidgetItem(QString display_text, PyObject *data,
 PyObject *ManageListWidgetItem::getData() {
     return data;
 }
-
-//ImageWidget::ImageWidget( QString base64_data, QWidget *parent )
-//    : QLabel( parent ) {
-//    setData( base64_data );
-//}
-
-//QString ImageWidget::getData() {
-//    return data;
-//}
-
-//void ImageWidget::setData( QString base64_data ) {
-//    ManageWindow::setImageWithBase64( this, base64_data );
-//    this->data = base64_data;
-//}
