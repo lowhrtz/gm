@@ -18,17 +18,17 @@ private:
 
 };
 
-class ImageWidget : public QLabel {
+//class ImageWidget : public QLabel {
 
-public:
-    ImageWidget( QString base64_data, QWidget *parent = 0 );
-    QString getData();
-    void setData( QString base64_data );
+//public:
+//    ImageWidget( QString base64_data, QWidget *parent = 0 );
+//    QString getData();
+//    void setData( QString base64_data );
 
-private:
-    QString data;
+//private:
+//    QString data;
 
-};
+//};
 
 class ManageWindow : public QMainWindow {
 
@@ -39,10 +39,13 @@ public:
 
 private:
     void registerWidget( QString field_name, QString widget_type, QWidget *widget );
-    void processAction( PyObject *action_obj, PyObject *data = Py_None );
+    void processAction( PyObject *action_obj );
+    void fillFields( PyObject *fill_dict_obj );
+    PyObject *getFieldsDict();
 
 private:
     QHash<QString, std::pair<QWidget *, QString> > widget_registry;
+//    PyObject *fields_dict_obj = PyDict_New();
 
 signals:
     void onShow();
@@ -51,7 +54,7 @@ public slots:
 
 public:
     static void fillListWidget( QListWidget *list_widget, PyObject *list_obj );
-    static void setImageWithBase64( QLabel *image_widget, QString base64_string );
+//    static void setImageWithBase64( QLabel *image_widget, QString base64_string );
 
 };
 

@@ -32,7 +32,8 @@ HEADERS += MainWindow.h \
     WizardPage.h \
     Dialogs.h \
     PDFCreator.h \
-    ManageWindow.h
+    ManageWindow.h \
+    CustomWidgets.h
 SOURCES += main.cpp MainWindow.cpp \
     PythonInterpreter.cpp \
     ListObject.cpp \
@@ -45,7 +46,8 @@ SOURCES += main.cpp MainWindow.cpp \
     WizardPage.cpp \
     Dialogs.cpp \
     PDFCreator.cpp \
-    ManageWindow.cpp
+    ManageWindow.cpp \
+    CustomWidgets.cpp
 
 RESOURCES += \
     resources.qrc

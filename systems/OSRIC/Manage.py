@@ -1,11 +1,7 @@
 from ManageDefs import *
+import base64
 import DbQuery
 import SystemSettings
-
-def add_numbers( number1, number2 ):
-    number1 = int( number1 )
-    number2 = int( number2 )
-    return number1 + number2
 
 class Characters( Manage ):
     def __init__( self ):
@@ -80,27 +76,29 @@ class Characters( Manage ):
 #        pdf_button = Widget( 'Save PDF', 'PushButton' )
 #        self.add_row( [ pdf_button, ] )
 #        self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=SystemSettings.get_character_pdf_markup ) )
+#        ch = Widget( 'Text Edit', 'TextEdit' )
+#        self.add_row( [ ch, ] )
 
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
-        self.add_action( Action( 'FillPage', character_list, callback=self.fill_page ) )
+        self.add_action( Action( 'FillFields', character_list, callback=self.fill_page ) )
 #        self.add_action( Action( 'EntryDialog', add_xp_button, xp, callback=add_numbers ) )
 
         print_menu = Menu( '&Print' )
-        print_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
-        print_menu.add_action( Action( 'PrintPreview', Widget( '&Print Preview', 'MenuAction' ), character_list, callback=SystemSettings.get_character_pdf_markup ) )
+        print_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=self.get_pdf_markup ) )
+        print_menu.add_action( Action( 'PrintPreview', Widget( '&Print Preview', 'MenuAction' ), character_list, callback=self.get_pdf_markup ) )
         self.add_menu( print_menu )
 
         character_menu = Menu( '&Character' )
-        character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), xp, callback=add_numbers ) )
+        character_menu.add_action( Action( 'EntryDialog-SpinBox', Widget( '&Add XP', 'MenuAction' ), xp, callback=self.add_xp ) )
         character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
+        character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
         self.add_menu( character_menu )
-
-
 
     def get_character_table( self ):
         return DbQuery.getTable( 'Characters' )
 
-    def fill_page( self, character_dict ):
+    def fill_page( self, fields ):
+        character_dict = fields['Character List Current']
         class_table = DbQuery.getTable( 'Classes' )
         race_table = DbQuery.getTable( 'Races' )
         items_table = DbQuery.getTable( 'Items' )
@@ -222,8 +220,20 @@ class Characters( Manage ):
 
         return fill_dict
 
-    def change_name( self ):
-        return 'Larry the Dubious'
+    def get_pdf_markup( self, fields ):
+        character_dict = fields['Character List Current']
+        return SystemSettings.get_character_pdf_markup( character_dict )
+
+    def add_xp( self, dialog_return, fields ):
+        current_xp = int( fields['XP'] )
+        add_xp = int( dialog_return )
+        return { 'XP' : current_xp + add_xp }
+
+    def convert_image( self, filename, fields ):
+        with open( filename, 'rb' ) as image_file:
+            data = base64.b64encode( image_file.read() )
+        return { 'Portrait' : data }
+
 
 
 image_data = '/9j/4AAQSkZJRgABAQEASABIAAD//gATQ3JlYXRlZCB3aXRoIEdJTVD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/\

@@ -1,5 +1,9 @@
+#include "CustomWidgets.h"
 #include "Dialogs.h"
+#include "ManageWindow.h"
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -42,7 +46,7 @@ PopupDialog::PopupDialog(QString title, QString message, QWidget *parent) :
     setLayout(layout);
 }
 
-EntryDialog::EntryDialog( QString title, EntryWidgetType type, QVariant *value, QWidget *parent )
+EntryDialog::EntryDialog(QString title, EntryWidgetType type, QVariant *value, QWidget *parent , QString image_data)
     : QDialog( parent ) {
     QVBoxLayout *layout;
     QDialogButtonBox *button_frame;
@@ -64,9 +68,20 @@ EntryDialog::EntryDialog( QString title, EntryWidgetType type, QVariant *value, 
         entryWidget = new QSpinBox( this );
         ( (QSpinBox *) entryWidget )->setRange( -1000000000, 1000000000 );
 
+    } else if ( type == IMAGE ) {
+        QPushButton *image_button = new QPushButton( "Choose Image", this );
+        connect( image_button, &QPushButton::clicked, [=] ( bool clicked ) {
+            filename = QFileDialog::getOpenFileName( this, "Open Image", QDir::homePath() );
+            if ( !filename.isNull() ) {
+                ( (ImageWidget *) entryWidget )->setPixmap( QPixmap( filename ).scaledToHeight( 200 ) );
+            }
+        });
+
+        entryWidget = new ImageWidget( image_data );
+        layout->addWidget( image_button );
     }
 
-    layout->addWidget( entryWidget );
+    layout->addWidget( entryWidget, 0, Qt::AlignCenter );
 
     button_frame = new QDialogButtonBox( this );
     ok_button = new QPushButton( "OK", this );
@@ -86,6 +101,8 @@ EntryDialog::EntryDialog( QString title, EntryWidgetType type, QVariant *value, 
         } else if ( type == SPIN_BOX ) {
             this->value->setValue( ( (QSpinBox *) entryWidget )->value() );
 
+        } else if ( type == IMAGE ) {
+            this->value->setValue( filename );
         }
 
         accept();
