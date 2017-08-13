@@ -1,6 +1,7 @@
-#include "CustomWidgets.h"
 #include "Dialogs.h"
+#include "CustomWidgets.h"
 #include "ManageWindow.h"
+
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>

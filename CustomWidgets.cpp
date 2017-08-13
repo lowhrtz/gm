@@ -14,7 +14,7 @@ void ImageWidget::setData( QString base64_data ) {
     this->data = base64_data;
 }
 
-void ImageWidget::setImageWithBase64(QLabel *image_widget, QString base64_string) {
+void ImageWidget::setImageWithBase64( QLabel *image_widget, QString base64_string ) {
     QByteArray ba = QByteArray::fromBase64( base64_string.toStdString().data() );
     QImage image = QImage::fromData( ba );
     QPixmap pixmap = QPixmap( QPixmap::fromImage( image ) );
@@ -22,4 +22,13 @@ void ImageWidget::setImageWithBase64(QLabel *image_widget, QString base64_string
         pixmap = pixmap.scaledToHeight( 200 );
     }
     image_widget->setPixmap( pixmap );
+}
+
+PyDataListWidgetItem::PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent )
+    : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
+    this->data = data;
+}
+
+PyObject *PyDataListWidgetItem::getData() {
+    return data;
 }

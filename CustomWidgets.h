@@ -1,7 +1,10 @@
 #ifndef CUSTOMWIDGETS_H
 #define CUSTOMWIDGETS_H
 
+#include "PythonInterpreter.h"
+
 #include <QLabel>
+#include <QListWidgetItem>
 #include <QWidget>
 #include <QString>
 
@@ -18,6 +21,17 @@ public:
 
 private:
     QString data;
+
+};
+
+class PyDataListWidgetItem : public QListWidgetItem {
+
+public:
+    PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent = 0 );
+    PyObject *getData();
+
+private:
+    PyObject *data;
 
 };
 
