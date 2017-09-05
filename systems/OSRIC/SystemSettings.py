@@ -408,6 +408,13 @@ def get_coinage_from_float(gp_decimal):
 
     return return_dict
 
+def get_float_from_coinage( character_or_money_dict ):
+    total = 0
+    coin_denominations = list( economy.keys() )
+    for cd in coin_denominations:
+        total += float( economy[cd] * character_or_money_dict[cd] )
+    return total
+
 def calculate_movement(race_dict, class_dict, attr_dict, equipment_list):
     base_movement = race_dict['Movement_Rate']
     str_bonus = get_attribute_bonuses('STR', attr_dict['STR'])[2]

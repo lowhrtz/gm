@@ -89,11 +89,12 @@ class Widget( object ):
 
 
 class Action( object ):
-    def __init__( self, action_type, widget1=None, widget2=None, callback=None ):
+    def __init__( self, action_type, widget1=None, widget2=None, callback=None, data=None ):
         self.action_type = action_type
         self.widget1 = widget1
         self.widget2 = widget2
         self.callback = callback
+        self.data = data
 
 
 class Menu( object ):

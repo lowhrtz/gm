@@ -1,5 +1,7 @@
-#ifndef YESNODIALOG_H
-#define YESNODIALOG_H
+#ifndef DIALOGS_H
+#define DIALOGS_H
+
+#include "CustomWidgets.h"
 
 #include <QDialog>
 
@@ -43,8 +45,8 @@ class DualListDialog : public QDialog {
     Q_OBJECT
 
 public:
-    DualListDialog( QString title, QWidget *parent );
+    DualListDialog(QString title, PyObject *owned_item_list_obj, PyObject *data, PyObject *fields_obj, QWidget *parent );
 };
 
-#endif // YESNODIALOG_H
+#endif // DIALOGS_H
 

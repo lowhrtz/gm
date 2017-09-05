@@ -1,6 +1,4 @@
 #include "Dialogs.h"
-#include "CustomWidgets.h"
-#include "ManageWindow.h"
 
 #include <QDialogButtonBox>
 #include <QDir>
@@ -116,6 +114,18 @@ EntryDialog::EntryDialog(QString title, EntryWidgetType type, QVariant *value, Q
     });
 
     layout->addWidget( button_frame );
-    layout->setSizeConstraint(QLayout::SetFixedSize);
+    layout->setSizeConstraint( QLayout::SetFixedSize );
+    setLayout( layout );
+}
+
+DualListDialog::DualListDialog( QString title, PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent )
+    : QDialog( parent ) {
+    setWindowTitle( title );
+
+    QVBoxLayout *layout = new QVBoxLayout;
+    DualListWidget *dual_list = new DualListWidget( owned_item_list_obj, action_data_obj, fields_obj, this );
+    layout->addWidget( dual_list );
+
+    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
 }

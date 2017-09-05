@@ -160,7 +160,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 widget = new QListWidget( this );
                 widget->setEnabled( is_edit_enabled );
                 if ( PyList_Check( widget_data_obj ) ) {
-                    ManageWindow::fillListWidget( (QListWidget *) widget, widget_data_obj );
+                    PyDataListWidgetItem::fillListWidget( (QListWidget *) widget, widget_data_obj );
                 }
                 if ( !hide_field_name ) {
                     widget_layout->addWidget( new QLabel( field_name ) );
@@ -249,7 +249,7 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
 
                 } else if ( widget1_type.toLower() == "listbox" ) {
                     QListWidget *widget1 = (QListWidget *) widget_registry[widget1_field_name].first;
-                    ManageWindow::fillListWidget( widget1, callback_return_obj );
+                    PyDataListWidgetItem::fillListWidget( widget1, callback_return_obj );
 
                 }
             });
@@ -345,39 +345,6 @@ void ManageWindow::processAction( PyObject *action_obj ) {
             PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", fields_dict_obj ) );
             PyErr_Print();
             fillFields( callback_return_obj );
-//            Py_ssize_t pos = 0;
-//            PyObject *key, *value;
-//            while( PyDict_Next( callback_return_obj, &pos, &key, &value ) ) {
-//                QString field_name = PyString_AsString( key );
-//                QString widget_type = widget_registry[field_name].second;
-
-//                if ( widget_type.toLower() == "lineedit" ) {
-//                    QLineEdit *line_edit_widget = (QLineEdit *) widget_registry[field_name].first;
-//                    line_edit_widget->setText( PyString_AsString( value ) );
-
-//                } else if ( widget_type.toLower() == "textedit" ) {
-//                    QTextEdit *text_edit_widget = (QTextEdit *) widget_registry[field_name].first;
-//                    text_edit_widget->setText( PyString_AsString( value ) );
-
-//                } else if ( widget_type.toLower() == "listbox" ) {
-//                    QListWidget *list_widget = (QListWidget *) widget_registry[field_name].first;
-//                    ManageWindow::fillListWidget( list_widget, value );
-
-//                } else if ( widget_type.toLower() == "spinbox" ) {
-//                    QSpinBox *spin_box_widget = (QSpinBox *) widget_registry[field_name].first;
-//                    spin_box_widget->setValue( PyInt_AsSsize_t( value ) );
-
-//                } else if ( widget_type.toLower() == "combobox" ) {
-//                    QComboBox *combo_box_widget = (QComboBox *) widget_registry[field_name].first;
-//                    int new_index = combo_box_widget->findText( PyString_AsString( value ) );
-//                    combo_box_widget->setCurrentIndex( new_index );
-
-//                } else if ( widget_type.toLower() == "image" ) {
-//                    ImageWidget *image_widget = (ImageWidget *) widget_registry[field_name].first;
-//                    image_widget->setData( PyString_AsString( value ) );
-
-//                }
-//            }
         }
 
     } else if ( action_type.toLower() == "savepdf" || action_type.toLower() == "printpreview" ) {
@@ -399,7 +366,7 @@ void ManageWindow::processAction( PyObject *action_obj ) {
             }
         }
 
-    } else if ( action_type.toLower().startsWith( "entrydialog" ) ) {
+    } else if ( action_type.toLower() == "entrydialog" ) {
         QVariant *value = new QVariant;
         EntryDialog *dialog;
         bool accepted;
@@ -433,6 +400,35 @@ void ManageWindow::processAction( PyObject *action_obj ) {
                 fillFields( callback_return_obj );
             }
         }
+
+    } else if ( action_type.toLower() == "listdialog" ) {
+        bool accepted;
+        DualListDialog *dialog;
+
+        QString title = widget1_field_name;
+        if ( title.startsWith( "&" ) ) {
+            title.remove( 0, 1 );
+        }
+
+        if ( widget2_widget_type.toLower() == "listbox" ) {
+//            PyObject *avail_item_list_obj = PyList_New( 0 );
+            PyObject *owned_item_list_obj = PyList_New( 0 );
+
+            QListWidget *listbox = (QListWidget *) widget_registry[widget2_field_name].first;
+            for( int i = 0 ; i < listbox->count() ; i++) {
+                PyDataListWidgetItem *item = (PyDataListWidgetItem *) listbox->item( i );
+                PyList_Append( owned_item_list_obj, item->getData() );
+            }
+
+//            if ( callback_obj != Py_None ) {
+//                avail_item_list_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", owned_item_list_obj, fields_dict_obj ) );
+//                PyErr_Print();
+//            }
+            PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
+            dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, this );
+
+            accepted = dialog->exec();
+        }
     }
 }
 
@@ -453,7 +449,7 @@ void ManageWindow::fillFields(PyObject *fill_dict_obj) {
 
         } else if ( widget_type.toLower() == "listbox" ) {
             QListWidget *list_widget = (QListWidget *) widget_registry[field_name].first;
-            ManageWindow::fillListWidget( list_widget, value );
+            PyDataListWidgetItem::fillListWidget( list_widget, value );
 
         } else if ( widget_type.toLower() == "spinbox" ) {
             QSpinBox *spin_box_widget = (QSpinBox *) widget_registry[field_name].first;
@@ -505,14 +501,14 @@ PyObject *ManageWindow::getFieldsDict() {
             current_field_name.append( " Current" );
             PyObject *item_data = Py_None;
             if ( ( (QListWidget *) widget )->currentRow() >= 0 ) {
-                     ManageListWidgetItem *item = (ManageListWidgetItem *) ( (QListWidget *) widget )->currentItem();
+                     PyDataListWidgetItem *item = (PyDataListWidgetItem *) ( (QListWidget *) widget )->currentItem();
                      item_data = item->getData();
             }
             PyDict_SetItemString( fields_dict_obj, current_field_name.toStdString().data(), item_data );
 
             PyObject *item_list_obj = PyList_New( ( (QListWidget *) widget )->count() );
             for ( Py_ssize_t i = 0 ; i < ( (QListWidget *) widget )->count() ; i++ ) {
-                ManageListWidgetItem *item = (ManageListWidgetItem *) ( (QListWidget *) widget )->item( i );
+                PyDataListWidgetItem *item = (PyDataListWidgetItem *) ( (QListWidget *) widget )->item( i );
                 PyObject *data = item->getData();
                 PyList_SetItem( item_list_obj, i, data );
             }
@@ -525,41 +521,4 @@ PyObject *ManageWindow::getFieldsDict() {
         }
     }
     return fields_dict_obj;
-}
-
-void ManageWindow::fillListWidget( QListWidget *list_widget, PyObject *list_obj ) {
-    list_widget->clear();
-    for ( Py_ssize_t i = 0 ; i < PyList_Size( list_obj ) ; i++ ) {
-        PyObject *list_item_obj = PyList_GetItem( list_obj, i );
-
-        if ( PyString_Check( list_item_obj ) ) {
-            list_widget->addItem( new ManageListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget ) );
-
-        } else if ( PyDict_Check( list_item_obj ) ) {
-            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
-            QString table_name = PyString_AsString( table_name_obj );
-            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
-            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
-            QString display_name = PyString_AsString( display_name_obj );
-            list_widget->addItem( new ManageListWidgetItem( display_name, list_item_obj, list_widget ));
-
-        } else if ( PyTuple_Check( list_item_obj ) ) {
-            PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
-            PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
-            QString display_name = PyString_AsString( display_obj );
-            list_widget->addItem( new ManageListWidgetItem( display_name, dict_obj, list_widget ) );
-        }
-    }
-//    if ( list_widget->count() > 0 ) {
-//        list_widget->setCurrentRow( 0 );
-//    }
-}
-
-ManageListWidgetItem::ManageListWidgetItem(QString display_text, PyObject *data, QListWidget *parent)
-    : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
-    this->data = data;
-}
-
-PyObject *ManageListWidgetItem::getData() {
-    return data;
 }

@@ -92,6 +92,15 @@ class Characters( Manage ):
         character_menu.add_action( Action( 'EntryDialog-SpinBox', Widget( '&Add XP', 'MenuAction' ), xp, callback=self.add_xp ) )
         character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
+        equipment_data = { 'fill_avail' : self.equipment_fill,
+                           'slots' : self.get_money_slots,
+                           'add' : self.add_equipment,
+                           'remove' : self.remove_equipment }
+        character_menu.add_action( Action( 'ListDialog',
+                                           Widget( '&Buy/Sell Equipment', 'MenuAction' ),
+                                           equipment,
+                                           callback=self.equipment_fill,
+                                           data=equipment_data ) )
         self.add_menu( character_menu )
 
     def get_character_table( self ):
@@ -233,6 +242,25 @@ class Characters( Manage ):
         with open( filename, 'rb' ) as image_file:
             data = base64.b64encode( image_file.read() )
         return { 'Portrait' : data }
+
+    def equipment_fill( self, owned_item_list, fields ):
+        return_list = []
+        for item in DbQuery.getTable( 'Items' ):
+            if item['Cost'].lower() != 'not sold' and not item['Cost'].lower().startswith( 'proficiency' ):
+                return_list.append( item )
+        return return_list
+
+    def get_money_slots( self, fields ):
+        return SystemSettings.get_float_from_coinage( fields['Character List Current'] )
+
+    def add_equipment( self, item, fields ):
+        pass
+
+    def remove_equipment( self, item, fields ):
+        pass
+
+    def equipment_trade( self, item, fields ):
+        item['Cost']
 
 
 

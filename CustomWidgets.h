@@ -30,8 +30,23 @@ public:
     PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent = 0 );
     PyObject *getData();
 
+/*Static Methods*/
+public:
+    static void fillListWidget( QListWidget *list_widget, PyObject *list_obj );
+
 private:
     PyObject *data;
+
+};
+
+class DualListWidget : public QWidget {
+
+public:
+    DualListWidget(PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent = 0 );
+    QListWidget *getChosenList();
+
+private:
+    QListWidget *chosenList;
 
 };
 

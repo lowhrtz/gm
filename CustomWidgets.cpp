@@ -1,5 +1,8 @@
 #include "CustomWidgets.h"
 
+#include <QPushButton>
+#include <QLayout>
+
 ImageWidget::ImageWidget( QString base64_data, QWidget *parent )
     : QLabel( parent ) {
     setData( base64_data );
@@ -31,4 +34,73 @@ PyDataListWidgetItem::PyDataListWidgetItem( QString display_text, PyObject *data
 
 PyObject *PyDataListWidgetItem::getData() {
     return data;
+}
+
+void PyDataListWidgetItem::fillListWidget(QListWidget *list_widget, PyObject *list_obj) {
+    list_widget->clear();
+    for ( Py_ssize_t i = 0 ; i < PyList_Size( list_obj ) ; i++ ) {
+        PyObject *list_item_obj = PyList_GetItem( list_obj, i );
+
+        if ( PyString_Check( list_item_obj ) ) {
+            list_widget->addItem( new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget ) );
+
+        } else if ( PyDict_Check( list_item_obj ) ) {
+            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
+            QString table_name = PyString_AsString( table_name_obj );
+            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
+            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
+            QString display_name = PyString_AsString( display_name_obj );
+            list_widget->addItem( new PyDataListWidgetItem( display_name, list_item_obj, list_widget ));
+
+        } else if ( PyTuple_Check( list_item_obj ) ) {
+            PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
+            PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
+            QString display_name = PyString_AsString( display_obj );
+            list_widget->addItem( new PyDataListWidgetItem( display_name, dict_obj, list_widget ) );
+        }
+    }
+}
+
+DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent)
+    : QWidget( parent ){
+    QListWidget *avail_list = new QListWidget( this );
+    chosenList = new QListWidget( this );
+
+    if ( !PyDict_Check( action_data_obj ) ) {
+        qInfo( "The data parameter for a ListDialog Action must be a dictionary of callables." );
+        return;
+    }
+
+    PyObject *fill_avail_callback = PyDict_GetItemString( action_data_obj, (char *) "fill_avail" );
+    PyErr_Print();
+    PyObject *slots_callback = PyDict_GetItemString( action_data_obj, (char *) "slots" );
+    PyErr_Print();
+    PyObject *add_callback = PyDict_GetItemString( action_data_obj, (char *) "add" );
+    PyErr_Print();
+    PyObject *remove_callback = PyDict_GetItemString( action_data_obj, (char *) "remove" );
+    PyErr_Print();
+
+    PyObject *avail_item_list_obj = PyObject_CallObject( fill_avail_callback, Py_BuildValue( "(O,O)", owned_item_list_obj, fields_obj ) );
+    PyErr_Print();
+
+    PyDataListWidgetItem::fillListWidget( avail_list, avail_item_list_obj );
+    PyDataListWidgetItem::fillListWidget( chosenList, owned_item_list_obj );
+    QPushButton *add_button = new QPushButton( "Add", this );
+    QPushButton *del_button = new QPushButton( "Remove", this );
+
+    QHBoxLayout *layout = new QHBoxLayout;
+    QVBoxLayout *button_layout = new QVBoxLayout;
+    button_layout->addWidget( add_button );
+    button_layout->addWidget( del_button );
+
+    layout->addWidget( avail_list );
+    layout->addLayout( button_layout );
+    layout->addWidget( chosenList );
+
+//    layout->setSizeConstraint( QLayout::SetFixedSize );
+    setLayout( layout );
+}
+
+QListWidget *DualListWidget::getChosenList() {
+    return chosenList;
 }
