@@ -81,7 +81,7 @@ class Characters( Manage ):
 
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillFields', character_list, callback=self.fill_page ) )
-#        self.add_action( Action( 'EntryDialog', add_xp_button, xp, callback=add_numbers ) )
+#        self.add_action( Action( 'EntryDialog', add_xp_button, xp, callback=self.add_xp ) )
 
         print_menu = Menu( '&Print' )
         print_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=self.get_pdf_markup ) )
@@ -89,7 +89,7 @@ class Characters( Manage ):
         self.add_menu( print_menu )
 
         character_menu = Menu( '&Character' )
-        character_menu.add_action( Action( 'EntryDialog-SpinBox', Widget( '&Add XP', 'MenuAction' ), xp, callback=self.add_xp ) )
+        character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), xp, callback=self.add_xp ) )
         character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
         equipment_data = { 'fill_avail' : self.equipment_fill,
