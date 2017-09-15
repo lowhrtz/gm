@@ -84,18 +84,49 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     PyErr_Print();
 
     PyDataListWidgetItem::fillListWidget( avail_list, avail_item_list_obj );
+    if( avail_list->count() > 0 ) {
+        avail_list->setCurrentRow( 0 );
+    }
     PyDataListWidgetItem::fillListWidget( chosenList, owned_item_list_obj );
+    if( chosenList->count() > 0 ) {
+        chosenList->setCurrentRow( 0 );
+    }
+
+    PyObject *slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O)", fields_obj ) );
+    PyErr_Print();
+    QVariant slots_callback_return;
+    if( PyInt_Check( slots_callback_return_obj ) ) {
+        slots_callback_return.setValue( PyInt_AsSsize_t( slots_callback_return_obj ) );
+    } else if( PyFloat_Check( slots_callback_return_obj ) ) {
+        slots_callback_return = PyFloat_AsDouble( slots_callback_return_obj );
+    } else {
+        slots_callback_return = 0;
+    }
+
     QPushButton *add_button = new QPushButton( "Add", this );
     QPushButton *del_button = new QPushButton( "Remove", this );
 
-    QHBoxLayout *layout = new QHBoxLayout;
+    connect( add_button, &QPushButton::clicked, [=] ( bool checked ) {
+        qInfo( "Current Index: %i", avail_list->currentRow() );
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) avail_list->currentItem();
+        PyObject *add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+        PyErr_Print();
+    });
+
+    QVBoxLayout *layout = new QVBoxLayout;
+
+    QLabel *slots_label = new QLabel( slots_callback_return.toString(), this );
+    layout->addWidget( slots_label );
+
+    QHBoxLayout *list_layout = new QHBoxLayout;
     QVBoxLayout *button_layout = new QVBoxLayout;
     button_layout->addWidget( add_button );
     button_layout->addWidget( del_button );
 
-    layout->addWidget( avail_list );
-    layout->addLayout( button_layout );
-    layout->addWidget( chosenList );
+    list_layout->addWidget( avail_list );
+    list_layout->addLayout( button_layout );
+    list_layout->addWidget( chosenList );
+    layout->addLayout( list_layout );
 
 //    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );

@@ -251,7 +251,12 @@ class Characters( Manage ):
         return return_list
 
     def get_money_slots( self, fields ):
-        return SystemSettings.get_float_from_coinage( fields['Character List Current'] )
+        money_dict = {}
+        for row in fields['Character List Current']['Characters_meta']:
+            if row['Entry_ID'] in list( SystemSettings.economy.keys() ):
+                money_dict[ row['Entry_ID'] ] = int( row['Data'] )
+
+        return SystemSettings.get_float_from_coinage( money_dict )
 
     def add_equipment( self, item, fields ):
         pass
