@@ -94,8 +94,11 @@ class Characters( Manage ):
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
         equipment_data = { 'fill_avail' : self.equipment_fill,
                            'slots' : self.get_money_slots,
+                           'slots_name': 'Gold',
+                           'category_field': None,
                            'add' : self.add_equipment,
                            'remove' : self.remove_equipment }
+        self.current_money = 0
         character_menu.add_action( Action( 'ListDialog',
                                            Widget( '&Buy/Sell Equipment', 'MenuAction' ),
                                            equipment,
@@ -247,7 +250,7 @@ class Characters( Manage ):
         return_list = []
         for item in DbQuery.getTable( 'Items' ):
             if item['Cost'].lower() != 'not sold' and not item['Cost'].lower().startswith( 'proficiency' ):
-                return_list.append( item )
+                return_list.append( ( '{} - {}'.format( item['Name'], item['Cost'] ), item ) )
         return return_list
 
     def get_money_slots( self, fields ):
@@ -256,13 +259,47 @@ class Characters( Manage ):
             if row['Entry_ID'] in list( SystemSettings.economy.keys() ):
                 money_dict[ row['Entry_ID'] ] = int( row['Data'] )
 
-        return SystemSettings.get_float_from_coinage( money_dict )
+        self.current_money = money_slots = SystemSettings.get_float_from_coinage( money_dict )
+        return "{0:.2f}".format( money_slots )
+
+    def convert_cost_string( self, cost_string ):
+        cost_split = cost_string.split()
+        if cost_split[0].lower() == 'free':
+            cost = 0
+            denomination = None
+        else:
+            cost = ''.join(d for d in cost_split[0] if d.isdigit())
+            try:
+                denomination = cost_split[1]
+            except IndexError:
+                denomination = None
+
+        if denomination:
+            try:
+                ratio = SystemSettings.economy[denomination]
+                final_cost = ratio * float( cost )
+            except KeyError:
+                final_cost = cost
+        else:
+            final_cost = cost
+
+        return final_cost
 
     def add_equipment( self, item, fields ):
-        pass
+        cost = self.convert_cost_string( item['Cost'] )
+        if cost < self.current_money:
+            self.current_money -= cost
+            return { 'valid': True,
+                     'slots_new_value': "{0:.2f}".format( self.current_money ),
+#                     'remove': True,
+                     'new_display': item['Name'],
+                     }
+        else:
+            return {}
 
     def remove_equipment( self, item, fields ):
-        pass
+        if cost_string.lower() == 'not sold':
+            return
 
     def equipment_trade( self, item, fields ):
         item['Cost']

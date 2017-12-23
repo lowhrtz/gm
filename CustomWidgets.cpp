@@ -61,13 +61,23 @@ void PyDataListWidgetItem::fillListWidget(QListWidget *list_widget, PyObject *li
     }
 }
 
+PyObject *PyDataListWidgetItem::getDataList( QListWidget *listbox ) {
+    PyObject *list_obj = PyList_New( 0 );
+    for( int i = 0 ; i < listbox->count() ; i++) {
+        PyDataListWidgetItem *item = (PyDataListWidgetItem *) listbox->item( i );
+        PyList_Append( list_obj, item->getData() );
+    }
+
+    return list_obj;
+}
+
 DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent)
     : QWidget( parent ){
     QListWidget *avail_list = new QListWidget( this );
     chosenList = new QListWidget( this );
 
     if ( !PyDict_Check( action_data_obj ) ) {
-        qInfo( "The data parameter for a ListDialog Action must be a dictionary of callables." );
+        qInfo( "The data parameter for a ListDialog Action must be a dictionary." );
         return;
     }
 
@@ -75,6 +85,11 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     PyErr_Print();
     PyObject *slots_callback = PyDict_GetItemString( action_data_obj, (char *) "slots" );
     PyErr_Print();
+    PyObject *slots_name_obj = PyDict_GetItemString( action_data_obj, (char *) "slots_name");
+    PyErr_Print();
+    PyObject *category_field_obj = PyDict_GetItemString( action_data_obj, (char *) "category_field");
+    PyErr_Print();
+    QString slots_name = PyString_AsString( slots_name_obj );
     PyObject *add_callback = PyDict_GetItemString( action_data_obj, (char *) "add" );
     PyErr_Print();
     PyObject *remove_callback = PyDict_GetItemString( action_data_obj, (char *) "remove" );
@@ -94,29 +109,16 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 
     PyObject *slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O)", fields_obj ) );
     PyErr_Print();
-    QVariant slots_callback_return;
-    if( PyInt_Check( slots_callback_return_obj ) ) {
-        slots_callback_return.setValue( PyInt_AsSsize_t( slots_callback_return_obj ) );
-    } else if( PyFloat_Check( slots_callback_return_obj ) ) {
-        slots_callback_return = PyFloat_AsDouble( slots_callback_return_obj );
-    } else {
-        slots_callback_return = 0;
-    }
+    
+    QString slots_callback_return = PyString_AsString( slots_callback_return_obj );
 
     QPushButton *add_button = new QPushButton( "Add", this );
     QPushButton *del_button = new QPushButton( "Remove", this );
 
-    connect( add_button, &QPushButton::clicked, [=] ( bool checked ) {
-        qInfo( "Current Index: %i", avail_list->currentRow() );
-        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) avail_list->currentItem();
-        PyObject *add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
-        PyErr_Print();
-    });
-
     QVBoxLayout *layout = new QVBoxLayout;
 
-    QLabel *slots_label = new QLabel( slots_callback_return.toString(), this );
-    layout->addWidget( slots_label );
+    QLabel *slots_label = new QLabel( "<b>" + slots_name + ":</b> " + slots_callback_return, this );
+    layout->addWidget( slots_label, 1, Qt::AlignCenter );
 
     QHBoxLayout *list_layout = new QHBoxLayout;
     QVBoxLayout *button_layout = new QVBoxLayout;
@@ -130,6 +132,55 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 
 //    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
+
+    connect( add_button, &QPushButton::clicked, [=] () {
+        //qInfo( "Current Index: %i", avail_list->currentRow() );
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) avail_list->currentItem();
+        PyObject *add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+        PyErr_Print();
+        if( !PyDict_Check( add_callback_return ) ) {
+            qInfo( "The add callback should return a dictionary with the following keys: valid, slots_new_value, remove, new_display" );
+            return;
+        }
+
+        PyObject *valid_obj = PyDict_GetItemString( add_callback_return, (char *) "valid" );
+        PyErr_Print();
+        PyObject *slots_new_value_obj = PyDict_GetItemString( add_callback_return, (char *) "slots_new_value" );
+        PyErr_Print();
+        PyObject *remove_obj = PyDict_GetItemString( add_callback_return, (char *) "remove" );
+        PyErr_Print();
+        PyObject *new_display_obj = PyDict_GetItemString( add_callback_return, (char *) "new_display" );
+        PyErr_Print();
+
+        if( valid_obj != Py_True ) {
+            return;
+        }
+
+        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+            slots_label->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+        }
+
+        if( remove_obj == Py_True ) {
+            avail_list->takeItem( avail_list->currentRow() );
+        }
+
+        QString new_display_string;
+        if( new_display_obj == NULL ) {
+            new_display_string = current_item->text();
+        } else if( PyString_Check( new_display_obj ) ) {
+            new_display_string = PyString_AsString( new_display_obj );
+        } else {
+            new_display_string = current_item->text();
+        }
+
+        chosenList->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), chosenList ) );
+
+    });
+
+    connect( del_button, &QPushButton::clicked, [=] () {
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
+        PyObject *remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+    });
 }
 
 QListWidget *DualListWidget::getChosenList() {

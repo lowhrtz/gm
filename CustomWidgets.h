@@ -33,6 +33,7 @@ public:
 /*Static Methods*/
 public:
     static void fillListWidget( QListWidget *list_widget, PyObject *list_obj );
+    static PyObject *getDataList(QListWidget *list_widget );
 
 private:
     PyObject *data;

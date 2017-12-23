@@ -411,20 +411,10 @@ void ManageWindow::processAction( PyObject *action_obj ) {
         }
 
         if ( widget2_widget_type.toLower() == "listbox" ) {
-//            PyObject *avail_item_list_obj = PyList_New( 0 );
-            PyObject *owned_item_list_obj = PyList_New( 0 );
-
-            QListWidget *listbox = (QListWidget *) widget_registry[widget2_field_name].first;
-            for( int i = 0 ; i < listbox->count() ; i++) {
-                PyDataListWidgetItem *item = (PyDataListWidgetItem *) listbox->item( i );
-                PyList_Append( owned_item_list_obj, item->getData() );
-            }
-
-//            if ( callback_obj != Py_None ) {
-//                avail_item_list_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", owned_item_list_obj, fields_dict_obj ) );
-//                PyErr_Print();
-//            }
+            QListWidget *owned_item_list = (QListWidget *) widget_registry[widget2_field_name].first;
+            PyObject *owned_item_list_obj = PyDataListWidgetItem::getDataList( owned_item_list );
             PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
+            PyErr_Print();
             dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, this );
 
             accepted = dialog->exec();
