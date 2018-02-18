@@ -416,7 +416,7 @@ def get_coinage_from_float(gp_decimal):
             coin_decimal = Decimal( str( economy[cd] ) )
             coin_mod = gp_decimal // coin_decimal
             gp_decimal -= coin_mod * coin_decimal
-            return_dict[cd] = coin_mod
+            return_dict[cd] = int( coin_mod )
 
     return return_dict
 
