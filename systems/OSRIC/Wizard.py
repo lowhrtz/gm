@@ -1048,7 +1048,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
                 unique_id,
                 'Treasure',
                 denomination,
-                money_dict[denomination],
+                str( money_dict[denomination] ),
                 '',
                 ]
             character_dict['Characters_meta'].append( make_meta_row( money_data ) )
