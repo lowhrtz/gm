@@ -1,7 +1,9 @@
-from ManageDefs import *
 import base64
 import DbQuery
 import SystemSettings
+from decimal import Decimal
+from ManageDefs import *
+
 
 class Characters( Manage ):
     def __init__( self ):
@@ -102,7 +104,7 @@ class Characters( Manage ):
         character_menu.add_action( Action( 'ListDialog',
                                            Widget( '&Buy/Sell Equipment', 'MenuAction' ),
                                            equipment,
-                                           callback=self.equipment_fill,
+                                           callback=self.equipment_callback,
                                            data=equipment_data ) )
         self.add_menu( character_menu )
 
@@ -253,22 +255,40 @@ class Characters( Manage ):
                 return_list.append( ( '{} - {}'.format( item['Name'], item['Cost'] ), item ) )
         return return_list
 
-    def get_money_slots( self, fields ):
-        money_dict = {}
-        for row in fields['Character List Current']['Characters_meta']:
-            if row['Entry_ID'] in list( SystemSettings.economy.keys() ):
-                money_dict[ row['Entry_ID'] ] = int( row['Data'] )
+    def equipment_callback( self, owned_item_list, fields):
+#        coin_dict = SystemSettings.get_coinage_from_float( float( '{0:.2f}'.format( self.current_money ) ) )
+        coin_dict = SystemSettings.get_coinage_from_float( self.current_money )
+#        print self.current_money
+        return { 'GP': coin_dict['gp'],
+                 'PP': coin_dict['pp'],
+                 'EP': coin_dict['ep'],
+                 'SP': coin_dict['sp'],
+                 'CP': coin_dict['cp'],
+                 'Equipment': owned_item_list, }
 
-        self.current_money = money_slots = SystemSettings.get_float_from_coinage( money_dict )
-        return "{0:.2f}".format( money_slots )
+    def get_money_slots( self, fields ):
+#        money_dict = {}
+#        for row in fields['Character List Current']['Characters_meta']:
+#            if row['Entry_ID'] in list( SystemSettings.economy.keys() ):
+#                money_dict[ row['Entry_ID'] ] = int( row['Data'] )
+        money_dict = {
+            'gp': fields['GP'],
+            'pp': fields['PP'],
+            'ep': fields['EP'],
+            'sp': fields['SP'],
+            'cp': fields['CP'],
+        }
+
+        self.current_money = money_slots = Decimal( str( SystemSettings.get_float_from_coinage( money_dict ) ) )
+        return '{0:.2f}'.format( money_slots )
 
     def convert_cost_string( self, cost_string ):
         cost_split = cost_string.split()
         if cost_split[0].lower() == 'free':
-            cost = 0
+            cost = Decimal( '0' )
             denomination = None
         else:
-            cost = ''.join(d for d in cost_split[0] if d.isdigit())
+            cost = Decimal( ''.join( d for d in cost_split[0] if d.isdigit() ) )
             try:
                 denomination = cost_split[1]
             except IndexError:
@@ -276,8 +296,8 @@ class Characters( Manage ):
 
         if denomination:
             try:
-                ratio = SystemSettings.economy[denomination]
-                final_cost = ratio * float( cost )
+                ratio = Decimal( str( SystemSettings.economy[denomination] ) )
+                final_cost = ratio * cost
             except KeyError:
                 final_cost = cost
         else:
@@ -298,8 +318,17 @@ class Characters( Manage ):
             return {}
 
     def remove_equipment( self, item, fields ):
+        cost_string = item['Cost']
         if cost_string.lower() == 'not sold':
-            return
+            return {}
+        else:
+            cost = self.convert_cost_string( cost_string )
+            self.current_money += cost
+            return { 'valid': True,
+                     'slots_new_value': "{0:.2f}".format( self.current_money ),
+#                     'replace': True,
+                     'new_display': item['Name'],
+                    }
 
     def equipment_trade( self, item, fields ):
         item['Cost']

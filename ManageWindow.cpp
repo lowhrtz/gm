@@ -416,8 +416,14 @@ void ManageWindow::processAction( PyObject *action_obj ) {
             PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
             PyErr_Print();
             dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, this );
-
-            accepted = dialog->exec();
+        }
+        accepted = dialog->exec();
+        if ( accepted ) {
+            if ( callback_obj != Py_None ) {
+                PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", dialog->getItemList(), fields_dict_obj ) );
+                PyErr_Print();
+                fillFields( callback_return_obj );
+            }
         }
     }
 }

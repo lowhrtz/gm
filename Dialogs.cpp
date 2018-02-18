@@ -123,9 +123,34 @@ DualListDialog::DualListDialog( QString title, PyObject *owned_item_list_obj, Py
     setWindowTitle( title );
 
     QVBoxLayout *layout = new QVBoxLayout;
-    DualListWidget *dual_list = new DualListWidget( owned_item_list_obj, action_data_obj, fields_obj, this );
+//    DualListWidget *dual_list = new DualListWidget( owned_item_list_obj, action_data_obj, fields_obj, this );
+    dual_list = new DualListWidget( owned_item_list_obj, action_data_obj, fields_obj, this );
     layout->addWidget( dual_list );
 
+    QFrame *line = new QFrame( this );
+    line->setFrameShape( QFrame::HLine );
+    line->setFrameShadow( QFrame::Sunken );
+    layout->addWidget( line );
+
+    QDialogButtonBox *ok_cancel_button_box = new QDialogButtonBox( this );
+    QPushButton *ok_button = new QPushButton( "OK", this );
+    QPushButton *cancel_button = new QPushButton( "Cancel", this );
+    ok_cancel_button_box->addButton( ok_button, QDialogButtonBox::AcceptRole);
+    ok_cancel_button_box->addButton( cancel_button, QDialogButtonBox::RejectRole );
+
+    connect( ok_cancel_button_box, &QDialogButtonBox::accepted, [=] () {
+        accept();
+    });
+
+    connect( ok_cancel_button_box, &QDialogButtonBox::rejected, [=] () {
+        reject();
+    });
+
+    layout->addWidget( ok_cancel_button_box );
     layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
+}
+
+PyObject *DualListDialog::getItemList() {
+    return PyDataListWidgetItem::getDataList( dual_list->getChosenList() );
 }

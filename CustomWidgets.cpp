@@ -1,4 +1,4 @@
-#include "CustomWidgets.h"
+﻿#include "CustomWidgets.h"
 
 #include <QPushButton>
 #include <QLayout>
@@ -130,6 +130,19 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     list_layout->addWidget( chosenList );
     layout->addLayout( list_layout );
 
+//    QFrame *line = new QFrame( this );
+//    line->setFrameShape( QFrame::HLine );
+//    line->setFrameShadow( QFrame::Sunken );
+//    layout->addWidget( line );
+
+//    QHBoxLayout *ok_cancel_layout = new QHBoxLayout;
+//    QPushButton *ok_button = new QPushButton( "OK", this );
+//    QPushButton *cancel_button = new QPushButton( "Cancel", this );
+//    ok_cancel_layout->addStretch();
+//    ok_cancel_layout->addWidget( ok_button );
+//    ok_cancel_layout->addWidget( cancel_button );
+//    layout->addLayout( ok_cancel_layout );
+
 //    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
 
@@ -180,6 +193,44 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     connect( del_button, &QPushButton::clicked, [=] () {
         PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
         PyObject *remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+        PyErr_Print();
+        if( !PyDict_Check( remove_callback_return ) ) {
+            qInfo( "The remove callback should return a dictionary with the following keys: valid, slots_new_value, remove, new_display" );
+            return;
+        }
+
+        PyObject *valid_obj = PyDict_GetItemString( remove_callback_return, (char *) "valid" );
+        PyErr_Print();
+        PyObject *slots_new_value_obj = PyDict_GetItemString( remove_callback_return, (char *) "slots_new_value" );
+        PyErr_Print();
+        PyObject *replace_obj = PyDict_GetItemString( remove_callback_return, (char *) "replace" );
+        PyErr_Print();
+        PyObject *new_display_obj = PyDict_GetItemString( remove_callback_return, (char *) "new_display" );
+        PyErr_Print();
+
+        if( valid_obj != Py_True ) {
+            return;
+        }
+
+        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+            slots_label->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+        }
+
+        QString new_display_string;
+        if( new_display_obj == NULL ) {
+            new_display_string = current_item->text();
+        } else if( PyString_Check( new_display_obj ) ) {
+            new_display_string = PyString_AsString( new_display_obj );
+        } else {
+            new_display_string = current_item->text();
+        }
+
+        if( replace_obj == Py_True ) {
+            avail_list->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), avail_list ) );
+        }
+
+        chosenList->takeItem( chosenList->currentRow() );
+
     });
 }
 

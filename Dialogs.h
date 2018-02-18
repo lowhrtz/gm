@@ -45,7 +45,11 @@ class DualListDialog : public QDialog {
     Q_OBJECT
 
 public:
-    DualListDialog(QString title, PyObject *owned_item_list_obj, PyObject *data, PyObject *fields_obj, QWidget *parent );
+    DualListDialog(QString title, PyObject *owned_item_list_obj, PyObject *data, PyObject *fields_obj, QWidget *parent = 0);
+    PyObject *getItemList();
+
+private:
+    DualListWidget *dual_list;
 };
 
 #endif // DIALOGS_H

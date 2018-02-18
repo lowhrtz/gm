@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 from string import Template
 import DbQuery
 
@@ -395,16 +396,27 @@ def get_tohit_row(level, class_dict, race_dict):
     return tohit_list
 
 def get_coinage_from_float(gp_decimal):
-    bucket = int(gp_decimal * 100)
+#    bucket = int(gp_decimal * 100)
+#    coin_denominations = sorted(economy, key=lambda x: economy[x], reverse=True)
+#    return_dict = dict.fromkeys(coin_denominations, 0)
+#    for cd in coin_denominations:
+#        if economy[cd] <= 1:
+#            cd_bucket = 0
+#            while bucket >= economy[cd] * 100:
+#                bucket = bucket - int(economy[cd] * 100)
+#                cd_bucket = cd_bucket + 1
+#                return_dict[cd] = cd_bucket
+
+#    return return_dict
+    gp_decimal = Decimal( str( gp_decimal ) )
     coin_denominations = sorted(economy, key=lambda x: economy[x], reverse=True)
     return_dict = dict.fromkeys(coin_denominations, 0)
     for cd in coin_denominations:
         if economy[cd] <= 1:
-            cd_bucket = 0
-            while bucket >= economy[cd] * 100:
-                bucket = bucket - int(economy[cd] * 100)
-                cd_bucket = cd_bucket + 1
-                return_dict[cd] = cd_bucket
+            coin_decimal = Decimal( str( economy[cd] ) )
+            coin_mod = gp_decimal // coin_decimal
+            gp_decimal -= coin_mod * coin_decimal
+            return_dict[cd] = coin_mod
 
     return return_dict
 
