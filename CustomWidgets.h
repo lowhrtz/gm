@@ -27,16 +27,19 @@ private:
 class PyDataListWidgetItem : public QListWidgetItem {
 
 public:
-    PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent = 0 );
+    PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent = 0, QListWidget *original_list = 0 );
     PyObject *getData();
+    QListWidget *getOriginalList();
 
 /*Static Methods*/
 public:
     static void fillListWidget( QListWidget *list_widget, PyObject *list_obj );
+    static void addItemToWidget( QListWidget *list_widget, PyObject *list_item_obj );
     static PyObject *getDataList(QListWidget *list_widget );
 
 private:
     PyObject *data;
+    QListWidget *originalList;
 
 };
 
@@ -47,6 +50,7 @@ public:
     QListWidget *getChosenList();
 
 private:
+    QTabWidget *tabbedAvailLists;
     QListWidget *chosenList;
 
 };

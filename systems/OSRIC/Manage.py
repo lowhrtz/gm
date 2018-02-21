@@ -97,7 +97,8 @@ class Characters( Manage ):
         equipment_data = { 'fill_avail' : self.equipment_fill,
                            'slots' : self.get_money_slots,
                            'slots_name': 'Gold',
-                           'category_field': None,
+#                           'category_field': None,
+                           'category_field': 'Category',
                            'add' : self.add_equipment,
                            'remove' : self.remove_equipment }
         self.current_money = 0

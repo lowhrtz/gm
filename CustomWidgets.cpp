@@ -27,37 +27,63 @@ void ImageWidget::setImageWithBase64( QLabel *image_widget, QString base64_strin
     image_widget->setPixmap( pixmap );
 }
 
-PyDataListWidgetItem::PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent )
+PyDataListWidgetItem::PyDataListWidgetItem(QString display_text, PyObject *data, QListWidget *parent , QListWidget *original_list)
     : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
     this->data = data;
+    this->originalList = original_list;
 }
 
 PyObject *PyDataListWidgetItem::getData() {
     return data;
 }
 
-void PyDataListWidgetItem::fillListWidget(QListWidget *list_widget, PyObject *list_obj) {
+QListWidget *PyDataListWidgetItem::getOriginalList() {
+    return originalList;
+}
+
+void PyDataListWidgetItem::fillListWidget(  QListWidget *list_widget, PyObject *list_obj  ) {
     list_widget->clear();
     for ( Py_ssize_t i = 0 ; i < PyList_Size( list_obj ) ; i++ ) {
         PyObject *list_item_obj = PyList_GetItem( list_obj, i );
 
-        if ( PyString_Check( list_item_obj ) ) {
-            list_widget->addItem( new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget ) );
+//        if ( PyString_Check( list_item_obj ) ) {
+//            list_widget->addItem( new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget ) );
 
-        } else if ( PyDict_Check( list_item_obj ) ) {
-            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
-            QString table_name = PyString_AsString( table_name_obj );
-            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
-            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
-            QString display_name = PyString_AsString( display_name_obj );
-            list_widget->addItem( new PyDataListWidgetItem( display_name, list_item_obj, list_widget ));
+//        } else if ( PyDict_Check( list_item_obj ) ) {
+//            PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
+//            QString table_name = PyString_AsString( table_name_obj );
+//            QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
+//            PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
+//            QString display_name = PyString_AsString( display_name_obj );
+//            list_widget->addItem( new PyDataListWidgetItem( display_name, list_item_obj, list_widget ));
 
-        } else if ( PyTuple_Check( list_item_obj ) ) {
-            PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
-            PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
-            QString display_name = PyString_AsString( display_obj );
-            list_widget->addItem( new PyDataListWidgetItem( display_name, dict_obj, list_widget ) );
-        }
+//        } else if ( PyTuple_Check( list_item_obj ) ) {
+//            PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
+//            PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
+//            QString display_name = PyString_AsString( display_obj );
+//            list_widget->addItem( new PyDataListWidgetItem( display_name, dict_obj, list_widget ) );
+//        }
+        PyDataListWidgetItem::addItemToWidget( list_widget, list_item_obj );
+    }
+}
+
+void PyDataListWidgetItem::addItemToWidget(  QListWidget *list_widget, PyObject *list_item_obj  ) {
+    if ( PyString_Check( list_item_obj ) ) {
+        list_widget->addItem( new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget ) );
+
+    } else if ( PyDict_Check( list_item_obj ) ) {
+        PyObject *table_name_obj = PyDict_GetItemString( list_item_obj, "TableName" );
+        QString table_name = PyString_AsString( table_name_obj );
+        QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
+        PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
+        QString display_name = PyString_AsString( display_name_obj );
+        list_widget->addItem( new PyDataListWidgetItem( display_name, list_item_obj, list_widget ));
+
+    } else if ( PyTuple_Check( list_item_obj ) ) {
+        PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
+        PyObject *dict_obj = PyTuple_GetItem( list_item_obj, 1 );
+        QString display_name = PyString_AsString( display_obj );
+        list_widget->addItem( new PyDataListWidgetItem( display_name, dict_obj, list_widget ) );
     }
 }
 
@@ -73,8 +99,15 @@ PyObject *PyDataListWidgetItem::getDataList( QListWidget *listbox ) {
 
 DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent)
     : QWidget( parent ){
-    QListWidget *avail_list = new QListWidget( this );
+    QHash<QString, QListWidget *> category_hash;
+    tabbedAvailLists = new QTabWidget( this );
+    tabbedAvailLists->tabBar()->setStyleSheet( "font: bold 8pt;" );
+
     chosenList = new QListWidget( this );
+
+    QTabWidget *tabbed_chosen_list = new QTabWidget( this );
+    tabbed_chosen_list->addTab( chosenList, "" );
+    tabbed_chosen_list->tabBar()->hide();
 
     if ( !PyDict_Check( action_data_obj ) ) {
         qInfo( "The data parameter for a ListDialog Action must be a dictionary." );
@@ -98,10 +131,48 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     PyObject *avail_item_list_obj = PyObject_CallObject( fill_avail_callback, Py_BuildValue( "(O,O)", owned_item_list_obj, fields_obj ) );
     PyErr_Print();
 
-    PyDataListWidgetItem::fillListWidget( avail_list, avail_item_list_obj );
-    if( avail_list->count() > 0 ) {
-        avail_list->setCurrentRow( 0 );
+
+    if ( category_field_obj != NULL && PyString_Check( category_field_obj ) ) {
+        for ( Py_ssize_t i = 0; i < PyList_Size( avail_item_list_obj ); i++ ) {
+            PyObject *item_obj = PyList_GetItem( avail_item_list_obj, i );
+            PyObject *item_dict_obj;
+
+            if ( PyDict_Check( item_obj ) ) {
+                item_dict_obj = item_obj;
+            } else if ( PyTuple_Check( item_obj ) ) {
+                item_dict_obj = PyTuple_GetItem( item_obj, 1 );
+            } else {
+                continue;
+            }
+
+            PyObject *category_obj = PyDict_GetItem( item_dict_obj, category_field_obj );
+            QString category = PyString_AsString( category_obj );
+            if ( !category_hash.contains( category ) ) {
+//                qInfo( "%s", category.toStdString().data() );
+                QListWidget *cat_list = new QListWidget( this );
+                category_hash[category] = cat_list;
+
+                tabbedAvailLists->addTab( cat_list, category );
+                PyDataListWidgetItem::addItemToWidget( cat_list, item_obj );
+
+            } else {
+                QListWidget *cat_list = category_hash[category];
+                PyDataListWidgetItem::addItemToWidget( cat_list, item_obj );
+            }
+        }
+    } else {
+        QListWidget *avail_list = new QListWidget( this );
+//        category_hash["Avail"] = avail_list;
+        tabbedAvailLists->addTab( avail_list, "Avail" );
+        tabbedAvailLists->tabBar()->hide();
+        PyDataListWidgetItem::fillListWidget( avail_list, avail_item_list_obj );
+        if( avail_list->count() > 0 ) {
+            avail_list->setCurrentRow( 0 );
+        }
+
     }
+
+
     PyDataListWidgetItem::fillListWidget( chosenList, owned_item_list_obj );
     if( chosenList->count() > 0 ) {
         chosenList->setCurrentRow( 0 );
@@ -125,30 +196,20 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     button_layout->addWidget( add_button );
     button_layout->addWidget( del_button );
 
-    list_layout->addWidget( avail_list );
+    list_layout->addWidget( tabbedAvailLists );
+//    list_layout->addWidget( avail_list );
     list_layout->addLayout( button_layout );
-    list_layout->addWidget( chosenList );
+//    list_layout->addWidget( chosenList );
+    list_layout->addWidget( tabbed_chosen_list );
     layout->addLayout( list_layout );
-
-//    QFrame *line = new QFrame( this );
-//    line->setFrameShape( QFrame::HLine );
-//    line->setFrameShadow( QFrame::Sunken );
-//    layout->addWidget( line );
-
-//    QHBoxLayout *ok_cancel_layout = new QHBoxLayout;
-//    QPushButton *ok_button = new QPushButton( "OK", this );
-//    QPushButton *cancel_button = new QPushButton( "Cancel", this );
-//    ok_cancel_layout->addStretch();
-//    ok_cancel_layout->addWidget( ok_button );
-//    ok_cancel_layout->addWidget( cancel_button );
-//    layout->addLayout( ok_cancel_layout );
 
 //    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
 
     connect( add_button, &QPushButton::clicked, [=] () {
+        QListWidget *current_list = (QListWidget *) tabbedAvailLists->currentWidget();
         //qInfo( "Current Index: %i", avail_list->currentRow() );
-        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) avail_list->currentItem();
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) current_list->currentItem();
         PyObject *add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
         PyErr_Print();
         if( !PyDict_Check( add_callback_return ) ) {
@@ -174,7 +235,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         }
 
         if( remove_obj == Py_True ) {
-            avail_list->takeItem( avail_list->currentRow() );
+            current_list->takeItem( current_list->currentRow() );
         }
 
         QString new_display_string;
@@ -186,7 +247,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
             new_display_string = current_item->text();
         }
 
-        chosenList->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), chosenList ) );
+        chosenList->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), chosenList, current_list ) );
 
     });
 
@@ -195,7 +256,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         PyObject *remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
         PyErr_Print();
         if( !PyDict_Check( remove_callback_return ) ) {
-            qInfo( "The remove callback should return a dictionary with the following keys: valid, slots_new_value, remove, new_display" );
+            qInfo( "The remove callback should return a dictionary with the following keys: valid, slots_new_value, replace, new_display" );
             return;
         }
 
@@ -226,7 +287,8 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         }
 
         if( replace_obj == Py_True ) {
-            avail_list->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), avail_list ) );
+            QListWidget *original_list = current_item->getOriginalList();
+            original_list->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), original_list ) );
         }
 
         chosenList->takeItem( chosenList->currentRow() );
