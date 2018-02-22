@@ -254,6 +254,11 @@ class Characters( Manage ):
         for item in DbQuery.getTable( 'Items' ):
             if item['Cost'].lower() != 'not sold' and not item['Cost'].lower().startswith( 'proficiency' ):
                 return_list.append( ( '{} - {}'.format( item['Name'], item['Cost'] ), item ) )
+
+        # These two lines sort the list to guarantee the tab order
+        category_order = {'General': 0, 'Weapon': 1, 'Armour': 2, 'Clothing': 3}
+        return_list.sort( key=lambda x: category_order.get( x[1].get( 'Category', 'General' ), 4 ) )
+
         return return_list
 
     def equipment_callback( self, owned_item_list, fields):
