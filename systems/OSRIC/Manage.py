@@ -97,6 +97,7 @@ class Characters( Manage ):
         equipment_data = { 'fill_avail' : self.equipment_fill,
                            'slots' : self.get_money_slots,
                            'slots_name': 'Gold',
+                           'tool_tip': self.get_tool_tip,
 #                           'category_field': None,
                            'category_field': 'Category',
                            'add' : self.add_equipment,
@@ -336,9 +337,8 @@ class Characters( Manage ):
                      'new_display': item['Name'],
                     }
 
-    def equipment_trade( self, item, fields ):
-        item['Cost']
-
+    def get_tool_tip( self, item, fields ):
+        return '{}<br /><b>{}</b>'.format( item['Name'], item['Cost'] )
 
 
 image_data = '/9j/4AAQSkZJRgABAQEASABIAAD//gATQ3JlYXRlZCB3aXRoIEdJTVD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/\
