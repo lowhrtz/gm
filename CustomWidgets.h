@@ -7,6 +7,9 @@
 #include <QListWidgetItem>
 #include <QWidget>
 #include <QString>
+#include <QMenuBar>
+
+class WidgetRegistry;
 
 class ImageWidget : public QLabel {
 
@@ -85,6 +88,10 @@ public:
     GuiWidget *getWidget1();
     GuiWidget *getWidget2();
     PyObject *getCallback();
+
+/*Static Methods*/
+public:
+    static void fillMenuBar( QMenuBar *menu_bar, PyObject *menu_list_obj, WidgetRegistry *widget_registry, QWidget *parent = 0 );
 
 private:
     QString actionType;

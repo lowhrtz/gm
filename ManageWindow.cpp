@@ -1,7 +1,6 @@
 #include "Dialogs.h"
 #include "ManageWindow.h"
 #include "PDFCreator.h"
-//#include "PythonInterpreter.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -69,7 +68,6 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
                 } else if ( widget1_type.toLower() == "listbox" ) {
                     QListWidget *widget1 = (QListWidget *) widget_registry.getGuiWidget(widget1_field_name)->getWidget();
                     PyDataListWidgetItem::fillListWidget( widget1, callback_return_obj );
-
                 }
             });
 
@@ -84,36 +82,12 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
             connect( widget1, &QListWidget::currentItemChanged, [=]  ( /*QListWidgetItem *current, QListWidgetItem *previous*/ ) {
                 widget_registry.processAction( action_obj, this );
             });
-
         }
-
     }
 
     PyObject *menu_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_menu_list", NULL );
     PyErr_Print();
-
-    for( Py_ssize_t i = 0 ; i < PyList_Size( menu_list_obj ) ; i++ ) {
-        PyObject *menu_obj = PyList_GetItem( menu_list_obj, i );
-        PyObject *menu_name_obj = PyObject_CallMethod( menu_obj, (char *) "get_menu_name", NULL );
-        PyErr_Print();
-        QString menu_name = PyString_AsString( menu_name_obj );
-        QMenu *menu = menuBar()->addMenu( menu_name );
-        PyObject *menu_action_list_obj = PyObject_CallMethod( menu_obj, (char *) "get_action_list", NULL );
-        PyErr_Print();
-        for( Py_ssize_t j = 0 ; j < PyList_Size( menu_action_list_obj ) ; j++ ) {
-            PyObject *menu_action_obj = PyList_GetItem( menu_action_list_obj, j );
-            PyObject *menu_widget1_obj = PyObject_GetAttrString( menu_action_obj, (char *) "widget1" );
-            PyObject *menu_widget1_field_name_obj = PyObject_CallMethod( menu_widget1_obj, (char *) "get_field_name", NULL );
-            PyErr_Print();
-            QString menu_widget1_field_name = PyString_AsString( menu_widget1_field_name_obj );
-
-            QAction *menu_action = new QAction( menu_widget1_field_name, this );
-            menu->addAction( menu_action );
-            connect( menu_action, &QAction::triggered, [=] ( /*bool checked*/ ) {
-                widget_registry.processAction( menu_action_obj, this );
-            });
-        }
-    }
+    GuiAction::fillMenuBar(  menuBar(), menu_list_obj, &widget_registry, this );
 
     QString title( class_name );
     title.prepend( "Manage " );
