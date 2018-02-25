@@ -2,7 +2,8 @@ import base64
 import DbQuery
 import SystemSettings
 from decimal import Decimal
-from ManageDefs import *
+from ManageDefs import Manage
+from GuiDefs import *
 
 
 class Characters( Manage ):
@@ -37,7 +38,7 @@ class Characters( Manage ):
 
 
         race = Widget( 'Race', 'LineEdit' )
-        level = Widget( 'Level', 'LineEdit' )
+        level = Widget( 'Level', 'LineEdit', enable_edit=False )
         gender = Widget( 'Gender', 'ComboBox', data=SystemSettings.gender )
         self.add_row( [ empty_widget, race, level, gender ] )
         self.add_row( [ hr, ] )
