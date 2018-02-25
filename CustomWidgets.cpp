@@ -209,7 +209,8 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 
     connect( add_button, &QPushButton::clicked, [=] () {
         QListWidget *current_list = (QListWidget *) tabbedAvailLists->currentWidget();
-        //qInfo( "Current Index: %i", avail_list->currentRow() );
+//        qInfo( "Current Index: %i", current_list->currentRow() );
+        if ( current_list->currentRow() == -1 ) return;
         PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) current_list->currentItem();
         PyObject *add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
         PyErr_Print();
@@ -254,6 +255,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     });
 
     connect( del_button, &QPushButton::clicked, [=] () {
+        if ( chosenList->currentRow() == -1 ) return;
         PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
         PyObject *remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
         PyErr_Print();
