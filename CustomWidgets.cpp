@@ -61,7 +61,6 @@ void PyDataListWidgetItem::addItemToWidget( QListWidget *list_widget, PyObject *
     PyObject *list_item_dict_obj;
     if ( PyString_Check( list_item_obj ) ) {
         list_item = new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget );
-//        list_widget->addItem(  );
 
     } else if ( PyDict_Check( list_item_obj ) ) {
         list_item_dict_obj = list_item_obj;
@@ -71,14 +70,12 @@ void PyDataListWidgetItem::addItemToWidget( QListWidget *list_widget, PyObject *
         PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
         QString display_name = PyString_AsString( display_name_obj );
         list_item = new PyDataListWidgetItem( display_name, list_item_obj, list_widget );
-//        list_widget->addItem( );
 
     } else if ( PyTuple_Check( list_item_obj ) ) {
         PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
         list_item_dict_obj = PyTuple_GetItem( list_item_obj, 1 );
         QString display_name = PyString_AsString( display_obj );
         list_item = new PyDataListWidgetItem( display_name, list_item_dict_obj, list_widget );
-//        list_widget->addItem(  );
     } else {
         return;
     }
@@ -205,9 +202,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     button_layout->addWidget( del_button );
 
     list_layout->addWidget( tabbedAvailLists );
-//    list_layout->addWidget( avail_list );
     list_layout->addLayout( button_layout );
-//    list_layout->addWidget( chosenList );
     list_layout->addWidget( tabbed_chosen_list );
     layout->addLayout( list_layout );
 
@@ -256,7 +251,6 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
             new_display_string = current_item->text();
         }
 
-//        chosenList->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), chosenList, current_list ) );
         PyDataListWidgetItem::addItemToWidget( chosenList, current_item->getData(), tool_tip_callback, fields_obj );
 
     });
@@ -299,7 +293,6 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 
         if( replace_obj == Py_True ) {
             QListWidget *original_list = current_item->getOriginalList();
-//            original_list->addItem( new PyDataListWidgetItem( new_display_string, current_item->getData(), original_list ) );
             PyDataListWidgetItem::addItemToWidget( original_list, current_item->getData(), tool_tip_callback, fields_obj );
         }
 
@@ -312,7 +305,7 @@ QListWidget *DualListWidget::getChosenList() {
     return chosenList;
 }
 
-GuiWidget::GuiWidget(PyObject *widget_obj, QWidget *parent) {
+GuiWidget::GuiWidget( PyObject *widget_obj, QWidget *parent, bool create_qwidget ) {
     bool hide_field_name = false;
     PyObject *field_name_obj = PyObject_CallMethod( widget_obj, (char *) "get_field_name", NULL);
     PyErr_Print();
@@ -349,119 +342,121 @@ GuiWidget::GuiWidget(PyObject *widget_obj, QWidget *parent) {
     }
     //qInfo( "widget_type: %s", widget_type.toStdString().data() );
 
-    QString widget_data;
-    if ( widgetType.toLower() == "checkbox" ) {
-        widgetLayout = new QHBoxLayout;
-        if ( widget_data_obj != Py_None ) {
-            widget_data = PyString_AsString( widget_data_obj );
-        } else if ( hide_field_name ) {
-            widget_data = "";
-        } else {
-            widget_data = fieldName;
-        }
-        widget = new QCheckBox( widget_data );
-        widget->setEnabled( is_edit_enabled );
-        widgetLayout->addWidget( widget );
-
-    } else if ( widgetType.toLower() == "textedit" ) {
-        widgetLayout = new QVBoxLayout;
-        widget = new QTextEdit( parent );
-        widget->setEnabled( is_edit_enabled );
-        if ( !hide_field_name ) {
-            widgetLayout->addWidget( new QLabel( fieldName, parent ) );
-        }
-        widgetLayout->addWidget( widget );
-
-    } else if ( widgetType.toLower() == "lineedit" ) {
-        widgetLayout = new QHBoxLayout;
-        if ( widget_data_obj != Py_None ) {
-            widget_data = PyString_AsString( widget_data_obj );
-        } else {
-            widget_data = "";
-        }
-        widget = new QLineEdit( widget_data, parent );
-        widget->setEnabled( is_edit_enabled );
-        if ( !hide_field_name ) {
-            widgetLayout->addWidget( new QLabel( fieldName, parent ) );
-        }
-        widgetLayout->addWidget( widget );
-
-    } else if ( widgetType.toLower() == "spinbox" ) {
-        widgetLayout = new QHBoxLayout;
-        widget = new QSpinBox( parent );
-        widget->setEnabled( is_edit_enabled );
-        ( (QSpinBox *) widget )->setRange( -1000000000, 1000000000 );
-        if ( !hide_field_name ) {
-            widgetLayout->addWidget( new QLabel( fieldName, parent ) );
-        }
-        widgetLayout->addWidget( widget );
-
-    } else if ( widgetType.toLower() == "pushbutton" ) {
-        widgetLayout = new QHBoxLayout;
-        widget = new QPushButton( fieldName, parent );
-        widget->setEnabled( is_edit_enabled );
-        widgetLayout->addWidget( widget );
-
-    } else if (  widgetType.toLower() == "combobox" ) {
-        widgetLayout = new QHBoxLayout;
-        widget = new QComboBox( parent );
-        widget->setEnabled( is_edit_enabled );
-        QStringList cb_contents;
-        if ( PyList_Check( widget_data_obj ) ) {
-            for( int i = 0 ; i < PyList_Size( widget_data_obj ) ; i++ ) {
-                PyObject *list_item_obj = PyList_GetItem( widget_data_obj, i );
-                if ( !PyString_Check( list_item_obj )  ) {
-                    qInfo( "List item not a string! ComboBox widgets must contain a list of strings." );
-                    continue;
-                }
-                cb_contents << PyString_AsString( list_item_obj );
+    if ( create_qwidget ) {
+        QString widget_data;
+        if ( widgetType.toLower() == "checkbox" ) {
+            widgetLayout = new QHBoxLayout;
+            if ( widget_data_obj != Py_None ) {
+                widget_data = PyString_AsString( widget_data_obj );
+            } else if ( hide_field_name ) {
+                widget_data = "";
+            } else {
+                widget_data = fieldName;
             }
-        } else {
-            qInfo( "The data attribute of this ComboBox widget doesn't contain a list." );
-        }
-        ( (QComboBox *) widget )->addItems( cb_contents );
-        if ( !hide_field_name ) {
-            widgetLayout->addWidget(  new QLabel( fieldName ) );
-        }
-        widgetLayout->addWidget( widget );
+            widget = new QCheckBox( widget_data );
+            widget->setEnabled( is_edit_enabled );
+            widgetLayout->addWidget( widget );
 
-    } else if ( widgetType.toLower() == "listbox" ) {
-        widgetLayout = new QVBoxLayout;
-        widget = new QListWidget( parent );
-        widget->setEnabled( is_edit_enabled );
-        if ( PyList_Check( widget_data_obj ) ) {
-            PyDataListWidgetItem::fillListWidget( (QListWidget *) widget, widget_data_obj );
-        }
-        if ( !hide_field_name ) {
-            widgetLayout->addWidget( new QLabel( fieldName ) );
-        }
-        widgetLayout->addWidget( widget );
+        } else if ( widgetType.toLower() == "textedit" ) {
+            widgetLayout = new QVBoxLayout;
+            widget = new QTextEdit( parent );
+            widget->setEnabled( is_edit_enabled );
+            if ( !hide_field_name ) {
+                widgetLayout->addWidget( new QLabel( fieldName, parent ) );
+            }
+            widgetLayout->addWidget( widget );
 
-    } else if ( widgetType.toLower() == "textlabel" ) {
-        widgetLayout = new QHBoxLayout;
-        widget_data = PyString_AsString( widget_data_obj );
-        widget = new QLabel( widget_data, parent );
-        widget->setEnabled( is_edit_enabled );
-        widgetLayout->addWidget( widget );
+        } else if ( widgetType.toLower() == "lineedit" ) {
+            widgetLayout = new QHBoxLayout;
+            if ( widget_data_obj != Py_None ) {
+                widget_data = PyString_AsString( widget_data_obj );
+            } else {
+                widget_data = "";
+            }
+            widget = new QLineEdit( widget_data, parent );
+            widget->setEnabled( is_edit_enabled );
+            if ( !hide_field_name ) {
+                widgetLayout->addWidget( new QLabel( fieldName, parent ) );
+            }
+            widgetLayout->addWidget( widget );
 
-    } else if ( widgetType.toLower() == "image" ) {
-        widgetLayout = new QVBoxLayout;
-        widget_data = "";
-        if ( widget_data_obj != Py_None ) {
+        } else if ( widgetType.toLower() == "spinbox" ) {
+            widgetLayout = new QHBoxLayout;
+            widget = new QSpinBox( parent );
+            widget->setEnabled( is_edit_enabled );
+            ( (QSpinBox *) widget )->setRange( -1000000000, 1000000000 );
+            if ( !hide_field_name ) {
+                widgetLayout->addWidget( new QLabel( fieldName, parent ) );
+            }
+            widgetLayout->addWidget( widget );
+
+        } else if ( widgetType.toLower() == "pushbutton" ) {
+            widgetLayout = new QHBoxLayout;
+            widget = new QPushButton( fieldName, parent );
+            widget->setEnabled( is_edit_enabled );
+            widgetLayout->addWidget( widget );
+
+        } else if (  widgetType.toLower() == "combobox" ) {
+            widgetLayout = new QHBoxLayout;
+            widget = new QComboBox( parent );
+            widget->setEnabled( is_edit_enabled );
+            QStringList cb_contents;
+            if ( PyList_Check( widget_data_obj ) ) {
+                for( int i = 0 ; i < PyList_Size( widget_data_obj ) ; i++ ) {
+                    PyObject *list_item_obj = PyList_GetItem( widget_data_obj, i );
+                    if ( !PyString_Check( list_item_obj )  ) {
+                        qInfo( "List item not a string! ComboBox widgets must contain a list of strings." );
+                        continue;
+                    }
+                    cb_contents << PyString_AsString( list_item_obj );
+                }
+            } else {
+                qInfo( "The data attribute of this ComboBox widget doesn't contain a list." );
+            }
+            ( (QComboBox *) widget )->addItems( cb_contents );
+            if ( !hide_field_name ) {
+                widgetLayout->addWidget(  new QLabel( fieldName ) );
+            }
+            widgetLayout->addWidget( widget );
+
+        } else if ( widgetType.toLower() == "listbox" ) {
+            widgetLayout = new QVBoxLayout;
+            widget = new QListWidget( parent );
+            widget->setEnabled( is_edit_enabled );
+            if ( PyList_Check( widget_data_obj ) ) {
+                PyDataListWidgetItem::fillListWidget( (QListWidget *) widget, widget_data_obj );
+            }
+            if ( !hide_field_name ) {
+                widgetLayout->addWidget( new QLabel( fieldName ) );
+            }
+            widgetLayout->addWidget( widget );
+
+        } else if ( widgetType.toLower() == "textlabel" ) {
+            widgetLayout = new QHBoxLayout;
             widget_data = PyString_AsString( widget_data_obj );
-        }
-        widget = new ImageWidget( widget_data );
-        widget->setEnabled( is_edit_enabled );
-        widgetLayout->addWidget( widget );
+            widget = new QLabel( widget_data, parent );
+            widget->setEnabled( is_edit_enabled );
+            widgetLayout->addWidget( widget );
 
-    } else if ( widgetType.toLower() == "hr" ) {
-        widgetLayout = new QHBoxLayout;
-        QFrame *hr = new QFrame;
-        hr->setFrameShape( QFrame::HLine );
-        widgetLayout->addWidget( hr );
-    } else {
-        if ( widgetType.toLower() != "empty" ) {
-            qInfo( "This widget contains an unknown type: %s", widgetType.toStdString().data() );
+        } else if ( widgetType.toLower() == "image" ) {
+            widgetLayout = new QVBoxLayout;
+            widget_data = "";
+            if ( widget_data_obj != Py_None ) {
+                widget_data = PyString_AsString( widget_data_obj );
+            }
+            widget = new ImageWidget( widget_data );
+            widget->setEnabled( is_edit_enabled );
+            widgetLayout->addWidget( widget );
+
+        } else if ( widgetType.toLower() == "hr" ) {
+            widgetLayout = new QHBoxLayout;
+            QFrame *hr = new QFrame;
+            hr->setFrameShape( QFrame::HLine );
+            widgetLayout->addWidget( hr );
+        } else {
+            if ( widgetType.toLower() != "empty" ) {
+                qInfo( "This widget contains an unknown type: %s", widgetType.toStdString().data() );
+            }
         }
     }
 }
@@ -494,6 +489,39 @@ QLayout *GuiWidget::getWidgetLayout() {
     return widgetLayout;
 }
 
+GuiAction::GuiAction( PyObject *action_obj ) {
+    PyObject *action_type_obj = PyObject_CallMethod( action_obj, (char *) "get_action_type", NULL );
+    PyErr_Print();
+    PyObject *widget1_obj = PyObject_CallMethod( action_obj, (char *) "get_widget1", NULL );
+    PyErr_Print();
+    PyObject *widget2_obj = PyObject_CallMethod( action_obj, (char *) "get_widget2", NULL );
+    PyErr_Print();
+    callback = PyObject_CallMethod( action_obj, (char *) "get_callback", NULL );
+    PyErr_Print();
+
+    actionType = PyString_AsString( action_type_obj );
+    widget1 = new GuiWidget( widget1_obj, 0, false );
+    if ( widget2_obj != Py_None ) {
+        widget2 = new GuiWidget( widget2_obj, 0, false );
+    }
+}
+
+QString GuiAction::getActionType() {
+    return actionType;
+}
+
+GuiWidget *GuiAction::getWidget1() {
+    return widget1;
+}
+
+GuiWidget *GuiAction::getWidget2() {
+    return widget2;
+}
+
+PyObject *GuiAction::getCallback() {
+    return callback;
+}
+
 void WidgetRegistry::registerWidget( GuiWidget *gui_widget ) {
     QString widget_type = gui_widget->getWidgetType();
     if ( widget_type.toLower() == "hr" ) return;
@@ -512,36 +540,18 @@ QHash<QString, GuiWidget *>::iterator WidgetRegistry::end() {
     return hash.end();
 }
 
-void WidgetRegistry::processAction(PyObject *action_obj, QWidget *parent) {
+void WidgetRegistry::processAction( PyObject *action_obj, QWidget *parent ) {
     PyObject *fields_dict_obj = getFieldsDict();
-    PyObject *action_type_obj = PyObject_GetAttrString( action_obj, (char *) "action_type" );
-    PyObject *widget1_obj = PyObject_GetAttrString( action_obj, (char *) "widget1" );
-    PyObject *widget2_obj = PyObject_GetAttrString( action_obj, (char *) "widget2" );
-    PyObject *callback_obj = PyObject_GetAttrString( action_obj, (char *) "callback" );
-    PyObject *widget1_field_name_obj = PyObject_CallMethod( widget1_obj, (char *) "get_field_name", NULL );
-    PyErr_Print();
-    PyObject *widget1_widget_type_obj = PyObject_CallMethod( widget1_obj, (char *) "get_widget_type", NULL );
-    PyErr_Print();
-
-    QString action_type = PyString_AsString( action_type_obj );
-    QString widget1_field_name = PyString_AsString( widget1_field_name_obj );
-    if ( widget1_field_name.endsWith( "_" ) ) {
-        widget1_field_name.chop( 1 );
-    }
-    QString widget1_widget_type = PyString_AsString( widget1_widget_type_obj );
-
-    PyObject *widget2_field_name_obj, *widget2_widget_type_obj;
-    QString widget2_field_name, widget2_widget_type;
-    if ( widget2_obj != Py_None ) {
-        widget2_field_name_obj = PyObject_CallMethod( widget2_obj, (char *) "get_field_name", NULL );
-        PyErr_Print();
-        widget2_widget_type_obj = PyObject_CallMethod( widget2_obj, (char *) "get_widget_type", NULL );
-        PyErr_Print();
-        widget2_field_name = PyString_AsString( widget2_field_name_obj );
-        if ( widget2_field_name.endsWith( "_" ) ) {
-            widget2_field_name.chop( 1 );
-        }
-        widget2_widget_type = PyString_AsString( widget2_widget_type_obj );
+    GuiAction gui_action( action_obj );
+    QString action_type = gui_action.getActionType();
+    PyObject *callback_obj = gui_action.getCallback();
+    QString widget1_field_name = gui_action.getWidget1()->getFieldName();
+    QString widget2_field_name;
+    QString widget2_widget_type;
+    GuiWidget *widget2 = gui_action.getWidget2();
+    if ( widget2 != NULL ) {
+        widget2_field_name = gui_action.getWidget2()->getFieldName();
+        widget2_widget_type = gui_action.getWidget2()->getWidgetType();
     }
 
     if ( action_type.toLower() == "fillfields" ) {
@@ -555,6 +565,9 @@ void WidgetRegistry::processAction(PyObject *action_obj, QWidget *parent) {
         if ( callback_obj != Py_None ) {
             PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", fields_dict_obj ) );
             PyErr_Print();
+            if ( !PyTuple_Check( callback_return_obj ) || PyTuple_Size( callback_return_obj ) == 0 ) {
+                return;
+            }
             PyObject *default_filename_obj = PyTuple_GetItem( callback_return_obj, 0 );
             PyObject *pdf_markup_obj = PyTuple_GetItem( callback_return_obj, 1 );
 
@@ -575,6 +588,7 @@ void WidgetRegistry::processAction(PyObject *action_obj, QWidget *parent) {
         EntryDialog *dialog;
         bool accepted;
 
+//        QString title = widget1_field_name;
         QString title = widget1_field_name;
         if ( title.startsWith( "&" ) ) {
             title.remove( 0, 1 );

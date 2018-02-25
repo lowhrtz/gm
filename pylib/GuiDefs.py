@@ -61,6 +61,21 @@ class Action( object ):
         self.callback = callback
         self.data = data
 
+    def get_action_type( self ):
+        return self.action_type
+
+    def get_widget1( self ):
+        return self.widget1
+
+    def get_widget2( self ):
+        return self.widget2
+
+    def get_callback( self ):
+        return self.callback
+
+    def get_data( self ):
+        return self.data
+
 
 class Menu( object ):
     def __init__( self, menu_name ):

@@ -239,6 +239,9 @@ class Characters( Manage ):
 
     def get_pdf_markup( self, fields ):
         character_dict = fields['Character List Current']
+        if character_dict is None:
+            return ()
+
         return SystemSettings.get_character_pdf_markup( character_dict )
 
     def add_xp( self, dialog_return, fields ):

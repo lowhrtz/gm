@@ -1,8 +1,7 @@
-//#include "CustomWidgets.h"
 #include "Dialogs.h"
 #include "ManageWindow.h"
 #include "PDFCreator.h"
-#include "PythonInterpreter.h"
+//#include "PythonInterpreter.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -49,36 +48,12 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
     PyErr_Print();
     for( Py_ssize_t i = 0 ; i < PyList_Size( action_list_obj ) ; i++ ) {
         PyObject *action_obj = PyList_GetItem( action_list_obj, i );
-        PyObject *action_type_obj = PyObject_GetAttrString( action_obj, (char *) "action_type" );
-        PyObject *widget1_obj = PyObject_GetAttrString( action_obj, (char *) "widget1" );
-        PyObject *widget2_obj = PyObject_GetAttrString( action_obj, (char *) "widget2" );
-        PyObject *callback_obj = PyObject_GetAttrString( action_obj, (char *) "callback" );
-
-        PyObject *widget1_field_name_obj = PyObject_CallMethod( widget1_obj, (char *) "get_field_name", NULL );
-        PyErr_Print();
-        PyObject *widget1_type_obj = PyObject_CallMethod( widget1_obj, (char *) "get_widget_type", NULL );
-        PyErr_Print();
-
-        QString action_type = PyString_AsString( action_type_obj );
-        QString widget1_type = PyString_AsString( widget1_type_obj );
-        QString widget1_field_name = PyString_AsString( widget1_field_name_obj );
-        if ( widget1_field_name.endsWith( "_" ) ) {
-            widget1_field_name.chop( 1 );
-        }
-
-        QString widget2_type;
-        QString widget2_field_name;
-        if ( widget2_obj != Py_None ) {
-            PyObject *widget2_field_name_obj = PyObject_CallMethod( widget2_obj, (char *) "get_field_name", NULL );
-            PyErr_Print();
-            PyObject *widget2_type_obj = PyObject_CallMethod( widget2_obj, (char *) "get_widget_type", NULL );
-            PyErr_Print();
-            widget2_type = PyString_AsString( widget2_type_obj );
-            widget2_field_name = PyString_AsString( widget2_field_name_obj );
-            if ( widget2_field_name.endsWith( "_" ) ) {
-                widget2_field_name.chop( 1 );
-            }
-        }
+        GuiAction gui_action( action_obj );
+        QString action_type = gui_action.getActionType();
+        PyObject *callback_obj = gui_action.getCallback();
+        GuiWidget *widget1 = gui_action.getWidget1();
+        QString widget1_field_name = widget1->getFieldName();
+        QString widget1_type = widget1->getWidgetType();
 
         if ( action_type.toLower() == "onshow" ) {
             PyObject *callback_return_obj = Py_None;

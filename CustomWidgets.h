@@ -58,7 +58,7 @@ private:
 class GuiWidget {
 
 public:
-    GuiWidget( PyObject *widget_obj, QWidget *parent = 0 );
+    GuiWidget( PyObject *widget_obj, QWidget *parent = 0, bool create_qwidget = true );
     QString getFieldName();
     int getColSpan();
     int getRowSpan();
@@ -75,6 +75,22 @@ private:
     QWidget *widget;
     QString widgetType;
     QLayout *widgetLayout = NULL;
+};
+
+class GuiAction {
+
+public:
+    GuiAction( PyObject *action_obj );
+    QString getActionType();
+    GuiWidget *getWidget1();
+    GuiWidget *getWidget2();
+    PyObject *getCallback();
+
+private:
+    QString actionType;
+    GuiWidget *widget1;
+    GuiWidget *widget2 = NULL;
+    PyObject *callback;
 };
 
 class WidgetRegistry {
