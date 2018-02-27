@@ -498,6 +498,8 @@ GuiAction::GuiAction( PyObject *action_obj ) {
     PyErr_Print();
     callback = PyObject_CallMethod( action_obj, (char *) "get_callback", NULL );
     PyErr_Print();
+    data = PyObject_CallMethod( action_obj, (char *) "get_data", NULL );
+    PyErr_Print();
 
     actionType = PyString_AsString( action_type_obj );
     widget1 = new GuiWidget( widget1_obj, 0, false );
@@ -522,29 +524,8 @@ PyObject *GuiAction::getCallback() {
     return callback;
 }
 
-void GuiAction::fillMenuBar( QMenuBar *menu_bar, PyObject *menu_list_obj , WidgetRegistry *widget_registry, QWidget *parent ) {
-    for( Py_ssize_t i = 0 ; i < PyList_Size( menu_list_obj ) ; i++ ) {
-        PyObject *menu_obj = PyList_GetItem( menu_list_obj, i );
-        PyObject *menu_name_obj = PyObject_CallMethod( menu_obj, (char *) "get_menu_name", NULL );
-        PyErr_Print();
-        QString menu_name = PyString_AsString( menu_name_obj );
-        QMenu *menu = menu_bar->addMenu( menu_name );
-        PyObject *menu_action_list_obj = PyObject_CallMethod( menu_obj, (char *) "get_action_list", NULL );
-        PyErr_Print();
-        for( Py_ssize_t j = 0 ; j < PyList_Size( menu_action_list_obj ) ; j++ ) {
-            PyObject *menu_action_obj = PyList_GetItem( menu_action_list_obj, j );
-            PyObject *menu_widget1_obj = PyObject_GetAttrString( menu_action_obj, (char *) "widget1" );
-            PyObject *menu_widget1_field_name_obj = PyObject_CallMethod( menu_widget1_obj, (char *) "get_field_name", NULL );
-            PyErr_Print();
-            QString menu_widget1_field_name = PyString_AsString( menu_widget1_field_name_obj );
-
-            QAction *menu_action = new QAction( menu_widget1_field_name, parent );
-            menu->addAction( menu_action );
-            menu_action->connect( menu_action, &QAction::triggered, [=] ( /*bool checked*/ ) {
-                widget_registry->processAction( menu_action_obj, parent );
-            });
-        }
-    }
+PyObject *GuiAction::getData() {
+    return data;
 }
 
 void WidgetRegistry::registerWidget( GuiWidget *gui_widget ) {
@@ -566,8 +547,12 @@ QHash<QString, GuiWidget *>::iterator WidgetRegistry::end() {
 }
 
 void WidgetRegistry::processAction( PyObject *action_obj, QWidget *parent ) {
-    PyObject *fields_dict_obj = getFieldsDict();
     GuiAction gui_action( action_obj );
+    processAction( gui_action, parent );
+}
+
+void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
+    PyObject *fields_dict_obj = getFieldsDict();
     QString action_type = gui_action.getActionType();
     PyObject *callback_obj = gui_action.getCallback();
     QString widget1_field_name = gui_action.getWidget1()->getFieldName();
@@ -657,9 +642,10 @@ void WidgetRegistry::processAction( PyObject *action_obj, QWidget *parent ) {
         if ( widget2_widget_type.toLower() == "listbox" ) {
             QListWidget *owned_item_list = (QListWidget *) getGuiWidget(widget2_field_name)->getWidget();
             PyObject *owned_item_list_obj = PyDataListWidgetItem::getDataList( owned_item_list );
-            PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
-            PyErr_Print();
-            dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, parent );
+//            PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
+//            PyErr_Print();
+//            dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, parent );
+            dialog = new DualListDialog( title, owned_item_list_obj, gui_action.getData(), fields_dict_obj, parent );
         }
         accepted = dialog->exec();
         if ( accepted ) {
@@ -669,6 +655,12 @@ void WidgetRegistry::processAction( PyObject *action_obj, QWidget *parent ) {
 //                fillFields( callback_return_obj );
                 fillFields( callback_return_obj );
             }
+        }
+
+    } else if ( action_type.toLower() == "callbackonly" ) {
+        if ( callback_obj != Py_None ) {
+            PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", fields_dict_obj ) );
+            PyErr_Print();
         }
     }
 }
@@ -764,4 +756,48 @@ PyObject *WidgetRegistry::getFieldsDict() {
         }
     }
     return fields_dict_obj;
+}
+
+void WidgetRegistry::setDefaultActions( GuiAction gui_action, QWidget *parent ) {
+    GuiWidget *widget1 = gui_action.getWidget1();
+    QString widget1_field_name = widget1->getFieldName();
+    QString widget1_type = widget1->getWidgetType();
+
+    if ( widget1_type.toLower() == "pushbutton" ) {
+        QPushButton *widget1 = (QPushButton *) getGuiWidget( widget1_field_name )->getWidget();
+        parent->connect( widget1, &QPushButton::clicked, [=] ( /*bool checked*/ ) {
+            processAction( gui_action, parent );
+        });
+
+    } else if ( widget1_type.toLower() == "listbox" ) {
+        QListWidget *widget1 = (QListWidget *) getGuiWidget( widget1_field_name )->getWidget();
+        parent->connect( widget1, &QListWidget::currentItemChanged, [=]  ( /*QListWidgetItem *current, QListWidgetItem *previous*/ ) {
+            processAction( gui_action, parent );
+        });
+    }
+}
+
+void WidgetRegistry::fillMenuBar( QMenuBar *menu_bar, PyObject *menu_list_obj, QWidget *parent ) {
+    for( Py_ssize_t i = 0 ; i < PyList_Size( menu_list_obj ) ; i++ ) {
+        PyObject *menu_obj = PyList_GetItem( menu_list_obj, i );
+        PyObject *menu_name_obj = PyObject_CallMethod( menu_obj, (char *) "get_menu_name", NULL );
+        PyErr_Print();
+        QString menu_name = PyString_AsString( menu_name_obj );
+        QMenu *menu = menu_bar->addMenu( menu_name );
+        PyObject *menu_action_list_obj = PyObject_CallMethod( menu_obj, (char *) "get_action_list", NULL );
+        PyErr_Print();
+        for( Py_ssize_t j = 0 ; j < PyList_Size( menu_action_list_obj ) ; j++ ) {
+            PyObject *menu_action_obj = PyList_GetItem( menu_action_list_obj, j );
+            PyObject *menu_widget1_obj = PyObject_GetAttrString( menu_action_obj, (char *) "widget1" );
+            PyObject *menu_widget1_field_name_obj = PyObject_CallMethod( menu_widget1_obj, (char *) "get_field_name", NULL );
+            PyErr_Print();
+            QString menu_widget1_field_name = PyString_AsString( menu_widget1_field_name_obj );
+
+            QAction *menu_action = new QAction( menu_widget1_field_name, parent );
+            menu->addAction( menu_action );
+            parent->connect( menu_action, &QAction::triggered, [=] ( /*bool checked*/ ) {
+                processAction( menu_action_obj, parent );
+            });
+        }
+    }
 }

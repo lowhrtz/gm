@@ -78,13 +78,17 @@ class Characters( Manage ):
 
 #        pdf_button = Widget( 'Save PDF', 'PushButton' )
 #        self.add_row( [ pdf_button, ] )
-#        self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=SystemSettings.get_character_pdf_markup ) )
+#        self.add_action( Action( 'SavePDF', pdf_button, character_list, callback=self.get_pdf_markup ) )
 #        ch = Widget( 'Text Edit', 'TextEdit' )
 #        self.add_row( [ ch, ] )
 
         self.add_action( Action( 'OnShow', character_list, callback=self.get_character_table ) )
         self.add_action( Action( 'FillFields', character_list, callback=self.fill_page ) )
 #        self.add_action( Action( 'EntryDialog', add_xp_button, xp, callback=self.add_xp ) )
+
+        file_menu = Menu( '&File' )
+        file_menu.add_action( Action( 'FillFields', Widget( '&Save Character', 'MenuAction' ), callback=self.save_character ) )
+        self.add_menu( file_menu )
 
         print_menu = Menu( '&Print' )
         print_menu.add_action( Action( 'SavePDF', Widget( '&Save PDF', 'MenuAction' ), character_list, callback=self.get_pdf_markup ) )
@@ -111,11 +115,12 @@ class Characters( Manage ):
                                            data=equipment_data ) )
         self.add_menu( character_menu )
 
-    def get_character_table( self ):
-        return DbQuery.getTable( 'Characters' )
+    def get_character_table( self, fields ):
+        return { 'Character List': DbQuery.getTable( 'Characters' ) }
 
     def fill_page( self, fields ):
         character_dict = fields['Character List Current']
+        if character_dict is None: return {}
         class_table = DbQuery.getTable( 'Classes' )
         race_table = DbQuery.getTable( 'Races' )
         items_table = DbQuery.getTable( 'Items' )
@@ -145,6 +150,7 @@ class Characters( Manage ):
         daily_spells_id_list = []
         daily_spells2_id_list = []
         proficiency_id_dict = {}
+        gp = pp = ep = sp = cp = 0
         for meta_row in character_dict['Characters_meta']:
             if meta_row['Type'] == 'Equipment':
                 equip_id_list.append( meta_row['Entry_ID'] )
@@ -176,7 +182,7 @@ class Characters( Manage ):
         for prof in items_table:
             if prof['Is_Proficiency'].lower() == 'yes' and prof['unique_id'] in list( proficiency_id_dict.keys() ):
                 prof_name = prof['Name']
-                prof_level = proficiency_id_dict[  prof['unique_id'] ]
+                prof['level'] = prof_level = proficiency_id_dict[  prof['unique_id'] ]
                 prof_add = ''
                 if prof_level == 'S':
                     prof_add = ' (Specialised)'
@@ -236,6 +242,68 @@ class Characters( Manage ):
         }
 
         return fill_dict
+
+    def save_character( self, fields ):
+        unique_id = fields['Character List Current']['unique_id']
+        update_list = [
+            unique_id,
+            fields['Name'],
+            fields['Level'],
+            fields['XP'],
+            fields['Gender'],
+            fields['Alignment'],
+            fields['Class'].lower().replace( ' ', '_' ),
+            fields['Race'].lower().replace( ' ', '_' ),
+            fields['HP'],
+            fields['Age'],
+            fields['Height'],
+            fields['Weight'],
+            fields['Portrait'],
+            'jpg',
+            fields['STR'],
+            fields['INT'],
+            fields['WIS'],
+            fields['DEX'],
+            fields['CON'],
+            fields['CHA'],
+            ]
+
+        DbQuery.begin()
+
+        success = DbQuery.updateRow( 'Characters', 'unique_id', unique_id, update_list )
+        if success:
+            DbQuery.deleteRow( 'Characters_meta', 'character_id', unique_id )
+
+            for equip in fields['Equipment']:
+                data_list = [ unique_id, 'Equipment', equip['unique_id'], '', '' ]
+                DbQuery.insertRow( 'Characters_meta', data_list )
+
+            money_dict = { 'gp': fields['GP'],
+                           'pp': fields['PP'],
+                           'ep': fields['EP'],
+                           'sp': fields['SP'],
+                           'cp': fields['CP'] }
+            for denomination in list( money_dict.keys() ):
+                DbQuery.insertRow( 'Characters_meta', [ unique_id, 'Treasure', denomination, money_dict[denomination], '' ] )
+
+            for prof in fields['Proficiencies']:
+                data_list = [ unique_id, 'Proficiency', prof['unique_id'], prof['level'], prof['Notes'] ]
+                DbQuery.insertRow( 'Characters_meta', data_list )
+
+            for s in fields['Spellbook']:
+                data_list = [ unique_id, 'Spellbook', s['spell_id'], '', '' ]
+                DbQuery.insertRow( 'Characters_meta', data_list )
+
+            for s in fields['Daily Spells']:
+                data_list = [ unique_id, 'DailySpells', s['spell_id'], '', '' ]
+                DbQuery.insertRow( 'Characters_meta', data_list )
+
+            for s in fields['Daily Spells 2']:
+                data_list = [ unique_id, 'DailySpells2', s['spell_id'], '', '' ]
+                DbQuery.insertRow( 'Characters_meta', data_list )
+
+        DbQuery.commit()
+        return self.get_character_table( fields )
 
     def get_pdf_markup( self, fields ):
         character_dict = fields['Character List Current']

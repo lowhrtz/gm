@@ -995,6 +995,43 @@ PyObject *dbQuery_insertRow( PyObject *self, PyObject *args ) {
     return Py_BuildValue( "i", row_id );
 }
 
+PyObject *dbQuery_updateRow( PyObject *self, PyObject *args ) {
+    char *table_name;
+    char *where_col;
+    char *where;
+    PyObject *row;
+
+    if ( !PyArg_ParseTuple( args, "sssO", &table_name, &where_col, &where, &row ) ) {
+        PyErr_Print();
+        return NULL;
+    }
+
+    DatabaseHandler *db = db_global;
+    PythonInterpreter *pi = pi_global;
+
+    QList<QVariant> *data_row = pi->getDataRow( row );
+    bool success = db->updateRow( table_name, pi->getColList( table_name ), where_col, where, data_row );
+//    qInfo("Success: %s", success ? "true" : "false");
+    return ( success ? Py_True : Py_False );
+}
+
+PyObject *dbQuery_deleteRow( PyObject *self, PyObject *args ) {
+    char *table_name;
+    char *where_col;
+    char *where;
+
+    if ( !PyArg_ParseTuple( args, "sss", &table_name, &where_col, &where ) ) {
+        PyErr_Print();
+        return NULL;
+    }
+
+    DatabaseHandler *db = db_global;
+    PythonInterpreter *pi = pi_global;
+
+    bool success = db->deleteRow( table_name, where_col, where );
+    return ( success ? Py_True : Py_False );
+}
+
 PyObject *dbQuery_begin( PyObject *self, PyObject *args ) {
     DatabaseHandler *db = db_global;
     db->begin();

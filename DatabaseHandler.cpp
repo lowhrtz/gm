@@ -218,6 +218,37 @@ int DatabaseHandler::insertRow(const char *tableName, QList<QVariant> *row)
     return lastInsertID;
 }
 
+bool DatabaseHandler::updateRow( const char *table_name, QStringList cols, const char *where_col, const char *where, QList<QVariant> *row ) {
+    QString update_string = QString( "UPDATE ");
+    update_string.append( table_name ).append( " SET " );
+    for ( int i = 0; i < cols.size(); i++ ) {
+        QString col = cols.at( i );
+        update_string.append( col ).append( " = ?" );
+        if ( i < cols.size() - 1 ) {
+            update_string.append(", ");
+        }
+    }
+    update_string.append( " WHERE " ).append( where_col ).append( " = \"" ).append( where ).append( "\"" );
+    QSqlQuery update_query( db );
+    update_query.prepare( update_string );
+    for ( int i = 0; i < row->size(); i++ ) {
+        QVariant datum = row->at( i );
+        update_query.addBindValue( datum );
+    }
+
+    return update_query.exec();
+}
+
+bool DatabaseHandler::deleteRow(const char *table_name, const char *where_col, const char *where) {
+    QString delete_string = QString( "DELETE FROM " ).append( table_name ).append( " WHERE ");
+    delete_string.append( where_col ).append( " = \"" ).append( where ).append( "\"" );
+//    qInfo( delete_string.toStdString().data() );
+    QSqlQuery delete_query( db );
+    delete_query.prepare( delete_string );
+
+    return delete_query.exec();
+}
+
 void DatabaseHandler::begin() {
     db.transaction();
 }

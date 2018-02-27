@@ -1,18 +1,7 @@
-#include "Dialogs.h"
 #include "ManageWindow.h"
-#include "PDFCreator.h"
 
-#include <QAction>
-#include <QCheckBox>
-#include <QComboBox>
 #include <QGridLayout>
 #include <QGroupBox>
-#include <QLineEdit>
-#include <QMenu>
-#include <QMenuBar>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QTextEdit>
 
 ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
     : QMainWindow( parent ) {
@@ -50,44 +39,29 @@ ManageWindow::ManageWindow( PyObject *manage_window_instance, QWidget *parent )
         GuiAction gui_action( action_obj );
         QString action_type = gui_action.getActionType();
         PyObject *callback_obj = gui_action.getCallback();
-        GuiWidget *widget1 = gui_action.getWidget1();
-        QString widget1_field_name = widget1->getFieldName();
-        QString widget1_type = widget1->getWidgetType();
 
         if ( action_type.toLower() == "onshow" ) {
-            PyObject *callback_return_obj = Py_None;
             if ( callback_obj != Py_None ) {
-                callback_return_obj = PyObject_CallObject( callback_obj, NULL );
+                PyObject *callback_return_obj = Py_None;
+                callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", widget_registry.getFieldsDict() ) );
                 PyErr_Print();
+                connect( this, &ManageWindow::onShow, [=] () {
+                    if ( !PyDict_Check( callback_return_obj ) ) {
+                        qInfo( "The OnShow action expects the callback function to return a dictionary of all the fields to be updated." );
+                        return;
+                    }
+                    widget_registry.fillFields( callback_return_obj );
+                });
             }
-            connect( this, &ManageWindow::onShow, [=] () {
-                if ( widget1_type.toLower() == "lineedit" ) {
-                    QLineEdit *widget1 = (QLineEdit *) widget_registry.getGuiWidget( widget1_field_name )->getWidget();
-                    widget1->setText( PyString_AsString( callback_return_obj ) );
 
-                } else if ( widget1_type.toLower() == "listbox" ) {
-                    QListWidget *widget1 = (QListWidget *) widget_registry.getGuiWidget(widget1_field_name)->getWidget();
-                    PyDataListWidgetItem::fillListWidget( widget1, callback_return_obj );
-                }
-            });
-
-        } else if ( widget1_type.toLower() == "pushbutton" ) {
-            QPushButton *widget1 = (QPushButton *) widget_registry.getGuiWidget(widget1_field_name)->getWidget();
-            connect( widget1, &QPushButton::clicked, [=] ( /*bool checked*/ ) {
-                widget_registry.processAction( action_obj, this );
-            });
-
-        } else if ( widget1_type.toLower() == "listbox" ) {
-            QListWidget *widget1 = (QListWidget *) widget_registry.getGuiWidget(widget1_field_name)->getWidget();
-            connect( widget1, &QListWidget::currentItemChanged, [=]  ( /*QListWidgetItem *current, QListWidgetItem *previous*/ ) {
-                widget_registry.processAction( action_obj, this );
-            });
+        } else {
+            widget_registry.setDefaultActions( gui_action, this );
         }
     }
 
     PyObject *menu_list_obj = PyObject_CallMethod( manage_window_instance, (char *) "get_menu_list", NULL );
     PyErr_Print();
-    GuiAction::fillMenuBar(  menuBar(), menu_list_obj, &widget_registry, this );
+    widget_registry.fillMenuBar( menuBar(), menu_list_obj, this );
 
     QString title( class_name );
     title.prepend( "Manage " );

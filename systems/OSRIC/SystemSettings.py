@@ -702,7 +702,7 @@ def get_character_pdf_markup( character_dict ):
         'class' : class_dict['Name'],
         'alignment' : character_dict['Alignment'],
         'race' : race_dict['Name'],
-        'xp' : 0,
+        'xp' : character_dict['XP'],
         'hp' : character_dict['HP'],
         'ac' : calculate_ac( attr_dict, class_dict, race_dict, equipment_list ),
         'level' : level,
@@ -833,7 +833,7 @@ page-break-after:always;
 <h1 align=center>$name</h1>
 
 <table width=100%>
-<tr><td></td><td></td><td></td><td></td><td></td><td></td><td class=lpad align=center rowspan=5><img height=140 src=data:image/$image_type;base64,$portrait /></td></tr>
+<tr><td></td><td></td><td></td><td></td><td></td><td></td><td class=lpad align=center rowspan=5><img height=140 src=data:image;base64,$portrait /></td></tr>
 <tr><td class=pad-bottom><b>Name: </b></td><td align=right>$name</td><td class=lpad><b>XP: </b></td><td align=right>$xp</td><td class=lpad><b>Age: </b></td align=right><td align=right>$age</td></tr>
 <tr><td class=pad-bottom><b>Class: </b></td><td align=right class=class-font>$class</td><td class=lpad><b>HP: </b></td><td align=right>$hp</td><td class=lpad><b>Height: </b></td><td align=right>$height</td></tr>
 <tr><td class=pad-bottom><b>Alignment: </b></td><td align=right class=alignment-font>$alignment</td><td class=lpad><b>AC: </b></td><td align=right>$ac</td><td class=lpad><b>Weight: </b></td><td align=right>$weight</td></tr>

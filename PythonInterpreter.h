@@ -30,6 +30,8 @@ extern "C" PyObject *dbQuery_getTable( PyObject *self, PyObject *args );
 extern "C" PyObject *dbQuery_begin( PyObject *self, PyObject *args );
 extern "C" PyObject *dbQuery_commit( PyObject *self, PyObject *args );
 extern "C" PyObject *dbQuery_insertRow( PyObject *self, PyObject *args );
+extern "C" PyObject *dbQuery_updateRow( PyObject *self, PyObject *args );
+extern "C" PyObject *dbQuery_deleteRow( PyObject *self, PyObject *args );
 static PyMethodDef dbQueryMethods[] = {
     { "getTable", dbQuery_getTable, METH_VARARGS,
         "Return python object representation of db table." },
@@ -38,7 +40,11 @@ static PyMethodDef dbQueryMethods[] = {
     { "commit", dbQuery_commit, METH_VARARGS,
         "Commits database transaction." },
     { "insertRow", dbQuery_insertRow, METH_VARARGS,
-        "Insert a row in the specified table. Returns last row id or -1 on error." },
+        "Inserts a row in the specified table. Returns last row id or -1 on error." },
+    { "updateRow", dbQuery_updateRow, METH_VARARGS,
+        "Updates a row in the specified table. Returns true if update was successful false if not." },
+    { "deleteRow", dbQuery_deleteRow, METH_VARARGS,
+        "Deletes a row in the specified table. Returns true if update was successful false if not." },
     {NULL, NULL, 0, NULL}
 };
 

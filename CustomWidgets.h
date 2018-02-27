@@ -88,16 +88,14 @@ public:
     GuiWidget *getWidget1();
     GuiWidget *getWidget2();
     PyObject *getCallback();
-
-/*Static Methods*/
-public:
-    static void fillMenuBar( QMenuBar *menu_bar, PyObject *menu_list_obj, WidgetRegistry *widget_registry, QWidget *parent = 0 );
+    PyObject *getData();
 
 private:
     QString actionType;
     GuiWidget *widget1;
     GuiWidget *widget2 = NULL;
     PyObject *callback;
+    PyObject *data;
 };
 
 class WidgetRegistry {
@@ -108,8 +106,11 @@ public:
     QHash<QString, GuiWidget *>::iterator begin();
     QHash<QString, GuiWidget *>::iterator end();
     void processAction( PyObject *action_obj, QWidget *parent = 0 );
+    void processAction( GuiAction gui_action, QWidget *parent = 0 );
     void fillFields( PyObject *fill_dict_obj );
     PyObject *getFieldsDict();
+    void setDefaultActions( GuiAction gui_action, QWidget *parent = 0 );
+    void fillMenuBar( QMenuBar *menu_bar, PyObject *menu_list_obj, QWidget *parent = 0 );
 
 private:
     QHash<QString, GuiWidget *> hash;
