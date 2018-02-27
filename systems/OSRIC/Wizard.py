@@ -983,9 +983,11 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
         if 'classes' in self.fields['Class']:
             level = '/'.join( '1' for cl in self.fields['Class']['classes'] )
             classes = '/'.join( cl['unique_id'] for cl in self.fields['Class']['classes'] )
+            xp = '/'.join( '0' for cl in self.fields['Class']['classes'] )
         else:
             level = '1'
             classes = self.fields['Class']['unique_id']
+            xp = '0'
 
         filename = self.fields['Portrait']
         with open( filename, 'rb' ) as portrait_file:
@@ -1001,7 +1003,7 @@ MD{roll_attributes(WP{attributes}, F{Race}, F{Class})}''', True),
             'unique_id' : unique_id,
             'Name' : self.fields['Name'],
             'Level' : level,
-            'XP' : 0,
+            'XP' : xp,
             'Gender' : self.fields['Gender'],
             'Alignment' : self.fields['Alignment'],
             'Classes' : classes,

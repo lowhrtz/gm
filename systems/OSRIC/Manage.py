@@ -22,7 +22,8 @@ class Characters( Manage ):
         character_list = Widget( 'Character List_', 'ListBox', row_span=4 )
         #name = Widget( 'Name', 'LineEdit', data='Lance the Impressive' )
         name = Widget( 'Name', 'LineEdit' )
-        xp = Widget( 'XP', 'SpinBox', enable_edit=False )
+#        xp = Widget( 'XP', 'SpinBox', enable_edit=False )
+        xp = Widget( 'XP', 'LineEdit', enable_edit=False )
         age = Widget( 'Age', 'SpinBox' )
         self.add_row( [ character_list, name, xp, age ] )
 
@@ -96,7 +97,7 @@ class Characters( Manage ):
         self.add_menu( print_menu )
 
         character_menu = Menu( '&Character' )
-        character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), xp, callback=self.add_xp ) )
+        character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), hp, callback=self.add_xp ) )
         character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
         equipment_data = { 'fill_avail' : self.equipment_fill,
@@ -214,7 +215,8 @@ class Characters( Manage ):
             'Class' : class_string,
             'Alignment' : character_dict['Alignment'],
             'Race' : race_dict['Name'],
-            'XP' : int( character_dict['XP'] ),
+#            'XP' : int( character_dict['XP'] ),
+            'XP' : str( character_dict['XP'] ),
             'HP' : int( character_dict['HP'] ),
             'AC' : int( ac ),
             'Level' : character_dict['Level'],
@@ -313,9 +315,12 @@ class Characters( Manage ):
         return SystemSettings.get_character_pdf_markup( character_dict )
 
     def add_xp( self, dialog_return, fields ):
-        current_xp = int( fields['XP'] )
-        add_xp = int( dialog_return )
-        return { 'XP' : current_xp + add_xp }
+        xp_list = fields['XP'].split('/')
+        add_xp = int( dialog_return ) / len( xp_list )
+        for index, xp in enumerate( xp_list ):
+            xp_list[index] = int(xp) + add_xp
+
+        return { 'XP' : '/'.join( str( xp ) for xp in xp_list ) }
 
     def convert_image( self, filename, fields ):
         with open( filename, 'rb' ) as image_file:
