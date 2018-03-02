@@ -1,5 +1,6 @@
 ﻿#include "CustomWidgets.h"
 #include "Dialogs.h"
+#include "GuiWizard.h"
 #include "PDFCreator.h"
 
 #include <QPushButton>
@@ -22,6 +23,7 @@ QString ImageWidget::getData() {
 void ImageWidget::setData( QString base64_data ) {
     ImageWidget::setImageWithBase64( this, base64_data );
     this->data = base64_data;
+    emit imageChanged( base64_data );
 }
 
 void ImageWidget::setImageWithBase64( QLabel *image_widget, QString base64_string ) {
@@ -555,6 +557,7 @@ void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
     PyObject *fields_dict_obj = getFieldsDict();
     QString action_type = gui_action.getActionType();
     PyObject *callback_obj = gui_action.getCallback();
+    PyObject *data = gui_action.getData();
     QString widget1_field_name = gui_action.getWidget1()->getFieldName();
     QString widget2_field_name;
     QString widget2_widget_type;
@@ -642,9 +645,6 @@ void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
         if ( widget2_widget_type.toLower() == "listbox" ) {
             QListWidget *owned_item_list = (QListWidget *) getGuiWidget(widget2_field_name)->getWidget();
             PyObject *owned_item_list_obj = PyDataListWidgetItem::getDataList( owned_item_list );
-//            PyObject *action_data_obj = PyObject_GetAttrString( action_obj, (char *) "data" );
-//            PyErr_Print();
-//            dialog = new DualListDialog( title, owned_item_list_obj, action_data_obj, fields_dict_obj, parent );
             dialog = new DualListDialog( title, owned_item_list_obj, gui_action.getData(), fields_dict_obj, parent );
         }
         accepted = dialog->exec();
@@ -652,12 +652,16 @@ void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
             if ( callback_obj != Py_None ) {
                 PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", dialog->getItemList(), fields_dict_obj ) );
                 PyErr_Print();
-//                fillFields( callback_return_obj );
                 fillFields( callback_return_obj );
             }
         }
 
-    } else if ( action_type.toLower() == "callbackonly" ) {
+    } else if ( action_type.toLower() == "wizard" ) {
+        PyObject *wizard_obj = data;
+        GuiWizard wizard( wizard_obj, getFieldsDict(), parent );
+        wizard.exec();
+
+    }else if ( action_type.toLower() == "callbackonly" ) {
         if ( callback_obj != Py_None ) {
             PyObject_CallObject( callback_obj, Py_BuildValue( "(O)", fields_dict_obj ) );
             PyErr_Print();
@@ -685,6 +689,12 @@ void WidgetRegistry::fillFields( PyObject *fill_dict_obj ) {
         } else if ( widget_type.toLower() == "listbox" ) {
             QListWidget *list_widget = (QListWidget *) widget;
             PyDataListWidgetItem::fillListWidget( list_widget, value );
+
+        } else if ( widget_type.toLower() == "textlabel" ) {
+            QLabel *text_label = (QLabel *) widget;
+            if ( PyString_Check( value ) ) {
+                text_label->setText( PyString_AsString( value ) );
+            }
 
         } else if ( widget_type.toLower() == "spinbox" ) {
             QSpinBox *spin_box_widget = (QSpinBox *) widget;
@@ -748,6 +758,10 @@ PyObject *WidgetRegistry::getFieldsDict() {
                 PyList_SetItem( item_list_obj, i, data );
             }
             PyDict_SetItemString( fields_dict_obj, field_name.toStdString().data(), item_list_obj );
+
+        } else if ( widget_type.toLower() == "textlabel" ) {
+            QString label_text = ( (QLabel *) widget)->text();
+            PyDict_SetItemString( fields_dict_obj, field_name.toStdString().data(), Py_BuildValue( "s", label_text.toStdString().data() ) );
 
         } else if ( widget_type.toLower() == "image" ) {
             QString image_data = ( (ImageWidget *) widget )->getData();

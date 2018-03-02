@@ -2,6 +2,7 @@ import base64
 import DbQuery
 import SystemSettings
 from decimal import Decimal
+from LevelUp import LevelUpWizard
 from ManageDefs import Manage
 from GuiDefs import *
 
@@ -98,7 +99,7 @@ class Characters( Manage ):
 
         character_menu = Menu( '&Character' )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Add XP', 'MenuAction' ), hp, callback=self.add_xp ) )
-        character_menu.add_action( Action( '', Widget( '&Level Up', 'MenuAction' ) ) )
+        character_menu.add_action( Action( 'Wizard', Widget( '&Level Up', 'MenuAction' ), data=LevelUpWizard() ) )
         character_menu.add_action( Action( 'EntryDialog', Widget( '&Change Portrait', 'MenuAction' ), portrait, callback=self.convert_image ) )
         equipment_data = { 'fill_avail' : self.equipment_fill,
                            'slots' : self.get_money_slots,
@@ -246,6 +247,8 @@ class Characters( Manage ):
         return fill_dict
 
     def save_character( self, fields ):
+        if fields['Character List Current'] is None:
+            return {}
         unique_id = fields['Character List Current']['unique_id']
         update_list = [
             unique_id,

@@ -90,3 +90,77 @@ class Menu( object ):
 
     def get_action_list( self ):
         return self.action_list
+
+
+class Window( object ):
+    def __init__( self ):
+        self.enabled = True
+        self.menu_list = []
+        self.action_list = []
+        self.widget_matrix = []
+
+    def add_menu( self, menu ):
+        self.menu_list.append( menu )
+
+    def add_action( self, action ):
+        self.action_list.append( action )
+
+    def add_row( self, widget_list ):
+        self.widget_matrix.append( widget_list )
+
+    def get_menu_list( self ):
+        return self.menu_list
+
+    def get_action_list( self ):
+        return self.action_list
+
+    def get_widget_matrix( self ):
+        return self.widget_matrix
+
+class WizardPage( Window ):
+    def __init__( self, page_id, title, page_type='Standard' ):
+        super( WizardPage, self ).__init__()
+        self.page_id = page_id
+        self.title = title
+        self.subtitle = ''
+        self.page_type = page_type
+        self.external_data = None
+
+    def get_page_id( self ):
+        return self.page_id
+
+    def get_title( self ):
+        return self.title
+
+    def set_subtitle( self, subtitle ):
+        self.subtitle = subtitle
+
+    def get_subtitle( self ):
+        return self.subtitle
+
+    def initialize_page( self, fields, pages, external_data ):
+        return
+
+    def is_complete( self, fields, pages, external_data ):
+        return True
+
+    def get_next_page_id( self, fields, pages, external_data ):
+        return -2
+
+
+class Wizard( object ):
+    def __init__( self, title, wizard_style='Classic' ):
+        self.title = title
+        self.wizard_pages = []
+
+    def get_title( self ):
+        return self.title
+
+    def get_wizard_pages( self ):
+        return self.wizard_pages
+
+    def add_wizard_page( self, wizard_page ):
+        self.wizard_pages.append( wizard_page )
+
+    def accept( self, fields_dict ):
+        return

@@ -13,6 +13,8 @@ class WidgetRegistry;
 
 class ImageWidget : public QLabel {
 
+    Q_OBJECT
+
 public:
     ImageWidget( QString base64_data, QWidget *parent = 0 );
     QString getData();
@@ -24,6 +26,9 @@ public:
 
 private:
     QString data;
+
+signals:
+    void imageChanged( QString base64_string );
 
 };
 
