@@ -6,6 +6,7 @@
 #include <QGridLayout>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QTextEdit>
 
 GuiWizardPage::GuiWizardPage(PyObject *wizard_page_obj, PyObject *wizard_page_dict_obj, PyObject *external_data, WidgetRegistry *widget_registry, QWidget *parent )
@@ -54,7 +55,9 @@ GuiWizardPage::GuiWizardPage(PyObject *wizard_page_obj, PyObject *wizard_page_di
         Py_ssize_t number_of_cols = PyList_Size( matrix_row );
         for( Py_ssize_t j = 0 ; j < number_of_cols ; j++ ) {
             PyObject *widget_obj = PyList_GetItem( matrix_row, j );
-            GuiWidget *gui_widget = new GuiWidget( widget_obj, this );
+            GuiWidget *gui_widget = new GuiWidget( widget_obj, this, true, widgetRegistry->getFieldsDict(), wizard_page_dict_obj, external_data );
+//            gui_widget->setWizardPages( wizardPageDictObj );
+//            gui_widget->setWizardData( externalData );
             connectGuiWidgetToCompleteChanged( gui_widget );
             widgetRegistry->registerWidget( gui_widget );
             if ( gui_widget->getWidgetLayout() != NULL ) {
@@ -162,6 +165,18 @@ void GuiWizardPage::connectGuiWidgetToCompleteChanged( GuiWidget *gui_widget ) {
     } else if ( widget_type.toLower() == "listbox" ) {
         QListWidget *list_box = (QListWidget *) widget;
         connect( list_box, &QListWidget::currentRowChanged, [=] () {
+            emit completeChanged();
+        });
+
+    } else if ( widget_type.toLower() == "duallist" ) {
+        DualListWidget *dual = (DualListWidget *) widget;
+        QStandardItemModel *model = (QStandardItemModel *) dual->getChosenList()->model();
+
+        connect( model, &QStandardItemModel::rowsInserted, [=] () {
+            emit completeChanged();
+        });
+
+        connect( model, &QStandardItemModel::rowsRemoved, [=] () {
             emit completeChanged();
         });
 

@@ -188,6 +188,7 @@ void PythonInterpreter::importTables(DatabaseHandler *db) {
     db->activateForeignKeys(true);
     db->commit();
 //    Py_Finalize();
+    Py_DECREF( dbModule );
 }
 
 QList<QString> PythonInterpreter::getTableNames()
@@ -236,6 +237,7 @@ QList<QString> PythonInterpreter::getTableNames()
     }
 
 //    Py_Finalize();
+    Py_DECREF( dbModule );
     return tableList;
 }
 
@@ -299,6 +301,8 @@ QList<QString> PythonInterpreter::getColList(QString tableName) {
 
 //    Py_Finalize();
     PyErr_Clear();
+    Py_DECREF( dbModule );
+    Py_DECREF( tableType );
     return colList;
 }
 
@@ -361,6 +365,8 @@ QList<QString> PythonInterpreter::getColDefsList(QString tableName) {
 
 //    Py_Finalize();
     PyErr_Clear();
+    Py_DECREF( dbModule );
+    Py_DECREF( tableType );
     return colDefsList;
 }
 
@@ -416,6 +422,8 @@ int PythonInterpreter::getDisplayCol(QString tableName) {
 
 //    Py_Finalize();
     PyErr_Clear();
+    Py_DECREF( dbModule );
+    Py_DECREF( tableType );
     return 0;
 }
 
@@ -516,6 +524,8 @@ std::pair< int, int > PythonInterpreter::getBase64ImageAndTypeCols( QString tabl
         }
     }
 
+    Py_DECREF( dbModule );
+    Py_DECREF( tableType );
     return cols;
 }
 
@@ -656,6 +666,8 @@ QList<QString> PythonInterpreter::getMenuOrderedTableNames() {
 
 //    Py_Finalize();
     PyErr_Clear();
+    Py_DECREF( dbLayoutModule );
+    Py_DECREF( dbOrder );
     return tableNameList;
 }
 
@@ -697,6 +709,8 @@ QString PythonInterpreter::getMetaTableName(QString tableName) {
 
 //    Py_Finalize();
     PyErr_Clear();
+    Py_DECREF( dbLayoutModule );
+    Py_DECREF( dbMetaMap );
     return metaTableName;
 }
 
@@ -881,6 +895,8 @@ QList<PyObject *> PythonInterpreter::getManageWindows() {
         }
     }
 
+    Py_DECREF( manage_module );
+    Py_DECREF( manage_type );
     return manage_list;
 }
 

@@ -162,5 +162,5 @@ class Wizard( object ):
     def add_wizard_page( self, wizard_page ):
         self.wizard_pages.append( wizard_page )
 
-    def accept( self, fields_dict ):
+    def accept( self, fields, pages, external_data ):
         return

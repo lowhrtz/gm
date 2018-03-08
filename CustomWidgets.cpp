@@ -3,7 +3,6 @@
 #include "GuiWizard.h"
 #include "PDFCreator.h"
 
-#include <QPushButton>
 #include <QLayout>
 #include <QCheckBox>
 #include <QTextEdit>
@@ -36,7 +35,7 @@ void ImageWidget::setImageWithBase64( QLabel *image_widget, QString base64_strin
     image_widget->setPixmap( pixmap );
 }
 
-PyDataListWidgetItem::PyDataListWidgetItem(QString display_text, PyObject *data, QListWidget *parent , QListWidget *original_list)
+PyDataListWidgetItem::PyDataListWidgetItem( QString display_text, PyObject *data, QListWidget *parent , QListWidget *original_list )
     : QListWidgetItem( display_text, parent, QListWidgetItem::UserType ) {
     this->data = data;
     this->originalList = original_list;
@@ -50,19 +49,19 @@ QListWidget *PyDataListWidgetItem::getOriginalList() {
     return originalList;
 }
 
-void PyDataListWidgetItem::fillListWidget(QListWidget *list_widget, PyObject *list_obj, PyObject *tool_tip_callback, PyObject *fields_obj ) {
+void PyDataListWidgetItem::fillListWidget(QListWidget *list_widget, PyObject *list_obj, PyObject *tool_tip_callback, PyObject *fields_obj , PyObject *wizard_pages_obj, PyObject *wizard_data_obj , QListWidget *original_list ) {
     list_widget->clear();
     for ( Py_ssize_t i = 0 ; i < PyList_Size( list_obj ) ; i++ ) {
         PyObject *list_item_obj = PyList_GetItem( list_obj, i );
-        PyDataListWidgetItem::addItemToWidget( list_widget, list_item_obj, tool_tip_callback, fields_obj );
+        PyDataListWidgetItem::addItemToWidget( list_widget, list_item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, original_list );
     }
 }
 
-void PyDataListWidgetItem::addItemToWidget( QListWidget *list_widget, PyObject *list_item_obj, PyObject *tool_tip_callback, PyObject *fields_obj ) {
+void PyDataListWidgetItem::addItemToWidget( QListWidget *list_widget, PyObject *list_item_obj, PyObject *tool_tip_callback, PyObject *fields_obj , PyObject *wizard_pages_obj, PyObject *wizard_data_obj, QListWidget *original_list ) {
     PyDataListWidgetItem *list_item;
     PyObject *list_item_dict_obj;
     if ( PyString_Check( list_item_obj ) ) {
-        list_item = new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget );
+        list_item = new PyDataListWidgetItem( PyString_AsString( list_item_obj ), list_item_obj, list_widget, original_list );
 
     } else if ( PyDict_Check( list_item_obj ) ) {
         list_item_dict_obj = list_item_obj;
@@ -71,19 +70,24 @@ void PyDataListWidgetItem::addItemToWidget( QListWidget *list_widget, PyObject *
         QString display = pi_global->getColList( table_name )[ pi_global->getDisplayCol( table_name ) ];
         PyObject *display_name_obj = PyDict_GetItemString( list_item_obj, display.toStdString().data() );
         QString display_name = PyString_AsString( display_name_obj );
-        list_item = new PyDataListWidgetItem( display_name, list_item_obj, list_widget );
+        list_item = new PyDataListWidgetItem( display_name, list_item_obj, list_widget, original_list );
 
     } else if ( PyTuple_Check( list_item_obj ) ) {
         PyObject *display_obj = PyTuple_GetItem( list_item_obj, 0 );
         list_item_dict_obj = PyTuple_GetItem( list_item_obj, 1 );
         QString display_name = PyString_AsString( display_obj );
-        list_item = new PyDataListWidgetItem( display_name, list_item_dict_obj, list_widget );
+        list_item = new PyDataListWidgetItem( display_name, list_item_dict_obj, list_widget, original_list );
     } else {
         return;
     }
 
     if ( tool_tip_callback != NULL && tool_tip_callback != Py_None && fields_obj != NULL && list_item_dict_obj != NULL ) {
-        PyObject *tool_tip_return = PyObject_CallObject( tool_tip_callback, Py_BuildValue( "(O,O)", list_item_dict_obj, fields_obj ) );
+        PyObject *tool_tip_return;
+        if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+            tool_tip_return = PyObject_CallObject( tool_tip_callback, Py_BuildValue( "(O,O,O,O)", list_item_dict_obj, fields_obj, wizard_pages_obj, wizard_data_obj ) );
+        } else {
+            tool_tip_return = PyObject_CallObject( tool_tip_callback, Py_BuildValue( "(O,O)", list_item_dict_obj, fields_obj ) );
+        }
         PyErr_Print();
         QString tool_tip = PyString_AsString( tool_tip_return );
         list_item->setToolTip( tool_tip );
@@ -102,7 +106,7 @@ PyObject *PyDataListWidgetItem::getDataList( QListWidget *listbox ) {
     return list_obj;
 }
 
-DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent)
+DualListWidget::DualListWidget( PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent )
     : QWidget( parent ){
     QHash<QString, QListWidget *> category_hash;
     tabbedAvailLists = new QTabWidget( this );
@@ -118,6 +122,8 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         qInfo( "The data parameter for a ListDialog Action must be a dictionary." );
         return;
     }
+
+    data = new DualListData( action_data_obj );
 
     PyObject *fill_avail_callback = PyDict_GetItemString( action_data_obj, (char *) "fill_avail" );
     PyErr_Print();
@@ -190,18 +196,18 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     
     QString slots_callback_return = PyString_AsString( slots_callback_return_obj );
 
-    QPushButton *add_button = new QPushButton( "Add", this );
-    QPushButton *del_button = new QPushButton( "Remove", this );
+    addButton = new QPushButton( "Add", this );
+    delButton = new QPushButton( "Remove", this );
 
     QVBoxLayout *layout = new QVBoxLayout;
 
-    QLabel *slots_label = new QLabel( "<b>" + slots_name + ":</b> " + slots_callback_return, this );
-    layout->addWidget( slots_label, 1, Qt::AlignCenter );
+    slotsLabel = new QLabel( "<b>" + slots_name + ":</b> " + slots_callback_return, this );
+    layout->addWidget( slotsLabel, 1, Qt::AlignCenter );
 
     QHBoxLayout *list_layout = new QHBoxLayout;
     QVBoxLayout *button_layout = new QVBoxLayout;
-    button_layout->addWidget( add_button );
-    button_layout->addWidget( del_button );
+    button_layout->addWidget( addButton );
+    button_layout->addWidget( delButton );
 
     list_layout->addWidget( tabbedAvailLists );
     list_layout->addLayout( button_layout );
@@ -211,7 +217,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 //    layout->setSizeConstraint( QLayout::SetFixedSize );
     setLayout( layout );
 
-    connect( add_button, &QPushButton::clicked, [=] () {
+    connect( addButton, &QPushButton::clicked, [=] () {
         QListWidget *current_list = (QListWidget *) tabbedAvailLists->currentWidget();
 //        qInfo( "Current Index: %i", current_list->currentRow() );
         if ( current_list->currentRow() == -1 ) return;
@@ -237,7 +243,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         }
 
         if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
-            slots_label->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
         }
 
         if( remove_obj == Py_True ) {
@@ -257,7 +263,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
 
     });
 
-    connect( del_button, &QPushButton::clicked, [=] () {
+    connect( delButton, &QPushButton::clicked, [=] () {
         if ( chosenList->currentRow() == -1 ) return;
         PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
         PyObject *remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
@@ -281,7 +287,7 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
         }
 
         if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
-            slots_label->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
         }
 
         QString new_display_string;
@@ -303,11 +309,484 @@ DualListWidget::DualListWidget(PyObject *owned_item_list_obj, PyObject *action_d
     });
 }
 
+DualListWidget::DualListWidget( PyObject *data_obj, PyObject *fields_obj, PyObject *wizard_pages_obj, PyObject *wizard_data_obj, QWidget *parent )
+    : QWidget( parent ) {
+    tabbedAvailLists = new QTabWidget( this );
+    tabbedAvailLists->tabBar()->setStyleSheet( "font: bold 8pt;" );
+
+    chosenList = new QListWidget( this );
+    data = new DualListData( data_obj );
+
+    QTabWidget *tabbed_chosen_list = new QTabWidget( this );
+    tabbed_chosen_list->addTab( chosenList, "" );
+    tabbed_chosen_list->tabBar()->hide();
+
+    addButton = new QPushButton( "Add", this );
+    delButton = new QPushButton( "Remove", this );
+
+    QVBoxLayout *layout = new QVBoxLayout;
+
+    slotsLabel = new QLabel( "", this );
+    layout->addWidget( slotsLabel, 1, Qt::AlignCenter );
+
+    QHBoxLayout *list_layout = new QHBoxLayout;
+    QVBoxLayout *button_layout = new QVBoxLayout;
+    button_layout->addWidget( addButton );
+    button_layout->addWidget( delButton );
+
+    list_layout->addWidget( tabbedAvailLists );
+    list_layout->addLayout( button_layout );
+    list_layout->addWidget( tabbed_chosen_list );
+    layout->addLayout( list_layout );
+
+//    layout->setSizeConstraint( QLayout::SetFixedSize );
+    setLayout( layout );
+
+    PyObject *category_field_obj = data->getCategoryFieldObj();
+    PyObject *tool_tip_callback = data->getToolTipCallback();
+    PyObject *slots_name_obj = data->getSlotsNameObj();
+//    PyObject *slots_callback = data->getSlotsCallback();
+
+    QString slots_name = PyString_AsString( slots_name_obj );
+//    PyObject *slots_callback_return_obj;
+//    if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+//        qInfo( "Here!" );
+//        qInfo( "Is Dictionary: %s", PyDict_Check( fields_obj ) ? "True" : "False" );
+//        slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O,O,O)", fields_obj, wizard_pages_obj, wizard_data_obj ) );
+//        qInfo( "There!" );
+//    } else {
+//        slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O)", fields_obj ) );
+//    }
+//    PyErr_Print();
+//    QString slots_callback_return = PyString_AsString( slots_callback_return_obj );
+//    slotsLabel->setText( "<b>" + slots_name + ":</b> " + slots_callback_return );
+
+    connect( addButton, &QPushButton::clicked, [=] () {
+        QListWidget *current_list = (QListWidget *) tabbedAvailLists->currentWidget();
+//        qInfo( "Current Index: %i", current_li == Py_Nonst->currentRow() );
+        if ( current_list->currentRow() == -1 ) return;
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) current_list->currentItem();
+        PyObject *add_callback = data->getAddCallback();
+        PyObject *add_callback_return;
+        if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+            add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O,O,O)", current_item->getData(), fields_obj, wizard_pages_obj, wizard_data_obj ) );
+        } else {
+            add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+        }
+        PyErr_Print();
+        if( !PyDict_Check( add_callback_return ) ) {
+            qInfo( "The add callback should return a dictionary with the following keys: valid, slots_new_value, remove, new_display" );
+            return;
+        }
+
+        PyObject *valid_obj = PyDict_GetItemString( add_callback_return, (char *) "valid" );
+        PyErr_Print();
+        PyObject *slots_new_value_obj = PyDict_GetItemString( add_callback_return, (char *) "slots_new_value" );
+        PyErr_Print();
+        PyObject *remove_obj = PyDict_GetItemString( add_callback_return, (char *) "remove" );
+        PyErr_Print();
+        PyObject *new_display_obj = PyDict_GetItemString( add_callback_return, (char *) "new_display" );
+        PyErr_Print();
+
+        if( valid_obj != Py_True ) {
+            return;
+        }
+
+        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+        }
+
+        if( remove_obj == Py_True ) {
+            current_list->takeItem( current_list->currentRow() );
+        }
+
+        QString new_display_string;
+        if( new_display_obj == NULL ) {
+            new_display_string = current_item->text();
+        } else if( PyString_Check( new_display_obj ) ) {
+            new_display_string = PyString_AsString( new_display_obj );
+        } else {
+            new_display_string = current_item->text();
+        }
+
+        PyDataListWidgetItem::addItemToWidget( chosenList, current_item->getData(), tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, current_item->getOriginalList() );
+
+    });
+
+    connect( delButton, &QPushButton::clicked, [=] () {
+        if ( chosenList->currentRow() == -1 ) return;
+        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
+        PyObject *remove_callback = data->getRemoveCallback();
+        PyObject *remove_callback_return;
+        if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+            remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O,O,O)", current_item->getData(), fields_obj, wizard_pages_obj, wizard_data_obj ) );
+        } else {
+            remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+        }
+        PyErr_Print();
+        if( !PyDict_Check( remove_callback_return ) ) {
+            qInfo( "The remove callback should return a dictionary with the following keys: valid, slots_new_value, replace, new_display" );
+            return;
+        }
+
+        PyObject *valid_obj = PyDict_GetItemString( remove_callback_return, (char *) "valid" );
+        PyErr_Print();
+        PyObject *slots_new_value_obj = PyDict_GetItemString( remove_callback_return, (char *) "slots_new_value" );
+        PyErr_Print();
+        PyObject *replace_obj = PyDict_GetItemString( remove_callback_return, (char *) "replace" );
+        PyErr_Print();
+        PyObject *new_display_obj = PyDict_GetItemString( remove_callback_return, (char *) "new_display" );
+        PyErr_Print();
+
+        if( valid_obj != Py_True ) {
+            return;
+        }
+
+        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+        }
+
+        QString new_display_string;
+        if( new_display_obj == NULL ) {
+            new_display_string = current_item->text();
+        } else if( PyString_Check( new_display_obj ) ) {
+            new_display_string = PyString_AsString( new_display_obj );
+        } else {
+            new_display_string = current_item->text();
+        }
+
+        if( replace_obj == Py_True ) {
+            QListWidget *original_list = current_item->getOriginalList();
+            if ( original_list == 0 ) {
+                if ( category_field_obj != NULL && PyString_Check( category_field_obj ) ) {
+                    PyObject *item_obj = current_item->getData();
+                    PyObject *item_dict_obj;
+
+                    if ( PyDict_Check( item_obj ) ) {
+                        item_dict_obj = item_obj;
+                    } else if ( PyTuple_Check( item_obj ) && PyTuple_Size( item_obj ) > 1 ) {
+                        item_dict_obj = PyTuple_GetItem( item_obj, 1 );
+                    } else {
+                        goto coda;
+                    }
+
+                    PyObject *category_obj = PyDict_GetItem( item_dict_obj, category_field_obj );
+                    QString category = PyString_AsString( PyObject_Str( category_obj ) );
+                    if ( !categoryHash.contains( category ) ) {
+                        QListWidget *cat_list = new QListWidget( this );
+                        categoryHash[category] = cat_list;
+
+                        tabbedAvailLists->addTab( cat_list, category );
+                        PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+
+                    } else {
+                        QListWidget *cat_list = categoryHash[category];
+                        PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+                    }
+                } else {
+                    QListWidget *avail_list = new QListWidget( this );
+                    tabbedAvailLists->addTab( avail_list, "Avail" );
+                    tabbedAvailLists->tabBar()->hide();
+                    PyDataListWidgetItem::fillListWidget( avail_list, availItemListObj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj );
+                    if( avail_list->count() > 0 ) {
+                        avail_list->setCurrentRow( 0 );
+                    }
+
+                }
+            } else {
+                PyDataListWidgetItem::addItemToWidget( original_list, current_item->getData(), tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, original_list );
+            }
+        }
+
+coda:
+        chosenList->takeItem( chosenList->currentRow() );
+
+    });
+}
+
+void DualListWidget::setData(PyObject *data_obj) {
+    this->data = new DualListData( data_obj );
+}
+
+DualListData *DualListWidget::getData() {
+    return data;
+}
+
+void DualListWidget::fillAvail( PyObject *owned_item_list_obj, PyObject *fields_obj , PyObject *wizard_pages_obj, PyObject *wizard_data_obj ) {
+    for ( int i = 0; i < tabbedAvailLists->count(); i++ ) {
+        tabbedAvailLists->removeTab( i );
+    }
+    PyObject *fill_avail_callback = data->getFillAvailCallback();
+    PyObject *category_field_obj = data->getCategoryFieldObj();
+    PyObject *tool_tip_callback = data->getToolTipCallback();
+    PyObject *slots_name_obj = data->getSlotsNameObj();
+    PyObject *slots_callback = data->getSlotsCallback();
+//    PyObject *avail_item_list_obj;
+    if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+//        qInfo( "Is List: %s", PyList_Check( owned_item_list_obj ) ? "True" : "False" );
+//        qInfo( "Is Dictionatry: %s", PyDict_Check( wizard_data_obj ) ? "True" : "False" );
+//        qInfo( "Is Callable: %s", PyCallable_Check( fill_avail_callback ) ? "True" : "False" );
+        availItemListObj = PyObject_CallObject( fill_avail_callback, Py_BuildValue( "(O,O,O,O)", owned_item_list_obj, fields_obj, wizard_pages_obj, wizard_data_obj ) );
+    } else {
+        availItemListObj = PyObject_CallObject( fill_avail_callback, Py_BuildValue( "(O,O)", owned_item_list_obj, fields_obj ) );
+    }
+    PyErr_Print();
+
+//    categoryHash;
+    if ( category_field_obj != NULL && PyString_Check( category_field_obj ) ) {
+        for ( Py_ssize_t i = 0; i < PyList_Size( availItemListObj ); i++ ) {
+            PyObject *item_obj = PyList_GetItem( availItemListObj, i );
+            PyObject *item_dict_obj;
+
+            if ( PyDict_Check( item_obj ) ) {
+                item_dict_obj = item_obj;
+            } else if ( PyTuple_Check( item_obj ) && PyTuple_Size( item_obj ) > 1 ) {
+                item_dict_obj = PyTuple_GetItem( item_obj, 1 );
+            } else {
+                continue;
+            }
+
+            PyObject *category_obj = PyDict_GetItem( item_dict_obj, category_field_obj );
+//            QString category = PyString_AsString( category_obj );
+            QString category = PyString_AsString( PyObject_Str( category_obj ) );
+            if ( !categoryHash.contains( category ) ) {
+//                qInfo( "%s", category.toStdString().data() );
+                QListWidget *cat_list = new QListWidget( this );
+                categoryHash[category] = cat_list;
+
+                tabbedAvailLists->addTab( cat_list, category );
+                PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+
+            } else {
+                QListWidget *cat_list = categoryHash[category];
+                PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+            }
+        }
+    } else {
+        QListWidget *avail_list = new QListWidget( this );
+//        category_hash["Avail"] = avail_list;
+        tabbedAvailLists->addTab( avail_list, "Avail" );
+        tabbedAvailLists->tabBar()->hide();
+        PyDataListWidgetItem::fillListWidget( avail_list, availItemListObj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj );
+        if( avail_list->count() > 0 ) {
+            avail_list->setCurrentRow( 0 );
+        }
+
+    }
+
+//    Py_CLEAR( avail_item_list_obj );
+//    Py_XDECREF( avail_item_list_obj );
+
+    QString slots_name = PyString_AsString( slots_name_obj );
+    PyObject *slots_callback_return_obj;
+    if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+        slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O,O,O)", fields_obj, wizard_pages_obj, wizard_data_obj ) );
+    } else {
+        slots_callback_return_obj = PyObject_CallObject( slots_callback, Py_BuildValue( "(O)", fields_obj ) );
+    }
+    PyErr_Print();
+    QString slots_callback_return = PyString_AsString( slots_callback_return_obj );
+    slotsLabel->setText( "<b>" + slots_name + ":</b> " + slots_callback_return );
+
+//    connect( addButton, &QPushButton::clicked, [=] () {
+//        QListWidget *current_list = (QListWidget *) tabbedAvailLists->currentWidget();
+////        qInfo( "Current Index: %i", current_list->currentRow() );
+//        if ( current_list->currentRow() == -1 ) return;
+//        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) current_list->currentItem();
+//        PyObject *add_callback = data->getAddCallback();
+//        PyObject *add_callback_return;
+//        if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+//            add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O,O,O)", current_item->getData(), fields_obj, wizard_pages_obj, wizard_data_obj ) );
+//        } else {
+//            add_callback_return = PyObject_CallObject( add_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+//        }
+//        PyErr_Print();
+//        if( !PyDict_Check( add_callback_return ) ) {
+//            qInfo( "The add callback should return a dictionary with the following keys: valid, slots_new_value, remove, new_display" );
+//            return;
+//        }
+
+//        PyObject *valid_obj = PyDict_GetItemString( add_callback_return, (char *) "valid" );
+//        PyErr_Print();
+//        PyObject *slots_new_value_obj = PyDict_GetItemString( add_callback_return, (char *) "slots_new_value" );
+//        PyErr_Print();
+//        PyObject *remove_obj = PyDict_GetItemString( add_callback_return, (char *) "remove" );
+//        PyErr_Print();
+//        PyObject *new_display_obj = PyDict_GetItemString( add_callback_return, (char *) "new_display" );
+//        PyErr_Print();
+
+//        if( valid_obj != Py_True ) {
+//            return;
+//        }
+
+//        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+//            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+//        }
+
+//        if( remove_obj == Py_True ) {
+//            current_list->takeItem( current_list->currentRow() );
+//        }
+
+//        QString new_display_string;
+//        if( new_display_obj == NULL ) {
+//            new_display_string = current_item->text();
+//        } else if( PyString_Check( new_display_obj ) ) {
+//            new_display_string = PyString_AsString( new_display_obj );
+//        } else {
+//            new_display_string = current_item->text();
+//        }
+
+//        PyDataListWidgetItem::addItemToWidget( chosenList, current_item->getData(), tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, current_item->getOriginalList() );
+
+//    });
+
+//    connect( delButton, &QPushButton::clicked, [=] () {
+//        if ( chosenList->currentRow() == -1 ) return;
+//        PyDataListWidgetItem *current_item = (PyDataListWidgetItem *) chosenList->currentItem();
+//        PyObject *remove_callback = data->getRemoveCallback();
+//        PyObject *remove_callback_return;
+//        if ( wizard_pages_obj != NULL && wizard_data_obj != NULL ) {
+//            remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O,O,O)", current_item->getData(), fields_obj, wizard_pages_obj, wizard_data_obj ) );
+//        } else {
+//            remove_callback_return = PyObject_CallObject( remove_callback, Py_BuildValue( "(O,O)", current_item->getData(), fields_obj ) );
+//        }
+//        PyErr_Print();
+//        if( !PyDict_Check( remove_callback_return ) ) {
+//            qInfo( "The remove callback should return a dictionary with the following keys: valid, slots_new_value, replace, new_display" );
+//            return;
+//        }
+
+//        PyObject *valid_obj = PyDict_GetItemString( remove_callback_return, (char *) "valid" );
+//        PyErr_Print();
+//        PyObject *slots_new_value_obj = PyDict_GetItemString( remove_callback_return, (char *) "slots_new_value" );
+//        PyErr_Print();
+//        PyObject *replace_obj = PyDict_GetItemString( remove_callback_return, (char *) "replace" );
+//        PyErr_Print();
+//        PyObject *new_display_obj = PyDict_GetItemString( remove_callback_return, (char *) "new_display" );
+//        PyErr_Print();
+
+//        if( valid_obj != Py_True ) {
+//            return;
+//        }
+
+//        if( slots_new_value_obj != NULL && PyString_Check( slots_new_value_obj ) ) {
+//            slotsLabel->setText( "<b>" + slots_name + ":</b> " + PyString_AsString( slots_new_value_obj ) );
+//        }
+
+//        QString new_display_string;
+//        if( new_display_obj == NULL ) {
+//            new_display_string = current_item->text();
+//        } else if( PyString_Check( new_display_obj ) ) {
+//            new_display_string = PyString_AsString( new_display_obj );
+//        } else {
+//            new_display_string = current_item->text();
+//        }
+
+//        if( replace_obj == Py_True ) {
+//            QListWidget *original_list = current_item->getOriginalList();
+//            if ( original_list == 0 ) {
+//                if ( category_field_obj != NULL && PyString_Check( category_field_obj ) ) {
+//                    PyObject *item_obj = current_item->getData();
+//                    PyObject *item_dict_obj;
+
+//                    if ( PyDict_Check( item_obj ) ) {
+//                        item_dict_obj = item_obj;
+//                    } else if ( PyTuple_Check( item_obj ) && PyTuple_Size( item_obj ) > 1 ) {
+//                        item_dict_obj = PyTuple_GetItem( item_obj, 1 );
+//                    } else {
+//                        goto coda;
+//                    }
+
+//                    PyObject *category_obj = PyDict_GetItem( item_dict_obj, category_field_obj );
+//                    QString category = PyString_AsString( PyObject_Str( category_obj ) );
+//                    if ( !categoryHash.contains( category ) ) {
+//                        QListWidget *cat_list = new QListWidget( this );
+//                        categoryHash[category] = cat_list;
+
+//                        tabbedAvailLists->addTab( cat_list, category );
+//                        PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+
+//                    } else {
+//                        QListWidget *cat_list = categoryHash[category];
+//                        PyDataListWidgetItem::addItemToWidget( cat_list, item_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, cat_list );
+//                    }
+//                } else {
+//                    QListWidget *avail_list = new QListWidget( this );
+//                    tabbedAvailLists->addTab( avail_list, "Avail" );
+//                    tabbedAvailLists->tabBar()->hide();
+//                    PyDataListWidgetItem::fillListWidget( avail_list, avail_item_list_obj, tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj );
+//                    if( avail_list->count() > 0 ) {
+//                        avail_list->setCurrentRow( 0 );
+//                    }
+
+//                }
+//            } else {
+//                PyDataListWidgetItem::addItemToWidget( original_list, current_item->getData(), tool_tip_callback, fields_obj, wizard_pages_obj, wizard_data_obj, original_list );
+//            }
+//        }
+
+//coda:
+//        chosenList->takeItem( chosenList->currentRow() );
+
+//    });
+}
+
 QListWidget *DualListWidget::getChosenList() {
     return chosenList;
 }
 
-GuiWidget::GuiWidget( PyObject *widget_obj, QWidget *parent, bool create_qwidget ) {
+DualListData::DualListData( PyObject *data_obj ) {
+    if ( !PyDict_Check( data_obj ) ) {
+        qInfo( "The data parameter for a ListDialog Action must be a dictionary." );
+        return;
+    }
+
+    fillAvailCallback = PyDict_GetItemString( data_obj, (char *) "fill_avail" );
+    PyErr_Print();
+    slotsCallback = PyDict_GetItemString( data_obj, (char *) "slots" );
+    PyErr_Print();
+    slotsNameObj = PyDict_GetItemString( data_obj, (char *) "slots_name");
+    PyErr_Print();
+    categoryFieldObj = PyDict_GetItemString( data_obj, (char *) "category_field");
+    PyErr_Print();
+    toolTipCallback = PyDict_GetItemString( data_obj, (char *) "tool_tip" );
+    PyErr_Print();
+    addCallback = PyDict_GetItemString( data_obj, (char *) "add" );
+    PyErr_Print();
+    removeCallback = PyDict_GetItemString( data_obj, (char *) "remove" );
+    PyErr_Print();
+}
+
+PyObject *DualListData::getFillAvailCallback() {
+    return fillAvailCallback;
+}
+
+PyObject *DualListData::getSlotsCallback() {
+    return slotsCallback;
+}
+
+PyObject *DualListData::getSlotsNameObj() {
+    return slotsNameObj;
+}
+
+PyObject *DualListData::getCategoryFieldObj() {
+    return categoryFieldObj;
+}
+
+PyObject *DualListData::getToolTipCallback() {
+    return toolTipCallback;
+}
+
+PyObject *DualListData::getAddCallback() {
+    return addCallback;
+}
+
+PyObject *DualListData::getRemoveCallback() {
+    return removeCallback;
+}
+
+
+GuiWidget::GuiWidget( PyObject *widget_obj, QWidget *parent, bool create_qwidget, PyObject *wizard_fields_obj, PyObject *wizard_pages_obj, PyObject *wizard_data_obj ) {
     bool hide_field_name = false;
     PyObject *field_name_obj = PyObject_CallMethod( widget_obj, (char *) "get_field_name", NULL);
     PyErr_Print();
@@ -343,6 +822,9 @@ GuiWidget::GuiWidget( PyObject *widget_obj, QWidget *parent, bool create_qwidget
         }
     }
     //qInfo( "widget_type: %s", widget_type.toStdString().data() );
+
+    wizardPagesObj = wizard_pages_obj;
+    wizardDataObj = wizard_data_obj;
 
     if ( create_qwidget ) {
         QString widget_data;
@@ -433,6 +915,11 @@ GuiWidget::GuiWidget( PyObject *widget_obj, QWidget *parent, bool create_qwidget
             }
             widgetLayout->addWidget( widget );
 
+        } else if ( widgetType.toLower() == "duallist" ) {
+            widgetLayout = new QVBoxLayout;
+            widget = new DualListWidget( widget_data_obj, wizard_fields_obj, wizard_pages_obj, wizard_data_obj, parent );
+            widgetLayout->addWidget( widget );
+
         } else if ( widgetType.toLower() == "textlabel" ) {
             widgetLayout = new QHBoxLayout;
             widget_data = PyString_AsString( widget_data_obj );
@@ -489,6 +976,30 @@ QString GuiWidget::getWidgetType() {
 
 QLayout *GuiWidget::getWidgetLayout() {
     return widgetLayout;
+}
+
+void GuiWidget::setWidgetData(PyObject *data) {
+    this->data = data;
+}
+
+PyObject *GuiWidget::getWidgetData() {
+    return data;
+}
+
+void GuiWidget::setWizardPages( PyObject *wizard_pages_obj ) {
+    wizardPagesObj = wizard_pages_obj;
+}
+
+PyObject *GuiWidget::getWizardPages() {
+    return wizardPagesObj;
+}
+
+void GuiWidget::setWizardData( PyObject *wiazard_data_obj ) {
+    wizardDataObj = wiazard_data_obj;
+}
+
+PyObject *GuiWidget::getWizardData() {
+    return wizardDataObj;
 }
 
 GuiAction::GuiAction( PyObject *action_obj ) {
@@ -643,7 +1154,7 @@ void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
         }
 
         if ( widget2_widget_type.toLower() == "listbox" ) {
-            QListWidget *owned_item_list = (QListWidget *) getGuiWidget(widget2_field_name)->getWidget();
+            QListWidget *owned_item_list = (QListWidget *) getGuiWidget( widget2_field_name )->getWidget();
             PyObject *owned_item_list_obj = PyDataListWidgetItem::getDataList( owned_item_list );
             dialog = new DualListDialog( title, owned_item_list_obj, gui_action.getData(), fields_dict_obj, parent );
         }
@@ -659,7 +1170,18 @@ void WidgetRegistry::processAction( GuiAction gui_action, QWidget *parent ) {
     } else if ( action_type.toLower() == "wizard" ) {
         PyObject *wizard_obj = data;
         GuiWizard wizard( wizard_obj, getFieldsDict(), parent );
-        wizard.exec();
+
+        if ( wizard.exec() ) {
+            PyObject *accept_return = wizard.getAcceptReturn();
+            if ( callback_obj != Py_None ) {
+                PyObject *callback_return_obj = PyObject_CallObject( callback_obj, Py_BuildValue( "(O, O)", accept_return, fields_dict_obj ) );
+                PyErr_Print();
+
+                if ( PyDict_Check( callback_return_obj ) ) {
+                    fillFields( callback_return_obj );
+                }
+            }
+        }
 
     }else if ( action_type.toLower() == "callbackonly" ) {
         if ( callback_obj != Py_None ) {
@@ -677,6 +1199,8 @@ void WidgetRegistry::fillFields( PyObject *fill_dict_obj ) {
         GuiWidget *gui_widget = this->getGuiWidget( field_name );
         QString widget_type = gui_widget->getWidgetType();
         QWidget *widget = gui_widget->getWidget();
+        PyObject *wizard_pages_obj = gui_widget->getWizardPages();
+        PyObject *wizard_data_obj = gui_widget->getWizardData();
 
         if ( widget_type.toLower() == "lineedit" ) {
             QLineEdit *line_edit_widget = (QLineEdit *) widget;
@@ -689,6 +1213,14 @@ void WidgetRegistry::fillFields( PyObject *fill_dict_obj ) {
         } else if ( widget_type.toLower() == "listbox" ) {
             QListWidget *list_widget = (QListWidget *) widget;
             PyDataListWidgetItem::fillListWidget( list_widget, value );
+
+        } else if ( widget_type.toLower() == "duallist" ) {
+            PyObject *fields_dict = getFieldsDict();
+//            PyObject *fields_dict = PyDict_New();
+            DualListWidget *dual = ( DualListWidget * ) widget;
+            PyDataListWidgetItem::fillListWidget( dual->getChosenList(), value, dual->getData()->getToolTipCallback(),
+                                                  fields_dict, wizard_pages_obj, wizard_data_obj );
+            dual->fillAvail( value, fields_dict, wizard_pages_obj, wizard_data_obj );
 
         } else if ( widget_type.toLower() == "textlabel" ) {
             QLabel *text_label = (QLabel *) widget;
@@ -742,20 +1274,32 @@ PyObject *WidgetRegistry::getFieldsDict() {
             PyDict_SetItemString( fields_dict_obj, field_name.toStdString().data(), Py_BuildValue( "s", current_text.toStdString().data() ) );
 
         } else if ( widget_type.toLower() == "listbox" ) {
+            QListWidget *list_widget = (QListWidget *) widget;
             QString current_field_name( field_name );
             current_field_name.append( " Current" );
             PyObject *item_data = Py_None;
-            if ( ( (QListWidget *) widget )->currentRow() >= 0 ) {
-                     PyDataListWidgetItem *item = (PyDataListWidgetItem *) ( (QListWidget *) widget )->currentItem();
+            if ( list_widget->currentRow() >= 0 ) {
+                     PyDataListWidgetItem *item = (PyDataListWidgetItem *) list_widget->currentItem();
                      item_data = item->getData();
             }
             PyDict_SetItemString( fields_dict_obj, current_field_name.toStdString().data(), item_data );
 
-            PyObject *item_list_obj = PyList_New( ( (QListWidget *) widget )->count() );
-            for ( Py_ssize_t i = 0 ; i < ( (QListWidget *) widget )->count() ; i++ ) {
-                PyDataListWidgetItem *item = (PyDataListWidgetItem *) ( (QListWidget *) widget )->item( i );
+            PyObject *item_list_obj = PyList_New( list_widget->count() );
+            for ( Py_ssize_t i = 0 ; i < list_widget->count() ; i++ ) {
+                PyDataListWidgetItem *item = (PyDataListWidgetItem *) list_widget->item( i );
                 PyObject *data = item->getData();
                 PyList_SetItem( item_list_obj, i, data );
+            }
+            PyDict_SetItemString( fields_dict_obj, field_name.toStdString().data(), item_list_obj );
+
+        } else if ( widget_type.toLower() == "duallist" ) {
+            QListWidget *list_widget = ( (DualListWidget *) widget )->getChosenList();
+            PyObject *item_list_obj = PyList_New( list_widget->count() );
+            for ( Py_ssize_t i = 0 ; i < list_widget->count() ; i++ ) {
+                PyDataListWidgetItem *item = (PyDataListWidgetItem *) list_widget->item( i );
+                PyObject *data = item->getData();
+                PyList_SetItem( item_list_obj, i, data );
+//                PyList_Append( item_list_obj, data );
             }
             PyDict_SetItemString( fields_dict_obj, field_name.toStdString().data(), item_list_obj );
 

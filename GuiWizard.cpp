@@ -9,6 +9,8 @@ GuiWizard::GuiWizard(PyObject *wizard_obj, PyObject *external_data, QWidget *par
     PyErr_Print();
     PyObject *title_obj = PyObject_CallMethod( wizard_obj, (char *) "get_title", NULL );
     PyErr_Print();
+    this->externalData = external_data;
+    this->acceptMethod = PyObject_GetAttrString( wizard_obj, (char *) "accept" );
 
     if ( !wizard_type ) {
         PyErr_Print();
@@ -33,11 +35,14 @@ GuiWizard::GuiWizard(PyObject *wizard_obj, PyObject *external_data, QWidget *par
 
     setWindowTitle( PyString_AsString( title_obj ) );
 
-    PyObject *wizard_page_dict_obj = PyDict_New();
+    wizardPageDictObj = PyDict_New();
     for ( int i = 0; i < PyList_Size( wizard_page_list_obj ); i++ ) {
         PyObject *wizard_page_obj = PyList_GetItem( wizard_page_list_obj, i );
-        PyDict_SetItem( wizard_page_dict_obj, PyObject_CallMethod( wizard_page_obj, (char *) "get_title", NULL ), wizard_page_obj );
-        GuiWizardPage *gui_wizard_page = new GuiWizardPage( wizard_page_obj, wizard_page_dict_obj, external_data, &widgetRegistry, this );
+        PyObject *page_title_obj = PyObject_CallMethod( wizard_page_obj, (char *) "get_title", NULL );
+        PyErr_Print();
+        PyDict_SetItem( wizardPageDictObj, page_title_obj, wizard_page_obj );
+        PyErr_Print();
+        GuiWizardPage *gui_wizard_page = new GuiWizardPage( wizard_page_obj, wizardPageDictObj, external_data, &widgetRegistry, this );
         setPage( gui_wizard_page->getPageId(), gui_wizard_page );
     }
 
@@ -49,5 +54,17 @@ GuiWizard::GuiWizard(PyObject *wizard_obj, PyObject *external_data, QWidget *par
 
 WidgetRegistry GuiWizard::getWidgetRegistry() {
     return widgetRegistry;
+}
+
+PyObject *GuiWizard::getAcceptReturn() {
+    return acceptReturn;
+}
+
+void GuiWizard::accept() {
+    acceptReturn = PyObject_CallObject( acceptMethod,
+                                                   Py_BuildValue( "(O,O,O)", widgetRegistry.getFieldsDict(), wizardPageDictObj, externalData ) );
+    PyErr_Print();
+
+    QDialog::accept();
 }
 

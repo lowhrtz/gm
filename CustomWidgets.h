@@ -3,6 +3,7 @@
 
 #include "PythonInterpreter.h"
 
+#include <QPushButton>
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QWidget>
@@ -41,8 +42,8 @@ public:
 
 /*Static Methods*/
 public:
-    static void fillListWidget( QListWidget *list_widget, PyObject *list_obj, PyObject *tool_tip_callback = NULL, PyObject *fields_obj = NULL );
-    static void addItemToWidget( QListWidget *list_widget, PyObject *list_item_obj, PyObject *tool_tip_callback = NULL, PyObject *fields_obj = NULL );
+    static void fillListWidget( QListWidget *list_widget, PyObject *list_obj, PyObject *tool_tip_callback = NULL, PyObject *fields_obj = NULL, PyObject *wizard_pages_obj = NULL, PyObject *wizard_data_obj = NULL, QListWidget *original_list = 0 );
+    static void addItemToWidget( QListWidget *list_widget, PyObject *list_item_obj, PyObject *tool_tip_callback = NULL, PyObject *fields_obj = NULL, PyObject *wizard_pages_obj = NULL, PyObject *wizard_data_obj = NULL, QListWidget *original_list = 0 );
     static PyObject *getDataList( QListWidget *list_widget );
 
 private:
@@ -51,22 +52,58 @@ private:
 
 };
 
+class DualListData {
+
+public:
+    DualListData( PyObject *data_obj );
+
+
+public:
+    PyObject *getFillAvailCallback();
+    PyObject *getSlotsCallback();
+    PyObject *getSlotsNameObj();
+    PyObject *getCategoryFieldObj();
+    PyObject *getToolTipCallback();
+    PyObject *getAddCallback();
+    PyObject *getRemoveCallback();
+
+private:
+    PyObject *fillAvailCallback;
+    PyObject *slotsCallback;
+    PyObject *slotsNameObj;
+    PyObject *categoryFieldObj;
+    PyObject *toolTipCallback;
+    PyObject *addCallback;
+    PyObject *removeCallback;
+};
+
 class DualListWidget : public QWidget {
 
 public:
     DualListWidget( PyObject *owned_item_list_obj, PyObject *action_data_obj, PyObject *fields_obj, QWidget *parent = 0 );
+    DualListWidget(  PyObject *data_obj, PyObject *fields_obj, PyObject *wizard_pages_obj, PyObject *wizard_data_obj, QWidget *parent = 0 );
+    void setData( PyObject *data_obj );
+    DualListData *getData();
+    void fillAvail( PyObject *owned_item_list_obj, PyObject *fields_obj, PyObject *wizard_pages_obj = NULL, PyObject *wizard_data_obj = NULL );
     QListWidget *getChosenList();
 
+
 private:
+    QHash<QString, QListWidget *> categoryHash;
     QTabWidget *tabbedAvailLists;
     QListWidget *chosenList;
+    QLabel *slotsLabel;
+    QPushButton *addButton;
+    QPushButton *delButton;
+    DualListData *data;
+    PyObject *availItemListObj;
 
 };
 
 class GuiWidget {
 
 public:
-    GuiWidget( PyObject *widget_obj, QWidget *parent = 0, bool create_qwidget = true );
+    GuiWidget( PyObject *widget_obj, QWidget *parent = 0, bool create_qwidget = true, PyObject *wizard_fields_obj = NULL, PyObject *wizard_pages_obj = NULL, PyObject *wizard_data_obj = NULL );
     QString getFieldName();
     int getColSpan();
     int getRowSpan();
@@ -74,6 +111,12 @@ public:
     QWidget *getWidget();
     QString getWidgetType();
     QLayout *getWidgetLayout();
+    void setWidgetData( PyObject *data );
+    PyObject *getWidgetData();
+    void setWizardPages( PyObject *wizard_pages_obj );
+    PyObject *getWizardPages();
+    void setWizardData( PyObject *wiazard_data_obj );
+    PyObject *getWizardData();
 
 private:
     QString fieldName;
@@ -83,6 +126,9 @@ private:
     QWidget *widget;
     QString widgetType;
     QLayout *widgetLayout = NULL;
+    PyObject *data = Py_None;
+    PyObject *wizardPagesObj = NULL;
+    PyObject *wizardDataObj = NULL;
 };
 
 class GuiAction {

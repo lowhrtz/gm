@@ -42,23 +42,23 @@ bonuses = {
             (18.9, '+2', '+4', '+150', '1-4', '30'),
             (18.99, '+2', '+5', '+200', '1-4(1 in 6)', '35'),
             (19, '+3', '+6', '+300', '1-5(1 in 6)', '40'),],
-    'INT': [(3, '0'),
-            (4, '0'),
-            (5, '0'),
-            (6, '0'),
-            (7, '0'),
-            (8, '1'),
-            (9, '1'),
-            (10, '2'),
-            (11, '2'),
-            (12, '3'),
-            (13, '3'),
-            (14, '4'),
-            (15, '4'),
-            (16, '5'),
-            (17, '6'),
-            (18, '7'),
-            (19, '8'),],
+    'INT': [(3, '0', '-', '-'),
+            (4, '0', '-', '-'),
+            (5, '0', '-', '-'),
+            (6, '0', '-', '-'),
+            (7, '0', '-', '-'),
+            (8, '1', '-', '-'),
+            (9, '1', '35', '4/6'),
+            (10, '2', '45', '5/7'),
+            (11, '2', '45', '5/7'),
+            (12, '3', '45', '5/7'),
+            (13, '3', '55', '6/9'),
+            (14, '4', '55', '6/9'),
+            (15, '4', '65', '7/11'),
+            (16, '5', '65', '7/11'),
+            (17, '6', '75', '8/14'),
+            (18, '7', '85', '9/18'),
+            (19, '8', '90', '10/22'),],
     'WIS': [(3, '-3', '0', '45'),
             (4, '-2', '0', '40'),
             (5, '-1', '0', '35'),
@@ -150,7 +150,7 @@ def get_attribute_bonuses(attr_key, score):
 def get_attribute_bonus_string( attr_key, score ):
     bonuses_dict = {}
     bonuses_dict['STR'] = 'To Hit: {}     Damage: {}     Encumbrance: {}     Minor Test: {}     Major Test: {}%'
-    bonuses_dict['INT'] = 'Additional Languages: {}'
+    bonuses_dict['INT'] = 'Add\'l Langs: {} Understand Spell Chance: {}% Min/Max Understood / Level: {}'
     bonuses_dict['WIS'] = 'Mental Save: {}     Bonus Cleric Spells: {}     Cleric Spell Failure: {}%'
     bonuses_dict['DEX'] = 'Surprise: {}     Missile To Hit: {}     AC Adjustment: {}'
     bonuses_dict['CON'] = 'HP Bonus: {}   Resurrect/Raise Dead: {}%   System Shock: {}%'
