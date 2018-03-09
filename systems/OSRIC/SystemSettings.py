@@ -427,6 +427,47 @@ def get_float_from_coinage( character_or_money_dict ):
         total += float( economy[cd] * character_or_money_dict[cd] )
     return total
 
+def race_is_restrictive( race ):
+    if is_instance( race, dict ):
+        race = race['race_id']
+
+    if race in restrictive_races:
+        return True
+
+    return False
+
+def race_wp( self, wp_list, race_id, item_dict_list ):
+    blunt_list = [ blunt['Name'].lower() for blunt in item_dict_list if 'blunt' in blunt['Damage_Type'].split( ',' ) ]
+    race_wp = []
+    wp_expand = []
+    for wp in wp_list:
+        wp_expand.append( [ w.strip().lower() for w in wp.split( ',' ) ] )
+    if race_is_restrictive( race_id ):
+        bucket = wp_expand[0]
+        if 'blunt' in bucket:
+            bucket.remove( 'blunt' )
+            bucket.extend( blunt_list )
+        for i in range( 1, len( wp_expand ) ):
+            if 'blunt' in wp_expand[i]:
+                wp_expand[i].remove( 'blunt' )
+                wp_expand[i].extend( blunt_list )
+            if 'any' in bucket:
+                bucket = wp_expand[i]
+            elif 'any' in wp_expand[i]:
+                bucket = bucket
+            else:
+                bucket = [ w for w in bucket if w in wp_expand[i] ]
+
+    else:
+        wp_flat = sum( wp_expand, [] )
+        bucket = []
+        for wp in wp_flat:
+            if wp not in bucket:
+                bucket.append( wp )
+    if 'any' in bucket:
+        bucket = [ 'any', ]
+    return bucket
+
 def calculate_movement(race_dict, class_dict, attr_dict, equipment_list):
     base_movement = race_dict['Movement_Rate']
     str_bonus = get_attribute_bonuses('STR', attr_dict['STR'])[2]

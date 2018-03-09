@@ -3,6 +3,7 @@
 
 import DbQuery
 import Dice
+import SystemSettings
 from GuiDefs import *
 
 
@@ -280,8 +281,10 @@ class SpellsPage( WizardPage ):
     def get_next_page_id( self, fields, pages, external_data ):
         if pages['Level Up'].priest_category:
             return pages['Daily Priest Spells'].get_page_id()
-        else:
+        elif pages['Level Up'].proficiency_slots_available:
             return pages['Proficiencies'].get_page_id()
+        else:
+            return pages['Review'].get_page_id()
 
 
 class SpellsPage2( WizardPage ):
@@ -395,7 +398,10 @@ class SpellsPage2( WizardPage ):
         return True
 
     def get_next_page_id( self, fields, pages, external_data ):
-        return pages['Proficiencies'].get_page_id()
+        if pages['Level Up'].proficiency_slots_available:
+            return pages['Proficiencies'].get_page_id()
+        else:
+            return pages['Review'].get_page_id()
 
 
 class ProficiencyPage( WizardPage ):
@@ -403,8 +409,80 @@ class ProficiencyPage( WizardPage ):
         super( ProficiencyPage, self ).__init__( 4, 'Proficiencies' )
         self.set_subtitle( 'Choose available proficiencies' )
 
+        self.proficiency_table = [ row for row in DbQuery.getTable( 'Items' ) if row['Is_Proficiency'].lower() == "yes" ]
+        self.class_table = DbQuery.getTable( 'Classes' )
+        self.race_table = DbQuery.getTable( 'Races' )
+        self.slots_remaining = 0
+
+        prof_data = {
+        'fill_avail': self.fill_proficiencies,
+        'slots': self.get_proficiency_slots,
+        'slots_name': 'Proficiency',
+        'category_field': 'Damage_Type',
+        'tool_tip': self.get_tool_tip,
+        'add': self.add_proficiency,
+        'remove': self.remove_proficiency,
+        }
+        proficiencies = Widget( 'Proficiencies', 'DualList', data=prof_data )
+
+        self.add_row( [ proficiencies, ] )
+
+    def fill_proficiencies( self, owned_items, fields, pages, external_data ):
+        pc = external_data['Character List Current']
+
+        self.specialised_list = []
+        self.double_specialised_list = []
+        class_id_list = [ cl.strip() for cl in pc['Classes'].split( '/' ) ]
+        class_list = [ row for row in self.class_table if row['unique_id'] in class_id_list ]
+        if len( class_list ) == 1:
+            class_dict = class_list[0]
+        elif len( class_list ) > 1:
+            class_dict = { 'classes': class_list }
+        race_dict = [ row for row in self.race_table if row['race_id'] == pc['Race'] ][0]
+        if 'classes' in class_dict:
+            wp_list = [ cl['Weapons_Permitted' ] for cl in class_dict[ 'classes' ] ]
+            weapons_permitted = SystemSettings.race_wp( wp_list, race_dict['unique_id'], self.proficiency_table )
+        else:
+            weapons_permitted = [ weapon.strip().lower() for weapon in class_dict['Weapons_Permitted'].split( ',' ) ]
+        item_list = []
+        for item_dict in item_dict_list:
+            item_tuple = ( item_dict['Name'], item_dict )
+            damage_type_list = [ damage_type.strip().lower() for damage_type in item_dict['Damage_Type'].split( ',' ) ]
+            if 'any' in weapons_permitted:
+                item_list.append( item_tuple )
+            elif any( weapon in item_dict['Name'].lower() for weapon in weapons_permitted ):
+                item_list.append( item_tuple )
+            elif [ i for i in weapons_permitted if i in damage_type_list ]:
+                item_list.append( item_tuple )
+            elif 'single-handed swords (except bastard swords)' in weapons_permitted:
+                if item_dict['unique_id'].startswith( 'sword' ) and \
+                'both-hand' not in damage_type_list and 'two-hand' not in damage_type_list:
+                    item_list.append( item_tuple )
+        return item_list
+
+    def get_proficiency_slots( self, fields, pages, external_data ):
+        self.slots_remaining = pages['Level Up'].proficiency_slots_available
+        return self.slots_remaining
+
+    def get_tool_tip( self, item, fields, pages, external_data ):
+        return '{}'.format( item['Notes'] )
+
+    def add_proficiency( self, item, fields, pages, external_data ):
+        return {}
+
+    def remove_proficiency( self, item, fields, pages, external_data ):
+        return {}
+
     def initialize_page( self, fields, pages, external_data ):
-        print pages['Level Up'].ready_list
+        pc = external_data['Character List Current']
+
+        pc_proficiency_list = [ row['Entry_ID'] for row in pc['Characters_meta'] if row['Type'] == 'Proficiency' ]
+        pc_proficiencies = [ row for row in self.proficiency_table if row['unique_id'] in pc_proficiency_list ]
+
+        return { 'Proficiencies', pc_proficiencies }
+
+    def is_complete( self, fields, pages, external_data ):
+        return True
 
 
 class ReviewPage( WizardPage ):
@@ -429,13 +507,12 @@ class ReviewPage( WizardPage ):
                 hp_roll = Dice.rollString( 'd{}'.format( cl['Hit_Die_Type'] ) )
             else:
                 hp_roll = [ row for row in cl['Classes_meta'] if row['Level'] == 'each' ][0]['Hit_Dice']
-            print hp_roll
+#            print hp_roll
             hp_add += hp_roll / len( classes ) or 1
 
-    def is_complete( self, fields, pages, external_data ):
-#        if fields['Name'] == '' or fields['Name'].isspace():
-#            return False
+            return { 'Review Text' : '<b>Hit Points Added: </b>{}'.format( str( hp_add ) ) }
 
+    def is_complete( self, fields, pages, external_data ):
         return True
 
 
